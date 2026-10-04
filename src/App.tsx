@@ -148,7 +148,11 @@ const INITIAL_ALARMS: AlarmItem[] = [
 export default function App() {
   // Model & AI State
   const [currentModel, setCurrentModel] = useState<ModelType>(() => {
-    return (localStorage.getItem('vvc_acia_model') as ModelType) || 'nvidia/nemotron-3.5-lightning-30b-a3b';
+    const saved = localStorage.getItem('vvc_acia_model') as ModelType;
+    if (saved && saved !== 'nvidia/nemotron-3.5-lightning-30b-a3b') {
+      return saved;
+    }
+    return 'meta/llama-3.2-11b-vision-instruct';
   });
 
   // Cloud Service Integration State
@@ -669,7 +673,7 @@ export default function App() {
               { role: 'user', content: commandText },
             ],
             temperature: 0.6,
-            max_tokens: 300,
+            max_tokens: 800,
           }),
         });
 

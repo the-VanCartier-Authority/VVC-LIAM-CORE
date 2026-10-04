@@ -104,12 +104,21 @@ export interface ModelInfo {
 
 export const AVAILABLE_MODELS: ModelInfo[] = [
   {
+    id: 'meta/llama-3.2-11b-vision-instruct',
+    name: 'Llama 3.2 11B Fast (NVIDIA NIM)',
+    provider: 'Meta / NVIDIA Build',
+    category: 'NVIDIA NIM',
+    description: 'Respuesta ultra-rápida (<1 seg) en tiempo real con NVIDIA Build Cloud. Máxima velocidad de voz.',
+    bestFor: 'Conversación fluida por voz instantánea (Recomendado)',
+    isFreeEndpoint: true,
+  },
+  {
     id: 'nvidia/nemotron-3.5-lightning-30b-a3b',
     name: 'Nemotron 3.5 Lightning 30B',
     provider: 'NVIDIA',
     category: 'NVIDIA NIM',
     description: 'Agentes especializados, instrucciones técnicas y flujos de trabajo con herramientas.',
-    bestFor: 'Coding & Agentes (Recomendado para VVC-ACIA)',
+    bestFor: 'Coding & Agentes Autónomos',
     isFreeEndpoint: true,
   },
   {
@@ -273,32 +282,32 @@ export interface KokoroVoice {
 export const KOKORO_VOICES: KokoroVoice[] = [
   {
     id: 'es_mateo',
-    name: 'Kokoro Mateo (ES)',
+    name: 'Neural Mateo HD (Fenrir)',
     gender: 'Masculina',
     language: 'Español',
-    style: 'Español Neutro, sereno y profesional',
+    style: 'Neural Studio HD: Profunda, ejecutiva y sobria',
     samplePhrase: 'Hola, soy VVC-ACIA. Todos los sistemas están sincronizados y listos.',
     pitch: 0.95,
     rate: 1.05,
   },
   {
     id: 'es_sofia',
-    name: 'Kokoro Sofía (ES)',
+    name: 'Neural Sofía HD (Kore)',
     gender: 'Femenina',
     language: 'Español',
-    style: 'Español Cálido, articulado y empático',
+    style: 'Neural Studio HD: Cálida, fluida y ultra-natural',
     samplePhrase: 'Entendido. Ejecutando la acción de inmediato con cifrado total.',
-    pitch: 1.15,
+    pitch: 1.0,
     rate: 1.05,
   },
   {
     id: 'af_heart',
-    name: 'Kokoro Heart',
+    name: 'Neural Heart HD (Zephyr)',
     gender: 'Femenina',
     language: 'English',
-    style: 'Voz insignia, ultra-natural y fluida',
+    style: 'Neural Studio HD: Tecnológica, suave y precisa',
     samplePhrase: 'VVC-ACIA neural core active. How can I assist your workflow today?',
-    pitch: 1.08,
+    pitch: 1.0,
     rate: 1.0,
   },
   {

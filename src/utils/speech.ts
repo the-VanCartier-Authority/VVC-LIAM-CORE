@@ -191,52 +191,38 @@ export function initSpeechRecognition(callbacks: {
   };
 }
 
+let activeAudioElement: HTMLAudioElement | null = null;
+
 /**
- * Kokoro Realistic Voice Engine (TTS)
- * Implements realistic speech rendering with configurable Kokoro profiles
+ * Fallback to browser SpeechSynthesis (e.g. offline mode)
  */
-export function speakKokoro(
-  text: string,
-  voiceId: KokoroVoiceId = 'es_mateo',
+function speakWithBrowser(
+  cleanText: string,
+  voiceId: KokoroVoiceId,
   options: {
     pitchModifier?: number;
     rateModifier?: number;
     volume?: number;
     onStart?: () => void;
     onEnd?: () => void;
-  } = {}
+  }
 ) {
   if (!('speechSynthesis' in window)) {
-    console.warn('SpeechSynthesis is not supported in this browser.');
+    if (options.onEnd) options.onEnd();
     return;
   }
 
   window.speechSynthesis.cancel();
-
-  // Find Kokoro profile
   const profile = KOKORO_VOICES.find((v) => v.id === voiceId) || KOKORO_VOICES[0];
-
-  // Clean markdown / console symbols from text before speaking
-  const cleanText = text
-    .replace(/\[\w+\]/g, '') // remove tags like [EXEC], [E2EE]
-    .replace(/[#*_`~>]/g, '') // remove markdown symbols
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  if (!cleanText) return;
-
   const utterance = new SpeechSynthesisUtterance(cleanText);
 
-  // Apply Kokoro profile settings
   utterance.pitch = (profile.pitch || 1.0) * (options.pitchModifier || 1.0);
   utterance.rate = (profile.rate || 1.0) * (options.rateModifier || 1.0);
-  utterance.volume = options.volume !== undefined ? options.volume / 100 : 0.9;
+  utterance.volume = options.volume !== undefined ? Math.min(Math.max(options.volume / 100, 0), 1) : 0.9;
 
-  // Select optimal browser voice matching language & gender
   const voices = window.speechSynthesis.getVoices();
   const targetLang = profile.language === 'Español' ? 'es' : 'en';
 
-  // Find best matching voice
   const matchedVoice =
     voices.find(
       (v) =>
@@ -268,8 +254,91 @@ export function speakKokoro(
   window.speechSynthesis.speak(utterance);
 }
 
+/**
+ * High-Fidelity Studio Neural Voice Engine (TTS)
+ * Renders human-level speech via /api/tts neural pipeline,
+ * with seamless fallback to on-device SpeechSynthesis.
+ */
+export async function speakKokoro(
+  text: string,
+  voiceId: KokoroVoiceId = 'es_mateo',
+  options: {
+    pitchModifier?: number;
+    rateModifier?: number;
+    volume?: number;
+    onStart?: () => void;
+    onEnd?: () => void;
+  } = {}
+) {
+  // Cancel previous speech
+  stopSpeaking();
+
+  // Clean markdown / console symbols from text before speaking
+  const cleanText = text
+    .replace(/\[(?:EXEC|E2EE|ALERTA|NOTIF|DISPOSITIVO|CALENDARIO|TAREA)\]/gi, '')
+    .replace(/\[\w+[^\]]*\]/g, '')
+    .replace(/[#*_`~>]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!cleanText) {
+    if (options.onEnd) options.onEnd();
+    return;
+  }
+
+  // Attempt Studio Neural TTS via server
+  try {
+    const res = await fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: cleanText, voiceId }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.audio && !data.fallback) {
+        const audio = new Audio(`data:${data.mimeType || 'audio/wav'};base64,${data.audio}`);
+        activeAudioElement = audio;
+        audio.volume = options.volume !== undefined ? Math.min(Math.max(options.volume / 100, 0), 1) : 0.95;
+
+        audio.onplay = () => {
+          if (options.onStart) options.onStart();
+        };
+
+        audio.onended = () => {
+          activeAudioElement = null;
+          if (options.onEnd) options.onEnd();
+        };
+
+        audio.onerror = (e) => {
+          console.warn('Audio element error, using browser fallback:', e);
+          activeAudioElement = null;
+          speakWithBrowser(cleanText, voiceId, options);
+        };
+
+        await audio.play();
+        return;
+      }
+    }
+  } catch (err) {
+    console.debug('Neural TTS offline or network error, falling back to browser synthesis:', err);
+  }
+
+  // Fallback to local browser utterance
+  speakWithBrowser(cleanText, voiceId, options);
+}
+
 export function stopSpeaking() {
+  if (activeAudioElement) {
+    try {
+      activeAudioElement.pause();
+      activeAudioElement.currentTime = 0;
+    } catch {}
+    activeAudioElement = null;
+  }
   if ('speechSynthesis' in window) {
-    window.speechSynthesis.cancel();
+    try {
+      window.speechSynthesis.cancel();
+    } catch {}
   }
 }
