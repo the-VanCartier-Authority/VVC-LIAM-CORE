@@ -1,0 +1,217 @@
+import React from 'react';
+import { 
+  ShieldCheck, 
+  Wifi, 
+  WifiOff, 
+  Sliders, 
+  Cpu, 
+  Calendar, 
+  Lock, 
+  Volume2, 
+  VolumeX,
+  Smartphone,
+  Cloud
+} from 'lucide-react';
+import { 
+  AVAILABLE_MODELS, 
+  CLOUD_INTEGRATIONS, 
+  type ModelType, 
+  type CloudServiceIntegrationType 
+} from '../types';
+
+interface HeaderProps {
+  currentModel: ModelType;
+  onSelectModel: (model: ModelType) => void;
+  currentCloudIntegration: CloudServiceIntegrationType;
+  onSelectCloudIntegration: (ci: CloudServiceIntegrationType) => void;
+  isOffline: boolean;
+  onToggleOffline: () => void;
+  onOpenSettings: () => void;
+  onOpenCalendar: () => void;
+  onOpenVault: () => void;
+  onOpenDeviceControls: () => void;
+  isMuted: boolean;
+  onToggleMute: () => void;
+  pendingTasksCount: number;
+  onOpenInstallModal: () => void;
+}
+
+export const Header: React.FC<HeaderProps> = ({
+  currentModel,
+  onSelectModel,
+  currentCloudIntegration,
+  onSelectCloudIntegration,
+  isOffline,
+  onToggleOffline,
+  onOpenSettings,
+  onOpenCalendar,
+  onOpenVault,
+  onOpenDeviceControls,
+  isMuted,
+  onToggleMute,
+  pendingTasksCount,
+  onOpenInstallModal,
+}) => {
+  const currentModelInfo = AVAILABLE_MODELS.find((m) => m.id === currentModel) || AVAILABLE_MODELS[0];
+  const currentCloudInfo = CLOUD_INTEGRATIONS.find((c) => c.id === currentCloudIntegration) || CLOUD_INTEGRATIONS[0];
+
+  return (
+    <header className="w-full bg-[#050608]/90 backdrop-blur-md border-b border-[#1e2638] sticky top-0 z-40 transition-colors">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+        {/* Zone 1: Wordmark Brand */}
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="relative flex items-center justify-center w-8 h-8 rounded bg-[#0a0d14] border border-[#00f0ff]/40 shadow-[0_0_12px_rgba(0,240,255,0.25)]">
+            <span className="text-[#00f0ff] font-bold text-xs font-mono tracking-widest">VC</span>
+            <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#00f0ff] animate-ping" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm sm:text-base font-bold tracking-wider text-slate-100 font-mono flex items-center gap-2">
+              VVC-ACIA
+              <span className="text-[10px] uppercase tracking-widest text-[#00f0ff] bg-[#00f0ff]/10 px-1.5 py-0.5 rounded border border-[#00f0ff]/30 hidden sm:inline-block">
+                OS·Obsidian
+              </span>
+            </span>
+          </div>
+        </div>
+
+        {/* Zone 2: Navigation & Quick Hub Links */}
+        <nav className="hidden md:flex items-center gap-1 sm:gap-2">
+          {/* Model Selector Dropdown in Nav */}
+          <div className="relative group">
+            <button
+              className="flex items-center gap-2 px-3 py-1.5 text-xs font-mono rounded bg-[#0a0d14] border border-[#1e2638] hover:border-[#b026ff]/50 text-slate-200 transition-colors"
+              title="Alternar entre modelos NVIDIA Build y RT-Lite On-Device"
+            >
+              <Cpu className="w-3.5 h-3.5 text-[#b026ff]" />
+              <span className="truncate max-w-[120px] lg:max-w-[180px]">
+                {currentModelInfo.name}
+              </span>
+              <span className="text-[9px] text-[#00f0ff] font-mono border border-[#00f0ff]/30 px-1 rounded">
+                {currentModel === 'rt-lite-local' ? 'OFFLINE' : 'NVIDIA'}
+              </span>
+            </button>
+
+            {/* Quick dropdown hover menu */}
+            <div className="absolute left-0 mt-1 w-72 bg-[#090c14] border border-[#1e2638] rounded-md shadow-2xl p-2 hidden group-hover:block z-50">
+              <div className="text-[10px] text-slate-400 font-mono uppercase px-2 py-1 border-b border-[#1e2638] mb-1">
+                Seleccionar Motor Neuronal
+              </div>
+              <div className="max-h-64 overflow-y-auto space-y-1">
+                {AVAILABLE_MODELS.map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => onSelectModel(m.id)}
+                    className={`w-full text-left px-2.5 py-1.5 rounded text-xs font-mono transition-all flex flex-col ${
+                      currentModel === m.id
+                        ? 'bg-[#b026ff]/20 text-[#00f0ff] border border-[#b026ff]/40'
+                        : 'text-slate-300 hover:bg-[#121724] hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold truncate">{m.name}</span>
+                      <span className="text-[9px] text-slate-400 opacity-80">{m.category}</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 truncate">{m.bestFor}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Cloud Service Integration Indicator Button */}
+          <button
+            onClick={onOpenSettings}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono rounded bg-[#0a0d14] border border-[#1e2638] hover:border-[#00f0ff]/40 text-slate-300 transition-colors"
+            title={`Integración Cloud: ${currentCloudInfo.name}`}
+          >
+            <Cloud className="w-3.5 h-3.5 text-[#00f0ff]" />
+            <span className="truncate max-w-[110px] lg:max-w-[150px]">
+              {currentCloudInfo.provider}
+            </span>
+          </button>
+
+          {/* Calendar & Tasks Link */}
+          <button
+            onClick={onOpenCalendar}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono text-slate-300 hover:text-[#00f0ff] hover:bg-[#0f141f] rounded transition-colors relative"
+          >
+            <Calendar className="w-3.5 h-3.5 text-[#00f0ff]" />
+            <span>Agenda & Tareas</span>
+            {pendingTasksCount > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-[#00f0ff] text-black text-[9px] font-bold">
+                {pendingTasksCount}
+              </span>
+            )}
+          </button>
+
+          {/* E2EE Encrypted Vault Link */}
+          <button
+            onClick={onOpenVault}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono text-slate-300 hover:text-[#00f0ff] hover:bg-[#0f141f] rounded transition-colors"
+          >
+            <Lock className="w-3.5 h-3.5 text-[#ff2a5f]" />
+            <span>Bóveda E2EE</span>
+          </button>
+
+          {/* Device Controls Phone Hub */}
+          <button
+            onClick={onOpenDeviceControls}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono text-slate-300 hover:text-[#b026ff] hover:bg-[#0f141f] rounded transition-colors"
+          >
+            <Smartphone className="w-3.5 h-3.5 text-[#b026ff]" />
+            <span>Funciones Teléfono</span>
+          </button>
+        </nav>
+
+        {/* Zone 3: Primary Actions and Hardware Toggles */}
+        <div className="flex items-center gap-2">
+          {/* Install App / APK Button */}
+          <button
+            onClick={onOpenInstallModal}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono bg-[#00f0ff]/15 border border-[#00f0ff]/50 hover:bg-[#00f0ff]/25 text-[#00f0ff] font-bold transition-all shadow-[0_0_10px_rgba(0,240,255,0.25)]"
+            title="Instalar como App en Android / Generar APK"
+          >
+            <Smartphone className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Instalar App / APK</span>
+          </button>
+
+          {/* Offline Mode Switch */}
+          <button
+            onClick={onToggleOffline}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-mono border transition-all ${
+              isOffline
+                ? 'bg-[#ff2a5f]/20 border-[#ff2a5f] text-[#ff2a5f] shadow-[0_0_10px_rgba(255,42,95,0.3)]'
+                : 'bg-[#0a0d14] border-[#1e2638] text-slate-300 hover:border-[#00f0ff]/40'
+            }`}
+            title={isOffline ? 'Modo Offline Forzado (RT-Lite Activo)' : 'Conectado a la Red'}
+          >
+            {isOffline ? <WifiOff className="w-3.5 h-3.5" /> : <Wifi className="w-3.5 h-3.5 text-[#00f0ff]" />}
+            <span className="hidden sm:inline">{isOffline ? 'OFFLINE' : 'ONLINE'}</span>
+          </button>
+
+          {/* Mute Voice Feedback */}
+          <button
+            onClick={onToggleMute}
+            className={`p-2 rounded text-xs font-mono border transition-all ${
+              isMuted
+                ? 'bg-[#ff2a5f]/20 border-[#ff2a5f] text-[#ff2a5f]'
+                : 'bg-[#0a0d14] border-[#1e2638] text-slate-300 hover:text-[#00f0ff]'
+            }`}
+            title={isMuted ? 'Voz silenciada' : 'Voz activa (Kokoro)'}
+          >
+            {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5 text-[#00f0ff]" />}
+          </button>
+
+          {/* Settings Trigger */}
+          <button
+            onClick={onOpenSettings}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono bg-[#0f141f] border border-[#1e2638] hover:border-[#00f0ff] text-slate-100 hover:text-[#00f0ff] transition-all shadow-sm"
+          >
+            <Sliders className="w-3.5 h-3.5 text-[#00f0ff]" />
+            <span className="hidden sm:inline">Configuración</span>
+          </button>
+        </div>
+      </div>
+    </header>
+  );
+};

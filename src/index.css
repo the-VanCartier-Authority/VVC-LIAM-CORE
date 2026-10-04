@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-obsidian: #050608;
+    --bg-surface: #0a0d14;
+    --bg-card: #0f141f;
+    --border-subtle: #1e2638;
+    --neon-blue: #00f0ff;
+    --neon-violet: #b026ff;
+    --neon-red: #ff2a5f;
+  }
+
+  body {
+    background-color: #050608;
+    color: #e2e8f0;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    overflow-x: hidden;
+  }
+}
+
+/* Custom Cyber / Command Console Scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #07090e;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #00f0ff55;
+}
+
+/* Neon Glow Utilities */
+.glow-blue {
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.35), inset 0 0 10px rgba(0, 240, 255, 0.15);
+}
+
+.glow-violet {
+  box-shadow: 0 0 20px rgba(176, 38, 255, 0.35), inset 0 0 10px rgba(176, 38, 255, 0.15);
+}
+
+.glow-red {
+  box-shadow: 0 0 20px rgba(255, 42, 95, 0.35), inset 0 0 10px rgba(255, 42, 95, 0.15);
+}
+
+.text-glow-blue {
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.7);
+}
+
+.text-glow-violet {
+  text-shadow: 0 0 10px rgba(176, 38, 255, 0.7);
+}
+
+.text-glow-red {
+  text-shadow: 0 0 10px rgba(255, 42, 95, 0.7);
+}
+
+/* Subtle CRT scanline effect for vanguard console aesthetics */
+.scanline-bg {
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%, 
+    rgba(0, 0, 0, 0.25) 50%
+  ), linear-gradient(
+    90deg,
+    rgba(255, 0, 0, 0.03),
+    rgba(0, 255, 0, 0.01),
+    rgba(0, 0, 255, 0.03)
+  );
+  background-size: 100% 3px, 6px 100%;
+}
+
+@keyframes terminalBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.animate-blink {
+  animation: terminalBlink 1s infinite;
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
+.animate-voice-pulse {
+  animation: pulseGlow 1.8s ease-in-out infinite;
+}

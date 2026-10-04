@@ -1,0 +1,1104 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Header } from './components/Header';
+import { VoiceOrbVisualizer } from './components/VoiceOrbVisualizer';
+import { QuickCommandChips } from './components/QuickCommandChips';
+import { CommandConsole } from './components/CommandConsole';
+import { PhoneActionModal } from './components/PhoneActionModal';
+import { MessagingModal } from './components/MessagingModal';
+import { ScreenTorchModal } from './components/ScreenTorchModal';
+import { DeviceControlsDrawer } from './components/DeviceControlsDrawer';
+import { CalendarRemindersModal } from './components/CalendarRemindersModal';
+import { EncryptedVaultModal } from './components/EncryptedVaultModal';
+import { SettingsModal } from './components/SettingsModal';
+import { RealTimeAlertToast } from './components/RealTimeAlertToast';
+import { InstallModal } from './components/InstallModal';
+
+import { 
+  type ModelType, 
+  type KokoroVoiceId, 
+  type CloudServiceIntegrationType,
+  type DeviceState, 
+  type ActiveCall, 
+  type PhoneContact, 
+  type AlarmItem, 
+  type TimerItem, 
+  type CalendarEvent, 
+  type TaskItem, 
+  type EncryptedVaultItem, 
+  type ConsoleMessage,
+  type ActiveNotificationAlert,
+  AVAILABLE_MODELS,
+  CLOUD_INTEGRATIONS,
+  KOKORO_VOICES
+} from './types';
+
+import { 
+  initSpeechRecognition, 
+  speakKokoro, 
+  stopSpeaking, 
+  playCyberTone, 
+  setupMicrophoneAnalyzer, 
+  stopMicrophoneAnalyzer 
+} from './utils/speech';
+
+import { 
+  parseNaturalVoiceCommand, 
+  generateRTLiteResponse 
+} from './utils/rtLiteEngine';
+
+import { 
+  downloadICSFile, 
+  dispatchTaskWebhook 
+} from './utils/ical';
+
+const INITIAL_CONTACTS: PhoneContact[] = [
+  { id: 'c1', name: 'Carlos Méndez', phone: '+34 612 345 678', relation: 'Colega de Proyecto', favorite: true },
+  { id: 'c2', name: 'María García', phone: '+34 689 987 654', relation: 'Dirección de Operaciones', favorite: true },
+  { id: 'c3', name: 'Alex Rivera', phone: '+1 (555) 304-9821', relation: 'Ingeniero de Sistemas' },
+  { id: 'c4', name: 'Laura Gómez', phone: '+34 677 112 233', relation: 'Familia' },
+  { id: 'c5', name: 'Emergencias 911', phone: '911', relation: 'Servicio de Urgencias', favorite: true },
+];
+
+const INITIAL_TASKS: TaskItem[] = [
+  {
+    id: 't-1',
+    title: 'Comprobar telemetría de inferencia NVIDIA',
+    dueDate: new Date().toISOString().split('T')[0],
+    timeDue: '14:30',
+    priority: 'alta',
+    category: 'trabajo',
+    isCompleted: false,
+    recurrence: 'daily',
+    subtasks: [
+      { id: 'st-1', title: 'Verificar cuota de API en build.nvidia.com', completed: true },
+      { id: 'st-2', title: 'Medir latencia en modelos Flash y Nemotron', completed: false },
+    ],
+    syncedToThirdParty: { googleCalendar: true, notion: true, todoist: true },
+    createdAt: Date.now() - 3600000,
+    updatedAt: Date.now() - 3600000,
+  },
+  {
+    id: 't-2',
+    title: 'Respaldar claves de cifrado E2EE',
+    dueDate: new Date().toISOString().split('T')[0],
+    timeDue: '18:00',
+    priority: 'critica',
+    category: 'urgente',
+    isCompleted: false,
+    recurrence: 'weekly',
+    subtasks: [
+      { id: 'st-3', title: 'Verificar huella SHA-256 en bóveda', completed: false },
+      { id: 'st-4', title: 'Exportar backup .json cifrado con PBKDF2', completed: false },
+    ],
+    syncedToThirdParty: { googleCalendar: true, notion: false, todoist: true },
+    createdAt: Date.now() - 7200000,
+    updatedAt: Date.now() - 7200000,
+  },
+  {
+    id: 't-3',
+    title: 'Sincronizar agenda semanal con VVC-ACIA',
+    dueDate: new Date().toISOString().split('T')[0],
+    timeDue: '20:00',
+    priority: 'media',
+    category: 'proyecto',
+    isCompleted: true,
+    completedAt: Date.now() - 1800000,
+    recurrence: 'none',
+    subtasks: [],
+    syncedToThirdParty: { googleCalendar: true, notion: true, todoist: false },
+    createdAt: Date.now() - 86400000,
+    updatedAt: Date.now() - 1800000,
+  },
+];
+
+const INITIAL_EVENTS: CalendarEvent[] = [
+  {
+    id: 'e1',
+    title: 'Reunión de Arquitectura Neuronal & Cloud',
+    date: new Date().toISOString().split('T')[0],
+    time: '11:00',
+    endTime: '12:00',
+    location: 'Virtual Terminal VVC-ACIA',
+    description: 'Revisión de integración con Google Calendar y sincronización de tareas.',
+    isAutomated: true,
+    category: 'reunion',
+  },
+  {
+    id: 'e2',
+    title: 'Revisión de Seguridad Zero-Knowledge',
+    date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+    time: '16:00',
+    endTime: '17:00',
+    location: 'Laboratorio Cifrado',
+    description: 'Auditoría de claves AES-GCM-256 locales.',
+    category: 'sistema',
+  },
+];
+
+const INITIAL_ALARMS: AlarmItem[] = [
+  { id: 'a1', time: '07:00', label: 'Despertador Operativo', enabled: true, days: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'] },
+  { id: 'a2', time: '23:30', label: 'Modo Descanso Obsidian', enabled: false, days: ['Todos'] },
+];
+
+export default function App() {
+  // Model & AI State
+  const [currentModel, setCurrentModel] = useState<ModelType>(() => {
+    return (localStorage.getItem('vvc_acia_model') as ModelType) || 'nvidia/nemotron-3.5-lightning-30b-a3b';
+  });
+
+  // Cloud Service Integration State
+  const [currentCloudIntegration, setCurrentCloudIntegration] = useState<CloudServiceIntegrationType>(() => {
+    return (localStorage.getItem('vvc_acia_cloud_integration') as CloudServiceIntegrationType) || 'google_calendar';
+  });
+
+  const [nvidiaApiKey, setNvidiaApiKey] = useState(() => localStorage.getItem('vvc_acia_nvidia_key') || '');
+  const [customEndpoint, setCustomEndpoint] = useState(() => localStorage.getItem('vvc_acia_endpoint') || 'https://integrate.api.nvidia.com/v1/chat/completions');
+  const [thirdPartyWebhookUrl, setThirdPartyWebhookUrl] = useState(() => localStorage.getItem('vvc_acia_webhook') || '');
+
+  // Kokoro TTS State
+  const [selectedVoiceId, setSelectedVoiceId] = useState<KokoroVoiceId>(() => {
+    return (localStorage.getItem('vvc_acia_voice') as KokoroVoiceId) || 'es_mateo';
+  });
+  const [pitchModifier, setPitchModifier] = useState(1.0);
+  const [rateModifier, setRateModifier] = useState(1.05);
+
+  // Network & Environment
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [autoDarkMode, setAutoDarkMode] = useState(true);
+  const [cloudSyncEnabled, setCloudSyncEnabled] = useState(true);
+
+  // Device & Hardware State
+  const [deviceState, setDeviceState] = useState<DeviceState>({
+    flashlight: false,
+    brightness: 80,
+    volume: 75,
+    isMuted: false,
+    wifi: true,
+    bluetooth: true,
+    batteryLevel: 92,
+    isCharging: false,
+    screenTorchActive: false,
+    airplaneMode: false,
+    dnd: false,
+  });
+
+  // Call simulation state
+  const [activeCall, setActiveCall] = useState<ActiveCall>({
+    inCall: false,
+    contactName: '',
+    phoneNumber: '',
+    durationSeconds: 0,
+    isMuted: false,
+    isSpeaker: false,
+    state: 'calling',
+  });
+
+  // Messaging modal state
+  const [messagingState, setMessagingState] = useState<{
+    isOpen: boolean;
+    recipient: string;
+    initialMessage: string;
+    channel: 'SMS' | 'WhatsApp';
+  }>({
+    isOpen: false,
+    recipient: '',
+    initialMessage: '',
+    channel: 'SMS',
+  });
+
+  // Advanced Tasks, Reminders & Calendar Collections
+  const [contacts] = useState<PhoneContact[]>(INITIAL_CONTACTS);
+  const [tasks, setTasks] = useState<TaskItem[]>(() => {
+    const saved = localStorage.getItem('vvc_acia_tasks');
+    if (saved) {
+      try { return JSON.parse(saved); } catch {}
+    }
+    return INITIAL_TASKS;
+  });
+
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>(() => {
+    const saved = localStorage.getItem('vvc_acia_events');
+    if (saved) {
+      try { return JSON.parse(saved); } catch {}
+    }
+    return INITIAL_EVENTS;
+  });
+
+  const [alarms, setAlarms] = useState<AlarmItem[]>(INITIAL_ALARMS);
+  const [timers, setTimers] = useState<TimerItem[]>([]);
+  const [vaultItems, setVaultItems] = useState<EncryptedVaultItem[]>([]);
+  const [masterPassphrase, setMasterPassphrase] = useState('vvc-obsidian-secure-pass-2026');
+
+  // Active Real-time Alert Toasts
+  const [activeAlerts, setActiveAlerts] = useState<ActiveNotificationAlert[]>([]);
+  const notifiedTaskTimestampsRef = useRef<{ [key: string]: boolean }>({});
+
+  // Console messages
+  const [messages, setMessages] = useState<ConsoleMessage[]>([
+    {
+      id: 'm-init',
+      sender: 'system',
+      text: 'VVC-ACIA OS Obsidian Core v2.4 activo. Sistema avanzado de tareas y recordatorios en tiempo real sincronizado con Google Calendar & Cloud Services.',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      modelUsed: 'NVIDIA Nemotron 3.5 / RT-Lite Local',
+      isE2EE: true,
+    },
+  ]);
+
+  // Voice & Interaction Flags
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [currentTranscript, setCurrentTranscript] = useState('');
+  const [statusLabel, setStatusLabel] = useState('LISTO');
+
+  // Modals Visibility
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isVaultOpen, setIsVaultOpen] = useState(false);
+  const [isDeviceControlsOpen, setIsDeviceControlsOpen] = useState(false);
+  const [isScreenTorchOpen, setIsScreenTorchOpen] = useState(false);
+  const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
+
+  // References
+  const speechRecognitionRef = useRef<any>(null);
+  const cameraTrackRef = useRef<MediaStreamTrack | null>(null);
+
+  // Save tasks and events to localStorage
+  useEffect(() => {
+    localStorage.setItem('vvc_acia_tasks', JSON.stringify(tasks));
+  }, [tasks]);
+
+  useEffect(() => {
+    localStorage.setItem('vvc_acia_events', JSON.stringify(calendarEvents));
+  }, [calendarEvents]);
+
+  // Battery API integration
+  useEffect(() => {
+    if ('getBattery' in navigator) {
+      (navigator as any).getBattery().then((battery: any) => {
+        setDeviceState((prev) => ({
+          ...prev,
+          batteryLevel: Math.round(battery.level * 100),
+          isCharging: battery.charging,
+        }));
+
+        battery.addEventListener('levelchange', () => {
+          setDeviceState((prev) => ({ ...prev, batteryLevel: Math.round(battery.level * 100) }));
+        });
+        battery.addEventListener('chargingchange', () => {
+          setDeviceState((prev) => ({ ...prev, isCharging: battery.charging }));
+        });
+      });
+    }
+
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Timers countdown ticker
+  useEffect(() => {
+    const timerInterval = setInterval(() => {
+      setTimers((prev) =>
+        prev.map((t) => {
+          if (!t.isRunning || t.remainingSeconds <= 0) return t;
+          const nextSec = t.remainingSeconds - 1;
+          if (nextSec === 0) {
+            playCyberTone('alarm');
+            speakKokoro(`¡Atención! El temporizador ${t.label} ha finalizado.`, selectedVoiceId);
+            return { ...t, remainingSeconds: 0, isRunning: false, isCompleted: true };
+          }
+          return { ...t, remainingSeconds: nextSec };
+        })
+      );
+    }, 1000);
+
+    return () => clearInterval(timerInterval);
+  }, [selectedVoiceId]);
+
+  // ADVANCED REAL-TIME NOTIFICATIONS MONITOR FOR TASKS & REMINDERS
+  useEffect(() => {
+    const checkTasksInterval = setInterval(() => {
+      const now = new Date();
+      const currentDateStr = now.toISOString().split('T')[0];
+      const currentTimeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      tasks.forEach((task) => {
+        if (!task.isCompleted && task.timeDue === currentTimeStr) {
+          // Check if due today or snoozed until current time
+          const isDueNow = !task.dueDate || task.dueDate === currentDateStr || task.snoozedUntil === currentTimeStr;
+          const triggerKey = `${task.id}-${currentTimeStr}-${currentDateStr}`;
+
+          if (isDueNow && !notifiedTaskTimestampsRef.current[triggerKey]) {
+            notifiedTaskTimestampsRef.current[triggerKey] = true;
+
+            // 1. Play cybernetic alert tone
+            playCyberTone('alert');
+
+            // 2. Add floating toast banner
+            const newAlert: ActiveNotificationAlert = {
+              id: `alert-${Date.now()}-${task.id}`,
+              taskId: task.id,
+              title: task.title,
+              timeDue: task.timeDue,
+              priority: task.priority,
+              category: task.category,
+              timestamp: Date.now(),
+            };
+            setActiveAlerts((prev) => [newAlert, ...prev.slice(0, 3)]);
+
+            // 3. Voice announcement with Kokoro TTS
+            if (!deviceState.isMuted) {
+              speakKokoro(`Atención. Recordatorio programado: ${task.title}. Prioridad ${task.priority}.`, selectedVoiceId);
+            }
+
+            // 4. Browser Web Notification (if permission granted)
+            if ('Notification' in window && Notification.permission === 'granted') {
+              try {
+                new Notification(`VVC-ACIA // ${task.title}`, {
+                  body: `Hora: ${task.timeDue} · Prioridad: ${task.priority.toUpperCase()}`,
+                  icon: '/favicon.ico',
+                });
+              } catch {}
+            }
+
+            // 5. Dispatch third-party webhook if configured
+            if (thirdPartyWebhookUrl) {
+              dispatchTaskWebhook(thirdPartyWebhookUrl, 'notified', task);
+            }
+          }
+        }
+      });
+    }, 2000);
+
+    return () => clearInterval(checkTasksInterval);
+  }, [tasks, deviceState.isMuted, selectedVoiceId, thirdPartyWebhookUrl]);
+
+  // Physical Camera Torch Toggle
+  const togglePhysicalTorch = async (enable: boolean) => {
+    try {
+      if (enable) {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' },
+        });
+        const track = stream.getVideoTracks()[0];
+        cameraTrackRef.current = track;
+        const capabilities: any = track.getCapabilities?.();
+        if (capabilities?.torch) {
+          await (track as any).applyConstraints({ advanced: [{ torch: true }] });
+        }
+      } else {
+        if (cameraTrackRef.current) {
+          cameraTrackRef.current.stop();
+          cameraTrackRef.current = null;
+        }
+      }
+    } catch (err) {
+      console.debug('Physical camera torch not available, fallback to screen flashlight:', err);
+    }
+  };
+
+  // Convert Task to Calendar Event
+  const handleConvertTaskToEvent = (task: TaskItem) => {
+    const newEvent: CalendarEvent = {
+      id: `e-task-${task.id}`,
+      title: task.title,
+      date: task.dueDate || new Date().toISOString().split('T')[0],
+      time: task.timeDue || '10:00',
+      description: `Tarea vinculada de VVC-ACIA [Prioridad: ${task.priority.toUpperCase()}]`,
+      location: 'Virtual Hub VVC-ACIA',
+      category: 'tarea',
+      isAutomated: true,
+      linkedTaskId: task.id,
+    };
+
+    setCalendarEvents((prev) => [newEvent, ...prev]);
+    setTasks((prev) =>
+      prev.map((t) => (t.id === task.id ? { ...t, calendarEventId: newEvent.id } : t))
+    );
+
+    playCyberTone('confirm');
+    speakKokoro(`Tarea "${task.title}" vinculada con éxito al calendario.`, selectedVoiceId);
+  };
+
+  // Process User Command (via Voice or Text)
+  const handleProcessCommand = useCallback(
+    async (commandText: string) => {
+      if (!commandText.trim()) return;
+
+      const userTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const userMsg: ConsoleMessage = {
+        id: `u-${Date.now()}`,
+        sender: 'user',
+        text: commandText,
+        timestamp: userTime,
+      };
+
+      setMessages((prev) => [...prev, userMsg]);
+      setIsProcessing(true);
+      setStatusLabel('PROCESANDO');
+
+      try {
+        // Step 1: Run through upgraded RT-Lite Local Intent Parser with existing tasks
+        const intentResult = parseNaturalVoiceCommand(commandText, deviceState, contacts, tasks);
+
+        if (intentResult.isHandled) {
+          playCyberTone('confirm');
+
+          // Update device state if needed
+          if (intentResult.updatedDeviceState) {
+            const updatedState = intentResult.updatedDeviceState;
+            setDeviceState((prev) => {
+              const updated = { ...prev, ...updatedState };
+              if (updatedState.flashlight !== undefined) {
+                togglePhysicalTorch(Boolean(updatedState.flashlight));
+              }
+              return updated;
+            });
+          }
+
+          // Trigger phone call modal
+          if (intentResult.callContact) {
+            setActiveCall({
+              inCall: true,
+              contactName: intentResult.callContact.name,
+              phoneNumber: intentResult.callContact.number,
+              durationSeconds: 0,
+              isMuted: false,
+              isSpeaker: false,
+              state: 'calling',
+            });
+            setTimeout(() => {
+              setActiveCall((prev) => (prev.inCall ? { ...prev, state: 'connected' } : prev));
+            }, 1800);
+          }
+
+          // Trigger messaging modal
+          if (intentResult.messagePayload) {
+            setMessagingState({
+              isOpen: true,
+              recipient: intentResult.messagePayload.recipient,
+              initialMessage: intentResult.messagePayload.message,
+              channel: intentResult.messagePayload.channel,
+            });
+          }
+
+          // Trigger screen torch
+          if (intentResult.screenFlashlight || intentResult.actionType === 'torch') {
+            if (intentResult.updatedDeviceState?.flashlight) {
+              setIsScreenTorchOpen(true);
+            } else {
+              setIsScreenTorchOpen(false);
+            }
+          }
+
+          // Handle Task Completion
+          if (intentResult.taskToCompleteId) {
+            setTasks((prev) =>
+              prev.map((t) =>
+                t.id === intentResult.taskToCompleteId
+                  ? { ...t, isCompleted: true, completedAt: Date.now() }
+                  : t
+              )
+            );
+          }
+
+          // Handle Task Deletion
+          if (intentResult.taskToDeleteId) {
+            setTasks((prev) => prev.filter((t) => t.id !== intentResult.taskToDeleteId));
+          }
+
+          // Handle Task Modification
+          if (intentResult.taskToModify) {
+            const mod = intentResult.taskToModify;
+            setTasks((prev) =>
+              prev.map((t) => (t.id === mod.id ? { ...t, ...mod.updates, updatedAt: Date.now() } : t))
+            );
+          }
+
+          // Handle New Task Creation
+          if (intentResult.newTask) {
+            const newTaskItem: TaskItem = {
+              id: `t-${Date.now()}`,
+              ...intentResult.newTask,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            };
+            setTasks((prev) => [newTaskItem, ...prev]);
+
+            // If webhook configured, dispatch
+            if (thirdPartyWebhookUrl) {
+              dispatchTaskWebhook(thirdPartyWebhookUrl, 'created', newTaskItem);
+            }
+          }
+
+          // Handle iCal Export trigger
+          if (intentResult.triggerICalExport) {
+            downloadICSFile(calendarEvents, tasks);
+          }
+
+          // Handle Cloud Sync trigger
+          if (intentResult.triggerThirdPartySync) {
+            playCyberTone('confirm');
+          }
+
+          // Add alarm
+          if (intentResult.newAlarm) {
+            const alarmObj: AlarmItem = {
+              id: `a-${Date.now()}`,
+              ...intentResult.newAlarm,
+            };
+            setAlarms((prev) => [...prev, alarmObj]);
+          }
+
+          // Add timer
+          if (intentResult.newTimer) {
+            const timerObj: TimerItem = {
+              id: `t-${Date.now()}`,
+              label: intentResult.newTimer.label,
+              totalSeconds: intentResult.newTimer.seconds,
+              remainingSeconds: intentResult.newTimer.seconds,
+              isRunning: true,
+              isCompleted: false,
+            };
+            setTimers((prev) => [...prev, timerObj]);
+          }
+
+          // Add calendar event
+          if (intentResult.newCalendarEvent) {
+            const eventObj: CalendarEvent = {
+              id: `e-${Date.now()}`,
+              title: intentResult.newCalendarEvent.title,
+              date: intentResult.newCalendarEvent.date,
+              time: intentResult.newCalendarEvent.time,
+              location: intentResult.newCalendarEvent.location,
+              description: intentResult.newCalendarEvent.description,
+              isAutomated: true,
+            };
+            setCalendarEvents((prev) => [eventObj, ...prev]);
+          }
+
+          // Spoken output with Kokoro TTS
+          if (!deviceState.isMuted) {
+            setIsSpeaking(true);
+            speakKokoro(intentResult.spokenResponse, selectedVoiceId, {
+              pitchModifier,
+              rateModifier,
+              volume: deviceState.volume,
+              onEnd: () => {
+                setIsSpeaking(false);
+                setStatusLabel('LISTO');
+              },
+            });
+          }
+
+          // Add response to console
+          const assistantMsg: ConsoleMessage = {
+            id: `a-${Date.now()}`,
+            sender: 'assistant',
+            text: intentResult.spokenResponse,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            actionType: intentResult.actionType,
+            actionDetails: intentResult.actionDetails,
+            modelUsed: 'RT-Lite Local',
+            isE2EE: true,
+          };
+          setMessages((prev) => [...prev, assistantMsg]);
+          setIsProcessing(false);
+          setStatusLabel('LISTO');
+          return;
+        }
+
+        // Step 2: If not an immediate hardware command, run through active model (NVIDIA or RT-Lite Local)
+        if (isOffline || currentModel === 'rt-lite-local') {
+          const localAnswer = generateRTLiteResponse(commandText);
+          if (!deviceState.isMuted) {
+            setIsSpeaking(true);
+            speakKokoro(localAnswer, selectedVoiceId, {
+              pitchModifier,
+              rateModifier,
+              volume: deviceState.volume,
+              onEnd: () => {
+                setIsSpeaking(false);
+                setStatusLabel('LISTO');
+              },
+            });
+          }
+
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `a-${Date.now()}`,
+              sender: 'assistant',
+              text: localAnswer,
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+              modelUsed: 'RT-Lite On-Device',
+              isE2EE: true,
+            },
+          ]);
+          setIsProcessing(false);
+          setStatusLabel('LISTO');
+          return;
+        }
+
+        // Online NVIDIA Model Inference with Cloud Context
+        const cloudInfo = CLOUD_INTEGRATIONS.find((c) => c.id === currentCloudIntegration) || CLOUD_INTEGRATIONS[0];
+        const systemPrompt = `Eres VVC-ACIA, un asistente personal de voz obsidian de vanguardia. Cuentas con un gestor avanzado de tareas y recordatorios en tiempo real, integración con ${cloudInfo.name}, calendario y funciones del teléfono. Responde de forma concisa, ejecutiva y clara en español en menos de 3 oraciones para ser hablada por voz.`;
+
+        const res = await fetch('/api/chat/nvidia', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: currentModel,
+            apiKey: nvidiaApiKey,
+            endpoint: customEndpoint,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: commandText },
+            ],
+            temperature: 0.6,
+            max_tokens: 300,
+          }),
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `Error servidor (${res.status})`);
+        }
+
+        const data = await res.json();
+        const responseText = data.choices?.[0]?.message?.content || data.text || 'Comando procesado.';
+        const modelTag = data.model_used || currentModel;
+
+        if (!deviceState.isMuted) {
+          setIsSpeaking(true);
+          speakKokoro(responseText, selectedVoiceId, {
+            pitchModifier,
+            rateModifier,
+            volume: deviceState.volume,
+            onEnd: () => {
+              setIsSpeaking(false);
+              setStatusLabel('LISTO');
+            },
+          });
+        }
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `a-${Date.now()}`,
+            sender: 'assistant',
+            text: responseText,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            modelUsed: modelTag,
+            isE2EE: true,
+          },
+        ]);
+      } catch (err: any) {
+        console.warn('Inference error, falling back to RT-Lite local:', err);
+        const fallbackText = generateRTLiteResponse(commandText);
+        if (!deviceState.isMuted) {
+          setIsSpeaking(true);
+          speakKokoro(fallbackText, selectedVoiceId, {
+            pitchModifier,
+            rateModifier,
+            volume: deviceState.volume,
+            onEnd: () => setIsSpeaking(false),
+          });
+        }
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `a-${Date.now()}`,
+            sender: 'assistant',
+            text: `${fallbackText}\n\n[Nota: Servidor NVIDIA en modo espera (${err.message}). Ejecutado con RT-Lite On-Device].`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            modelUsed: 'RT-Lite Local (Fallback)',
+            isE2EE: true,
+          },
+        ]);
+      } finally {
+        setIsProcessing(false);
+        setStatusLabel('LISTO');
+      }
+    },
+    [
+      deviceState,
+      contacts,
+      tasks,
+      calendarEvents,
+      isOffline,
+      currentModel,
+      currentCloudIntegration,
+      nvidiaApiKey,
+      customEndpoint,
+      thirdPartyWebhookUrl,
+      selectedVoiceId,
+      pitchModifier,
+      rateModifier,
+    ]
+  );
+
+  // Setup Speech Recognition Controller
+  useEffect(() => {
+    const recognition = initSpeechRecognition({
+      onStart: () => {
+        setIsListening(true);
+        setStatusLabel('ESCUCHANDO...');
+        setupMicrophoneAnalyzer();
+      },
+      onResult: (transcript: string, isFinal: boolean) => {
+        setCurrentTranscript(transcript);
+        if (isFinal) {
+          setCurrentTranscript('');
+          recognition.stop();
+          setIsListening(false);
+          stopMicrophoneAnalyzer();
+          handleProcessCommand(transcript);
+        }
+      },
+      onError: (err: string) => {
+        console.warn('Speech error:', err);
+        setIsListening(false);
+        setStatusLabel('LISTO');
+        stopMicrophoneAnalyzer();
+      },
+      onEnd: () => {
+        setIsListening(false);
+        setStatusLabel('LISTO');
+        stopMicrophoneAnalyzer();
+      },
+    });
+
+    speechRecognitionRef.current = recognition;
+
+    return () => {
+      recognition.stop();
+      stopMicrophoneAnalyzer();
+    };
+  }, [handleProcessCommand]);
+
+  const toggleListening = () => {
+    if (isSpeaking) {
+      stopSpeaking();
+      setIsSpeaking(false);
+    }
+
+    if (isListening) {
+      speechRecognitionRef.current?.stop();
+      setIsListening(false);
+      setStatusLabel('LISTO');
+      stopMicrophoneAnalyzer();
+    } else {
+      speechRecognitionRef.current?.start();
+    }
+  };
+
+  const handleSpeakMessage = (text: string) => {
+    if (isSpeaking) {
+      stopSpeaking();
+      setIsSpeaking(false);
+    } else {
+      setIsSpeaking(true);
+      speakKokoro(text, selectedVoiceId, {
+        pitchModifier,
+        rateModifier,
+        volume: deviceState.volume,
+        onEnd: () => setIsSpeaking(false),
+      });
+    }
+  };
+
+  const activeModelObj = AVAILABLE_MODELS.find((m) => m.id === currentModel) || AVAILABLE_MODELS[0];
+  const pendingTasksCount = tasks.filter((t) => !t.isCompleted).length;
+
+  return (
+    <div
+      className="min-h-screen bg-[#050608] text-slate-100 flex flex-col relative selection:bg-[#00f0ff]/30 selection:text-white"
+      style={{
+        filter: deviceState.brightness < 100 ? `brightness(${Math.max(0.4, deviceState.brightness / 100)})` : 'none',
+      }}
+    >
+      {/* Background Cyber Scanlines & Glow Grid */}
+      <div className="fixed inset-0 pointer-events-none scanline-bg opacity-30 z-0" />
+      <div className="fixed -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[500px] bg-[#00f0ff]/5 blur-[120px] rounded-full pointer-events-none -z-10" />
+      <div className="fixed -bottom-40 right-10 w-[500px] h-[500px] bg-[#b026ff]/5 blur-[120px] rounded-full pointer-events-none -z-10" />
+
+      {/* Top Bar Header */}
+      <Header
+        currentModel={currentModel}
+        onSelectModel={(model) => {
+          setCurrentModel(model);
+          localStorage.setItem('vvc_acia_model', model);
+          playCyberTone('confirm');
+        }}
+        currentCloudIntegration={currentCloudIntegration}
+        onSelectCloudIntegration={(ci) => {
+          setCurrentCloudIntegration(ci);
+          localStorage.setItem('vvc_acia_cloud_integration', ci);
+          playCyberTone('confirm');
+        }}
+        isOffline={isOffline}
+        onToggleOffline={() => setIsOffline(!isOffline)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenCalendar={() => setIsCalendarOpen(true)}
+        onOpenVault={() => setIsVaultOpen(true)}
+        onOpenDeviceControls={() => setIsDeviceControlsOpen(true)}
+        isMuted={deviceState.isMuted}
+        onToggleMute={() => setDeviceState((p) => ({ ...p, isMuted: !p.isMuted }))}
+        pendingTasksCount={pendingTasksCount}
+        onOpenInstallModal={() => setIsInstallModalOpen(true)}
+      />
+
+      {/* Real-Time Live Notification Alerts Toast */}
+      <RealTimeAlertToast
+        alerts={activeAlerts}
+        onComplete={(taskId) => {
+          setTasks((prev) =>
+            prev.map((t) => (t.id === taskId ? { ...t, isCompleted: true, completedAt: Date.now() } : t))
+          );
+          playCyberTone('confirm');
+        }}
+        onSnooze={(taskId, minutes) => {
+          const now = new Date();
+          now.setMinutes(now.getMinutes() + minutes);
+          const nextTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          setTasks((prev) =>
+            prev.map((t) => (t.id === taskId ? { ...t, timeDue: nextTime, snoozedUntil: nextTime } : t))
+          );
+          playCyberTone('confirm');
+        }}
+        onDismiss={(alertId) => {
+          setActiveAlerts((prev) => prev.filter((a) => a.id !== alertId));
+        }}
+        onOpenCalendar={() => setIsCalendarOpen(true)}
+      />
+
+      {/* Main Command Console & Voice Canvas Area */}
+      <main className="flex-1 flex flex-col z-10 w-full max-w-7xl mx-auto py-2">
+        {/* Central Voice Orb & Waveform Radar */}
+        <VoiceOrbVisualizer
+          isListening={isListening}
+          isSpeaking={isSpeaking}
+          isProcessing={isProcessing}
+          currentTranscript={currentTranscript}
+          onToggleListening={toggleListening}
+          statusLabel={statusLabel}
+          activeModelName={activeModelObj.name}
+          isOffline={isOffline}
+        />
+
+        {/* Quick Voice Command Action Pills */}
+        <QuickCommandChips
+          onExecuteCommand={(cmd) => handleProcessCommand(cmd)}
+          disabled={isProcessing}
+        />
+
+        {/* Cyber Command Console Terminal Feed */}
+        <CommandConsole
+          messages={messages}
+          onSendMessage={(txt) => handleProcessCommand(txt)}
+          onSpeakMessage={handleSpeakMessage}
+          onClearConsole={() => setMessages([])}
+          isListening={isListening}
+          onToggleListening={toggleListening}
+          isProcessing={isProcessing}
+          activeModelName={activeModelObj.name}
+        />
+      </main>
+
+      {/* Phone Call Overlay Modal */}
+      <PhoneActionModal
+        call={activeCall}
+        onEndCall={() => setActiveCall((prev) => ({ ...prev, inCall: false, state: 'ended' }))}
+        onToggleMute={() => setActiveCall((prev) => ({ ...prev, isMuted: !prev.isMuted }))}
+        onToggleSpeaker={() => setActiveCall((prev) => ({ ...prev, isSpeaker: !prev.isSpeaker }))}
+      />
+
+      {/* Messaging Dispatch Modal */}
+      <MessagingModal
+        isOpen={messagingState.isOpen}
+        onClose={() => setMessagingState((p) => ({ ...p, isOpen: false }))}
+        recipient={messagingState.recipient}
+        initialMessage={messagingState.initialMessage}
+        channel={messagingState.channel}
+        onSend={(recipient, msg, channel) => {
+          playCyberTone('confirm');
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `m-send-${Date.now()}`,
+              sender: 'assistant',
+              text: `Mensaje ${channel} transmitido con éxito a ${recipient}: "${msg}"`,
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+              actionType: 'message',
+              actionDetails: `${channel} a ${recipient}`,
+              isE2EE: true,
+            },
+          ]);
+        }}
+      />
+
+      {/* Screen Emergency High-Lumen Flashlight Modal */}
+      <ScreenTorchModal
+        isOpen={isScreenTorchOpen}
+        onClose={() => {
+          setIsScreenTorchOpen(false);
+          setDeviceState((p) => ({ ...p, flashlight: false, screenTorchActive: false }));
+          togglePhysicalTorch(false);
+        }}
+        isTorchActive={deviceState.flashlight}
+      />
+
+      {/* Phone Controls Drawer */}
+      <DeviceControlsDrawer
+        isOpen={isDeviceControlsOpen}
+        onClose={() => setIsDeviceControlsOpen(false)}
+        deviceState={deviceState}
+        onUpdateState={(updated) => {
+          setDeviceState((prev) => ({ ...prev, ...updated }));
+          if (updated.flashlight !== undefined) {
+            togglePhysicalTorch(Boolean(updated.flashlight));
+          }
+        }}
+        contacts={contacts}
+        onCallContact={(contact) => {
+          setIsDeviceControlsOpen(false);
+          handleProcessCommand(`Llamar a ${contact.name}`);
+        }}
+        onMessageContact={(contact) => {
+          setIsDeviceControlsOpen(false);
+          setMessagingState({
+            isOpen: true,
+            recipient: contact.name,
+            initialMessage: '',
+            channel: 'WhatsApp',
+          });
+        }}
+        onToggleTorchModal={() => setIsScreenTorchOpen(true)}
+      />
+
+      {/* Advanced Task, Reminders & Calendar Modal */}
+      <CalendarRemindersModal
+        isOpen={isCalendarOpen}
+        onClose={() => setIsCalendarOpen(false)}
+        events={calendarEvents}
+        onAddEvent={(newEvent) => {
+          setCalendarEvents((prev) => [{ ...newEvent, id: `e-${Date.now()}` }, ...prev]);
+          playCyberTone('confirm');
+        }}
+        onDeleteEvent={(id) => setCalendarEvents((prev) => prev.filter((e) => e.id !== id))}
+        tasks={tasks}
+        onToggleTask={(id) => {
+          setTasks((prev) =>
+            prev.map((t) =>
+              t.id === id
+                ? { ...t, isCompleted: !t.isCompleted, completedAt: !t.isCompleted ? Date.now() : undefined }
+                : t
+            )
+          );
+          playCyberTone('click');
+        }}
+        onAddTask={(newTask) => {
+          const created: TaskItem = {
+            id: `t-${Date.now()}`,
+            ...newTask,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          };
+          setTasks((prev) => [created, ...prev]);
+          playCyberTone('confirm');
+        }}
+        onUpdateTask={(id, updates) => {
+          setTasks((prev) =>
+            prev.map((t) => (t.id === id ? { ...t, ...updates, updatedAt: Date.now() } : t))
+          );
+          playCyberTone('confirm');
+        }}
+        onDeleteTask={(id) => setTasks((prev) => prev.filter((t) => t.id !== id))}
+        onConvertTaskToEvent={handleConvertTaskToEvent}
+        thirdPartyWebhookUrl={thirdPartyWebhookUrl}
+        onUpdateWebhookUrl={(url) => {
+          setThirdPartyWebhookUrl(url);
+          localStorage.setItem('vvc_acia_webhook', url);
+        }}
+      />
+
+      {/* E2EE Encrypted Vault Modal */}
+      <EncryptedVaultModal
+        isOpen={isVaultOpen}
+        onClose={() => setIsVaultOpen(false)}
+        vaultItems={vaultItems}
+        onSaveItem={(item) => setVaultItems((prev) => [item, ...prev])}
+        onDeleteItem={(id) => setVaultItems((prev) => prev.filter((v) => v.id !== id))}
+        masterPassphrase={masterPassphrase}
+        onUpdateMasterPassphrase={(p) => setMasterPassphrase(p)}
+      />
+
+      {/* Settings Modal (AI Models & Cloud Services Dropdowns) */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        currentModel={currentModel}
+        onSelectModel={(m) => {
+          setCurrentModel(m);
+          localStorage.setItem('vvc_acia_model', m);
+        }}
+        currentCloudIntegration={currentCloudIntegration}
+        onSelectCloudIntegration={(ci) => {
+          setCurrentCloudIntegration(ci);
+          localStorage.setItem('vvc_acia_cloud_integration', ci);
+        }}
+        nvidiaApiKey={nvidiaApiKey}
+        onUpdateNvidiaApiKey={(k) => {
+          setNvidiaApiKey(k);
+          localStorage.setItem('vvc_acia_nvidia_key', k);
+        }}
+        customEndpoint={customEndpoint}
+        onUpdateCustomEndpoint={(ep) => {
+          setCustomEndpoint(ep);
+          localStorage.setItem('vvc_acia_endpoint', ep);
+        }}
+        thirdPartyWebhookUrl={thirdPartyWebhookUrl}
+        onUpdateThirdPartyWebhookUrl={(url) => {
+          setThirdPartyWebhookUrl(url);
+          localStorage.setItem('vvc_acia_webhook', url);
+        }}
+        selectedVoiceId={selectedVoiceId}
+        onSelectVoiceId={(v) => {
+          setSelectedVoiceId(v);
+          localStorage.setItem('vvc_acia_voice', v);
+        }}
+        pitchModifier={pitchModifier}
+        onUpdatePitch={setPitchModifier}
+        rateModifier={rateModifier}
+        onUpdateRate={setRateModifier}
+        autoDarkMode={autoDarkMode}
+        onToggleAutoDarkMode={() => setAutoDarkMode(!autoDarkMode)}
+        cloudSyncEnabled={cloudSyncEnabled}
+        onToggleCloudSync={() => setCloudSyncEnabled(!cloudSyncEnabled)}
+        isOffline={isOffline}
+        onToggleOffline={() => setIsOffline(!isOffline)}
+      />
+
+      {/* App / APK Installation Guide Modal */}
+      <InstallModal
+        isOpen={isInstallModalOpen}
+        onClose={() => setIsInstallModalOpen(false)}
+      />
+    </div>
+  );
+}

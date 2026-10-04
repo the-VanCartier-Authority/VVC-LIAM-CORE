@@ -1,0 +1,11 @@
+{
+  "name": "VVC-ACIA // Obsidian Voice Assistant",
+  "description": "Asistente personal de voz de vanguardia con control de funciones telefónicas, cifrado E2EE, soporte para modelos NVIDIA Build, RT Lite offline y motor de voz Kokoro.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
