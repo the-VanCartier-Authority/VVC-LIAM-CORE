@@ -836,34 +836,41 @@ export default function App() {
     ]
   );
 
+  // Manual commit handler for speech transcript
+  const handleCommitManualTranscript = () => {
+    if (!currentTranscript.trim()) return;
+    const text = currentTranscript.trim();
+    speechRecognitionRef.current?.stop();
+    setIsListening(false);
+    setCurrentTranscript('');
+    setStatusLabel('LISTO');
+    handleProcessCommand(text);
+  };
+
   // Setup Speech Recognition Controller
   useEffect(() => {
     const recognition = initSpeechRecognition({
       onStart: () => {
         setIsListening(true);
         setStatusLabel('ESCUCHANDO...');
-        setupMicrophoneAnalyzer();
       },
       onResult: (transcript: string, isFinal: boolean) => {
         setCurrentTranscript(transcript);
         if (isFinal) {
           setCurrentTranscript('');
-          recognition.stop();
           setIsListening(false);
-          stopMicrophoneAnalyzer();
+          setStatusLabel('LISTO');
           handleProcessCommand(transcript);
         }
       },
       onError: (err: string) => {
-        console.warn('Speech error:', err);
+        console.warn('Speech error notice:', err);
         setIsListening(false);
         setStatusLabel('LISTO');
-        stopMicrophoneAnalyzer();
       },
       onEnd: () => {
         setIsListening(false);
         setStatusLabel('LISTO');
-        stopMicrophoneAnalyzer();
       },
     });
 
@@ -871,7 +878,6 @@ export default function App() {
 
     return () => {
       recognition.stop();
-      stopMicrophoneAnalyzer();
     };
   }, [handleProcessCommand]);
 
@@ -885,8 +891,8 @@ export default function App() {
       speechRecognitionRef.current?.stop();
       setIsListening(false);
       setStatusLabel('LISTO');
-      stopMicrophoneAnalyzer();
     } else {
+      setCurrentTranscript('');
       speechRecognitionRef.current?.start();
     }
   };
@@ -1003,6 +1009,7 @@ export default function App() {
           isProcessing={isProcessing}
           currentTranscript={currentTranscript}
           onToggleListening={toggleListening}
+          onCommitTranscript={handleCommitManualTranscript}
           statusLabel={statusLabel}
           activeModelName={activeModelObj.name}
           isOffline={isOffline}

@@ -46,8 +46,92 @@ app.get('/api/config', (_req: Request, res: Response) => {
 });
 
 /**
+ * Helper to build standard 44-byte RIFF/WAVE header for raw PCM audio
+ */
+function addWavHeader(pcmBuffer: Buffer, sampleRate = 24000, numChannels = 1, bitsPerSample = 16): Buffer {
+  const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
+  const blockAlign = (numChannels * bitsPerSample) / 8;
+  const header = Buffer.alloc(44);
+
+  header.write('RIFF', 0);
+  header.writeUInt32LE(36 + pcmBuffer.length, 4);
+  header.write('WAVE', 8);
+  header.write('fmt ', 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20); // PCM format
+  header.writeUInt16LE(numChannels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE(blockAlign, 32);
+  header.writeUInt16LE(bitsPerSample, 34);
+  header.write('data', 36);
+  header.writeUInt32LE(pcmBuffer.length, 40);
+
+  return Buffer.concat([header, pcmBuffer]);
+}
+
+// In-memory TTS Cache for lightning-fast repeat audio responses
+const ttsCache = new Map<string, { audio: string; mimeType: string; voiceName: string }>();
+
+// Prioritized list of high-fidelity Neural TTS models
+const TTS_MODELS = [
+  'gemini-2.5-flash-preview-tts',
+  'gemini-3.8-flash-tts',
+  'gemini-3.1-flash-tts-preview',
+  'gemini-2.5-pro-preview-tts',
+  'gemini-3.8-flash-lite-tts',
+];
+
+// Map Kokoro voice profiles to ultra-natural studio neural voices
+const EDGE_VOICE_MAP: Record<string, string> = {
+  es_mateo: 'es-ES-AlvaroNeural',
+  es_sofia: 'es-ES-ElviraNeural',
+  es_valeria: 'es-ES-ElviraNeural',
+  es_camila: 'es-MX-DaliaNeural',
+  es_lucas: 'es-MX-JorgeNeural',
+  af_heart: 'en-US-JennyNeural',
+  af_bella: 'en-US-AvaNeural',
+  af_nicole: 'en-US-EmmaNeural',
+  am_adam: 'en-US-GuyNeural',
+  am_michael: 'en-US-BrianNeural',
+  bf_emma: 'en-GB-SoniaNeural',
+  en_sarah: 'en-US-JennyNeural',
+  en_adam: 'en-US-GuyNeural',
+};
+
+async function generateEdgeTTS(text: string, voiceId: string): Promise<{ audio: string; mimeType: string; voiceName: string }> {
+  const { MsEdgeTTS, OUTPUT_FORMAT } = await import('msedge-tts');
+  const tts = new MsEdgeTTS();
+  const voiceName = EDGE_VOICE_MAP[voiceId] || 'es-ES-AlvaroNeural';
+  await tts.setMetadata(voiceName, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+  const { audioStream } = tts.toStream(text);
+
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    const timeout = setTimeout(() => {
+      reject(new Error('EDGE_TTS_TIMEOUT'));
+    }, 7000);
+
+    audioStream.on('data', (d: Buffer) => chunks.push(d));
+    audioStream.on('end', () => {
+      clearTimeout(timeout);
+      const buf = Buffer.concat(chunks);
+      resolve({
+        audio: buf.toString('base64'),
+        mimeType: 'audio/mp3',
+        voiceName,
+      });
+    });
+    audioStream.on('error', (err) => {
+      clearTimeout(timeout);
+      reject(err);
+    });
+  });
+}
+
+/**
  * High-Fidelity Studio Neural Voice Synthesis (TTS)
- * Uses Google GenAI gemini-3.8-flash-lite-tts to generate natural human speech
+ * Produces ultra-realistic neural speech with zero quota limits and instant playback
  */
 app.post('/api/tts', async (req: Request, res: Response) => {
   try {
@@ -55,11 +139,6 @@ app.post('/api/tts', async (req: Request, res: Response) => {
 
     if (!text || typeof text !== 'string' || !text.trim()) {
       return res.status(400).json({ error: 'Texto requerido para síntesis de voz.' });
-    }
-
-    const geminiKey = process.env.GEMINI_API_KEY;
-    if (!geminiKey || geminiKey === 'MY_GEMINI_API_KEY') {
-      return res.json({ fallback: true, reason: 'GEMINI_API_KEY_UNAVAILABLE' });
     }
 
     // Clean text for speech
@@ -75,49 +154,95 @@ app.post('/api/tts', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Texto vacío tras filtrado.' });
     }
 
-    const voiceName = VOICE_MAP[voiceId] || 'Fenrir';
-    const ai = new GoogleGenAI({ apiKey: geminiKey });
+    const cacheKey = `${voiceId}:${cleanText}`;
 
-    // 2.5 second timeout to prevent voice assistant from freezing
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('TTS_TIMEOUT')), 2500)
-    );
-
-    const generatePromise = ai.models.generateContent({
-      model: 'gemini-3.8-flash-lite-tts',
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: cleanText }],
-        },
-      ],
-      config: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName },
-          },
-        },
-      },
-    });
-
-    const response: any = await Promise.race([generatePromise, timeoutPromise]);
-    const candidate = response.candidates?.[0]?.content?.parts?.[0];
-    const base64Audio = candidate?.inlineData?.data;
-    const mimeType = candidate?.inlineData?.mimeType || 'audio/wav';
-
-    if (base64Audio) {
+    // 1. Check in-memory audio cache
+    const cached = ttsCache.get(cacheKey);
+    if (cached) {
       return res.json({
-        audio: base64Audio,
-        mimeType,
-        voiceName,
+        audio: cached.audio,
+        mimeType: cached.mimeType,
+        voiceName: cached.voiceName,
         fallback: false,
+        cached: true,
       });
     }
 
-    return res.json({ fallback: true, reason: 'NO_AUDIO_RETURNED' });
+    // 2. Primary Engine: Edge Studio Neural TTS (Ultra-natural, instant, zero quota limitations)
+    try {
+      const edgeResult = await generateEdgeTTS(cleanText, voiceId);
+      if (edgeResult?.audio) {
+        if (ttsCache.size > 120) {
+          const firstKey = ttsCache.keys().next().value;
+          if (firstKey) ttsCache.delete(firstKey);
+        }
+        ttsCache.set(cacheKey, edgeResult);
+
+        return res.json({
+          ...edgeResult,
+          fallback: false,
+          engine: 'EdgeNeural',
+        });
+      }
+    } catch (edgeErr: any) {
+      console.warn('Edge Neural TTS notice, checking Gemini TTS fallback:', edgeErr?.message);
+    }
+
+    // 3. Secondary Engine: Gemini Audio Generation (packaged into valid WAV)
+    const geminiKey = process.env.GEMINI_API_KEY;
+    if (geminiKey && geminiKey !== 'MY_GEMINI_API_KEY') {
+      const voiceName = VOICE_MAP[voiceId] || 'Fenrir';
+      const ai = new GoogleGenAI({ apiKey: geminiKey });
+
+      for (const model of TTS_MODELS) {
+        try {
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('GEMINI_TTS_TIMEOUT')), 6000)
+          );
+
+          const generatePromise = ai.models.generateContent({
+            model,
+            contents: [{ role: 'user', parts: [{ text: cleanText }] }],
+            config: {
+              responseModalities: ['AUDIO'],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName },
+                },
+              },
+            },
+          });
+
+          const response: any = await Promise.race([generatePromise, timeoutPromise]);
+          const candidate = response.candidates?.[0]?.content?.parts?.[0];
+          const rawBase64 = candidate?.inlineData?.data;
+
+          if (rawBase64) {
+            const rawBuffer = Buffer.from(rawBase64, 'base64');
+            const isAlreadyWav = rawBuffer.length > 12 && rawBuffer.subarray(0, 4).toString() === 'RIFF';
+            const finalBuffer = isAlreadyWav ? rawBuffer : addWavHeader(rawBuffer, 24000, 1, 16);
+
+            const resultData = {
+              audio: finalBuffer.toString('base64'),
+              mimeType: 'audio/wav',
+              voiceName,
+            };
+
+            ttsCache.set(cacheKey, resultData);
+            return res.json({
+              ...resultData,
+              fallback: false,
+              engine: 'GeminiNeural',
+            });
+          }
+        } catch {
+          // Continue to next model
+        }
+      }
+    }
+
+    return res.json({ fallback: true, reason: 'NEURAL_TTS_UNAVAILABLE' });
   } catch (error: any) {
-    // Fast return to let browser Kokoro engine synthesize immediately without lag
     return res.json({ fallback: true, error: error?.message || 'TTS_FALLBACK' });
   }
 });

@@ -114,77 +114,165 @@ export function stopMicrophoneAnalyzer() {
 
 /**
  * Speech to Text (STT) Controller
+ * Robust implementation with fresh instance per session, silence debounce, and auto-commit
  */
 export function initSpeechRecognition(callbacks: {
   onResult: (transcript: string, isFinal: boolean) => void;
   onError: (error: string) => void;
   onStart: () => void;
   onEnd: () => void;
-}): { start: () => void; stop: () => void; isSupported: boolean } {
-  const SpeechRecognition =
+}): { start: () => void; stop: () => void; abort: () => void; isSupported: boolean } {
+  const SpeechRecognitionClass =
     (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-  if (!SpeechRecognition) {
+  if (!SpeechRecognitionClass) {
     return {
-      start: () => callbacks.onError('El navegador no soporta Web Speech API. Usa entrada por texto.'),
+      start: () => callbacks.onError('El navegador no soporta reconocimiento de voz (Web Speech API).'),
       stop: () => {},
+      abort: () => {},
       isSupported: false,
     };
   }
 
-  if (!recognitionInstance) {
-    recognitionInstance = new SpeechRecognition();
-    recognitionInstance.continuous = true;
-    recognitionInstance.interimResults = true;
-    recognitionInstance.lang = 'es-ES';
-  }
+  let activeRecognition: any = null;
+  let silenceTimer: any = null;
+  let accumulatedTranscript = '';
+  let hasCommitted = false;
 
-  recognitionInstance.onstart = () => {
-    playCyberTone('activate');
-    callbacks.onStart();
-  };
-
-  recognitionInstance.onresult = (event: any) => {
-    let interimTranscript = '';
-    let finalTranscript = '';
-
-    for (let i = event.resultIndex; i < event.results.length; ++i) {
-      if (event.results[i].isFinal) {
-        finalTranscript += event.results[i][0].transcript;
-      } else {
-        interimTranscript += event.results[i][0].transcript;
-      }
-    }
-
-    if (finalTranscript.trim()) {
-      callbacks.onResult(finalTranscript.trim(), true);
-    } else if (interimTranscript.trim()) {
-      callbacks.onResult(interimTranscript.trim(), false);
+  const clearSilence = () => {
+    if (silenceTimer) {
+      clearTimeout(silenceTimer);
+      silenceTimer = null;
     }
   };
 
-  recognitionInstance.onerror = (event: any) => {
-    console.warn('SpeechRecognition error:', event.error);
-    callbacks.onError(event.error);
+  const commitTranscript = (finalText: string) => {
+    clearSilence();
+    if (hasCommitted) return;
+    const text = finalText.trim();
+    if (text) {
+      hasCommitted = true;
+      callbacks.onResult(text, true);
+    }
   };
 
-  recognitionInstance.onend = () => {
-    callbacks.onEnd();
+  const stopActive = () => {
+    clearSilence();
+    if (activeRecognition) {
+      try {
+        activeRecognition.stop();
+      } catch {}
+      activeRecognition = null;
+    }
   };
 
   return {
     start: () => {
+      stopActive();
+      hasCommitted = false;
+      accumulatedTranscript = '';
+
       try {
-        recognitionInstance?.start();
-      } catch (e) {
-        console.debug('Recognition already running:', e);
+        const recognition = new SpeechRecognitionClass();
+        activeRecognition = recognition;
+
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.maxAlternatives = 1;
+
+        // Default to user language if Spanish, otherwise es-ES
+        const userLang = (navigator.language || '').toLowerCase();
+        recognition.lang = userLang.startsWith('es') ? navigator.language : 'es-ES';
+
+        recognition.onstart = () => {
+          playCyberTone('activate');
+          callbacks.onStart();
+        };
+
+        recognition.onresult = (event: any) => {
+          let currentFinal = '';
+          let currentInterim = '';
+
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              currentFinal += transcript;
+            } else {
+              currentInterim += transcript;
+            }
+          }
+
+          const currentBest = (currentFinal || currentInterim).trim();
+          if (currentBest) {
+            accumulatedTranscript = currentBest;
+            callbacks.onResult(currentBest, false);
+
+            // Silence debounce timer: commit after 1.2s of no new speech
+            clearSilence();
+            silenceTimer = setTimeout(() => {
+              if (accumulatedTranscript.trim() && !hasCommitted) {
+                commitTranscript(accumulatedTranscript);
+                stopActive();
+              }
+            }, 1200);
+          }
+
+          if (currentFinal.trim()) {
+            commitTranscript(currentFinal);
+            stopActive();
+          }
+        };
+
+        recognition.onerror = (event: any) => {
+          clearSilence();
+          const errorType = event.error;
+          console.warn('SpeechRecognition error:', errorType);
+
+          if (errorType === 'no-speech') {
+            if (accumulatedTranscript.trim() && !hasCommitted) {
+              commitTranscript(accumulatedTranscript);
+              return;
+            }
+          }
+
+          if (errorType === 'not-allowed' || errorType === 'permission-denied') {
+            callbacks.onError('Permiso de micrófono no concedido. Permite el micrófono en la barra de direcciones.');
+          } else if (errorType !== 'aborted') {
+            callbacks.onError(errorType || 'Error de micrófono');
+          }
+        };
+
+        recognition.onend = () => {
+          clearSilence();
+          if (accumulatedTranscript.trim() && !hasCommitted) {
+            commitTranscript(accumulatedTranscript);
+          }
+          activeRecognition = null;
+          callbacks.onEnd();
+        };
+
+        recognition.start();
+      } catch (err: any) {
+        console.error('Failed to start speech recognition:', err);
+        callbacks.onError('No se pudo activar el micrófono.');
+        callbacks.onEnd();
       }
     },
     stop: () => {
-      try {
-        recognitionInstance?.stop();
-      } catch (e) {
-        console.debug('Recognition already stopped:', e);
+      clearSilence();
+      if (accumulatedTranscript.trim() && !hasCommitted) {
+        commitTranscript(accumulatedTranscript);
+      }
+      stopActive();
+    },
+    abort: () => {
+      clearSilence();
+      hasCommitted = true;
+      if (activeRecognition) {
+        try {
+          activeRecognition.abort();
+        } catch {}
+        activeRecognition = null;
       }
     },
     isSupported: true,
@@ -364,6 +452,35 @@ async function speakWithKokoroEngine(
  * High-Fidelity Kokoro Voice Engine
  * Tries server-side neural TTS first; if unavailable, uses high-realism on-device engine
  */
+async function playBase64WithWebAudio(
+  base64Data: string,
+  options: { volume?: number; onStart?: () => void; onEnd?: () => void }
+): Promise<void> {
+  const ctx = getAudioContext();
+  const binaryString = atob(base64Data);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  const audioBuffer = await ctx.decodeAudioData(bytes.buffer);
+  const source = ctx.createBufferSource();
+  const gainNode = ctx.createGain();
+
+  source.buffer = audioBuffer;
+  const vol = options.volume !== undefined ? Math.min(Math.max(options.volume / 100, 0), 1) : 0.95;
+  gainNode.gain.setValueAtTime(vol, ctx.currentTime);
+
+  source.connect(gainNode);
+  gainNode.connect(ctx.destination);
+
+  if (options.onStart) options.onStart();
+  source.onended = () => {
+    if (options.onEnd) options.onEnd();
+  };
+  source.start(0);
+}
+
 export async function speakKokoro(
   text: string,
   voiceId: KokoroVoiceId = 'es_mateo',
@@ -384,10 +501,10 @@ export async function speakKokoro(
     return;
   }
 
-  // Fast check: Try server neural TTS with a short 2.5s network timeout
+  // 1. Try server neural TTS with an 8s timeout
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
     const res = await fetch('/api/tts', {
       method: 'POST',
@@ -401,7 +518,9 @@ export async function speakKokoro(
     if (res.ok) {
       const data = await res.json();
       if (data.audio && !data.fallback) {
-        const audio = new Audio(`data:${data.mimeType || 'audio/wav'};base64,${data.audio}`);
+        const mime = data.mimeType || 'audio/mp3';
+        const audioSrc = `data:${mime};base64,${data.audio}`;
+        const audio = new Audio(audioSrc);
         activeAudioElement = audio;
         audio.volume = options.volume !== undefined ? Math.min(Math.max(options.volume / 100, 0), 1) : 0.95;
 
@@ -414,10 +533,15 @@ export async function speakKokoro(
           if (options.onEnd) options.onEnd();
         };
 
-        audio.onerror = (e) => {
-          console.warn('Audio playback error, using Kokoro engine:', e);
-          activeAudioElement = null;
-          speakWithKokoroEngine(cleanText, voiceId, options);
+        audio.onerror = async (e) => {
+          console.warn('Audio tag playback notice, attempting Web Audio decoding:', e);
+          try {
+            await playBase64WithWebAudio(data.audio, options);
+          } catch (webAudioErr) {
+            console.warn('Web Audio playback failed, using fallback engine:', webAudioErr);
+            activeAudioElement = null;
+            speakWithKokoroEngine(cleanText, voiceId, options);
+          }
         };
 
         await audio.play();
@@ -428,7 +552,7 @@ export async function speakKokoro(
     // Network timeout or offline - seamlessly proceed to Kokoro engine
   }
 
-  // High-fidelity Kokoro engine execution
+  // Fallback to on-device engine
   speakWithKokoroEngine(cleanText, voiceId, options);
 }
 

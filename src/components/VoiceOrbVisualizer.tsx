@@ -7,6 +7,7 @@ interface VoiceOrbVisualizerProps {
   isProcessing: boolean;
   currentTranscript: string;
   onToggleListening: () => void;
+  onCommitTranscript?: () => void;
   statusLabel: string;
   activeModelName: string;
   isOffline: boolean;
@@ -18,6 +19,7 @@ export const VoiceOrbVisualizer: React.FC<VoiceOrbVisualizerProps> = ({
   isProcessing,
   currentTranscript,
   onToggleListening,
+  onCommitTranscript,
   statusLabel,
   activeModelName,
   isOffline,
@@ -266,9 +268,21 @@ export const VoiceOrbVisualizer: React.FC<VoiceOrbVisualizerProps> = ({
 
         {/* Real-time speech transcript caption */}
         {currentTranscript && (
-          <div className="w-full bg-[#0a0d14]/90 border border-[#00f0ff]/30 rounded px-4 py-2 text-xs font-mono text-[#00f0ff] tracking-wide animate-fade-in shadow-[0_0_15px_rgba(0,240,255,0.15)] flex items-center justify-center gap-2">
-            <Sparkles className="w-3.5 h-3.5 text-[#00f0ff] shrink-0 animate-pulse" />
-            <span className="italic">"{currentTranscript}"</span>
+          <div className="w-full bg-[var(--bg-surface)]/95 border border-[var(--primary-accent)]/40 rounded-xl px-4 py-2.5 text-xs font-mono text-[var(--primary-accent)] tracking-wide animate-fade-in shadow-[0_0_15px_var(--accent-glow)] flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 truncate">
+              <Sparkles className="w-3.5 h-3.5 text-[var(--primary-accent)] shrink-0 animate-pulse" />
+              <span className="italic truncate font-semibold">"{currentTranscript}"</span>
+            </div>
+            {onCommitTranscript && (
+              <button
+                type="button"
+                onClick={onCommitTranscript}
+                className="px-2.5 py-1 rounded bg-[var(--primary-accent)] text-black font-bold text-[11px] shrink-0 hover:brightness-110 cursor-pointer shadow-sm transition-all"
+                title="Ejecutar instrucción detectada ahora"
+              >
+                Ejecutar ✓
+              </button>
+            )}
           </div>
         )}
       </div>
