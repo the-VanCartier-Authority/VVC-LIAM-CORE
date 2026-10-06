@@ -3,7 +3,7 @@ import type { DeviceState, PhoneContact, AlarmItem, TimerItem, CalendarEvent, Ta
 export interface CommandExecutionResult {
   isHandled: boolean;
   spokenResponse: string;
-  actionType?: 'call' | 'message' | 'torch' | 'volume' | 'brightness' | 'alarm' | 'timer' | 'reminder' | 'task' | 'calendar' | 'security' | 'model' | 'sync';
+  actionType?: 'call' | 'message' | 'torch' | 'volume' | 'brightness' | 'alarm' | 'timer' | 'reminder' | 'task' | 'calendar' | 'security' | 'model' | 'sync' | 'gmail' | 'picker' | 'maps';
   actionDetails?: string;
   updatedDeviceState?: Partial<DeviceState>;
   newAlarm?: Omit<AlarmItem, 'id'>;
@@ -18,6 +18,11 @@ export interface CommandExecutionResult {
   screenFlashlight?: boolean;
   triggerICalExport?: boolean;
   triggerThirdPartySync?: boolean;
+  openGmail?: boolean;
+  gmailCompose?: { recipient: string; subject: string; body: string };
+  openPicker?: boolean;
+  openMaps?: boolean;
+  mapsQuery?: string;
 }
 
 export function parseNaturalVoiceCommand(
@@ -492,6 +497,57 @@ export function parseNaturalVoiceCommand(
       spokenResponse: `La batería se encuentra al ${deviceState.batteryLevel} por ciento ${deviceState.isCharging ? 'y está cargando' : 'con autonomía óptima'}.`,
       actionType: 'security',
       actionDetails: `Nivel de batería: ${deviceState.batteryLevel}% | Cargando: ${deviceState.isCharging ? 'Sí' : 'No'}`,
+    };
+  }
+
+  // 17. GMAIL WORKSPACE
+  if (query.includes('abrir gmail') || query.includes('abre gmail') || query.includes('ver correos') || query.includes('revisar correos') || query.includes('bandeja de entrada') || query.includes('leer correos')) {
+    return {
+      isHandled: true,
+      spokenResponse: 'Abriendo tu bandeja de entrada de Gmail.',
+      actionType: 'gmail',
+      actionDetails: 'Gmail Workspace abierto.',
+      openGmail: true,
+    };
+  }
+
+  const gmailSendMatch = query.match(/(?:enviar|redactar|mandar)(?: un)? correo a (.+?)(?:\s+(?:con asunto|asunto)\s+(.+?))?(?:\s+(?:con mensaje|mensaje|diciendo)\s+(.+))?$/i);
+  if (gmailSendMatch) {
+    const to = gmailSendMatch[1].trim();
+    const subj = gmailSendMatch[2] ? gmailSendMatch[2].trim() : 'Mensaje desde VVC-ACIA';
+    const body = gmailSendMatch[3] ? gmailSendMatch[3].trim() : '';
+    return {
+      isHandled: true,
+      spokenResponse: `Preparando borrador de correo para ${to}. Revisa los detalles antes de confirmar el envío.`,
+      actionType: 'gmail',
+      actionDetails: `Borrador Gmail: Para ${to}`,
+      openGmail: true,
+      gmailCompose: { recipient: to, subject: subj, body },
+    };
+  }
+
+  // 18. GOOGLE PICKER & DRIVE
+  if (query.includes('abrir picker') || query.includes('abre picker') || query.includes('google picker') || query.includes('adjuntar de drive') || query.includes('seleccionar archivo') || query.includes('archivos de drive') || query.includes('abrir drive')) {
+    return {
+      isHandled: true,
+      spokenResponse: 'Iniciando Google Picker para explorar tus archivos en Google Drive.',
+      actionType: 'picker',
+      actionDetails: 'Google Picker API activado.',
+      openPicker: true,
+    };
+  }
+
+  // 19. GOOGLE MAPS
+  if (query.includes('abrir mapa') || query.includes('abre el mapa') || query.includes('ver mapa') || query.includes('mostrar mapa') || query.includes('google maps') || query.includes('radar de mapa')) {
+    const searchMatch = query.match(/(?:buscar en (?:el )?mapa|buscar en google maps|ubicar en el mapa|dónde está|donde queda)\s+(.+)/i);
+    const place = searchMatch ? searchMatch[1].trim() : '';
+    return {
+      isHandled: true,
+      spokenResponse: place ? `Localizando ${place} en Google Maps.` : 'Desplegando el radar táctico de Google Maps.',
+      actionType: 'maps',
+      actionDetails: place ? `Búsqueda en mapa: ${place}` : 'Google Maps abierto.',
+      openMaps: true,
+      mapsQuery: place,
     };
   }
 

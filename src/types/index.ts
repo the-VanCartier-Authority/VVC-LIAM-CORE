@@ -502,7 +502,7 @@ export interface ConsoleMessage {
   sender: 'user' | 'assistant' | 'system';
   text: string;
   timestamp: string;
-  actionType?: 'call' | 'message' | 'torch' | 'volume' | 'brightness' | 'alarm' | 'timer' | 'reminder' | 'task' | 'calendar' | 'security' | 'model' | 'sync';
+  actionType?: 'call' | 'message' | 'torch' | 'volume' | 'brightness' | 'alarm' | 'timer' | 'reminder' | 'task' | 'calendar' | 'security' | 'model' | 'sync' | 'gmail' | 'picker' | 'maps';
   actionDetails?: string;
   modelUsed?: string;
   isE2EE?: boolean;

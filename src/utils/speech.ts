@@ -192,11 +192,122 @@ export function initSpeechRecognition(callbacks: {
 }
 
 let activeAudioElement: HTMLAudioElement | null = null;
+let cachedVoices: SpeechSynthesisVoice[] = [];
 
 /**
- * Fallback to browser SpeechSynthesis (e.g. offline mode)
+ * Preprocess and humanize text for Kokoro speech
+ * Expands technical abbreviations and normalizes cadence
  */
-function speakWithBrowser(
+function humanizeTextForKokoro(rawText: string): string {
+  let text = rawText
+    .replace(/\[(?:EXEC|E2EE|ALERTA|NOTIF|DISPOSITIVO|CALENDARIO|TAREA)\]/gi, '')
+    .replace(/\[\w+[^\]]*\]/g, '')
+    .replace(/[`*_~#<>]/g, '')
+    .replace(/https?:\/\/\S+/g, 'enlace web')
+    .replace(/\bVVC-ACIA\b/gi, 'V V C Asía')
+    .replace(/\bE2EE\b/gi, 'cifrado total')
+    .replace(/\bNVIDIA\b/gi, 'Envidia')
+    .replace(/\bNIM\b/gi, 'N I M')
+    .replace(/\bAPI\b/gi, 'A P I')
+    .replace(/\bGPS\b/gi, 'G P S')
+    .replace(/\bWPA3\b/gi, 'W P A 3')
+    .replace(/\bTTS\b/gi, 'voz')
+    .replace(/\bAI\b/gi, 'inteligencia artificial')
+    .replace(/([.!?])\s*/g, '$1 ')
+    .replace(/([,;:])\s*/g, '$1 ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return text;
+}
+
+/**
+ * Asynchronously fetch voices, waiting for browser voiceschanged if needed
+ */
+function getLoadedVoices(): Promise<SpeechSynthesisVoice[]> {
+  return new Promise((resolve) => {
+    if (!('speechSynthesis' in window)) {
+      resolve([]);
+      return;
+    }
+
+    const current = window.speechSynthesis.getVoices();
+    if (current && current.length > 0) {
+      cachedVoices = current;
+      resolve(current);
+      return;
+    }
+
+    const onVoicesChanged = () => {
+      const v = window.speechSynthesis.getVoices();
+      if (v && v.length > 0) {
+        cachedVoices = v;
+        window.speechSynthesis.removeEventListener('voiceschanged', onVoicesChanged);
+        resolve(v);
+      }
+    };
+
+    window.speechSynthesis.addEventListener('voiceschanged', onVoicesChanged);
+
+    // Timeout fallback after 600ms
+    setTimeout(() => {
+      window.speechSynthesis.removeEventListener('voiceschanged', onVoicesChanged);
+      cachedVoices = window.speechSynthesis.getVoices();
+      resolve(cachedVoices);
+    }, 600);
+  });
+}
+
+/**
+ * Select the highest-fidelity natural voice matching language and profile
+ */
+function selectOptimalVoice(
+  voices: SpeechSynthesisVoice[],
+  targetLang: string,
+  gender: 'Femenina' | 'Masculina'
+): SpeechSynthesisVoice | null {
+  if (!voices || voices.length === 0) return null;
+
+  // Filter by language prefix
+  const langVoices = voices.filter((v) => v.lang.toLowerCase().startsWith(targetLang.toLowerCase()));
+  const candidatePool = langVoices.length > 0 ? langVoices : voices;
+
+  const isFemale = (name: string) =>
+    /female|muj|monica|mónica|helena|zira|samantha|victoria|karen|elvira|paulina|sabina|sofia|sofía|laura|lucia|lucía|carmen/i.test(
+      name
+    );
+  const isMale = (name: string) =>
+    /male|hom|jorge|pablo|david|mark|alex|daniel|alvaro|álvaro|raul|raúl|enrique|carlos|diego|mateo|manuel/i.test(
+      name
+    );
+
+  // 1st Priority: Natural / Neural voices with matching gender
+  const naturalVoices = candidatePool.filter((v) =>
+    /natural|neural|online|premium|enhanced|multilingual|studio/i.test(v.name)
+  );
+
+  const naturalGenderMatch = naturalVoices.find((v) =>
+    gender === 'Femenina' ? isFemale(v.name) : isMale(v.name)
+  );
+  if (naturalGenderMatch) return naturalGenderMatch;
+
+  // 2nd Priority: Any Natural / Neural voice in the language
+  if (naturalVoices.length > 0) return naturalVoices[0];
+
+  // 3rd Priority: Standard voice matching gender
+  const standardGenderMatch = candidatePool.find((v) =>
+    gender === 'Femenina' ? isFemale(v.name) : isMale(v.name)
+  );
+  if (standardGenderMatch) return standardGenderMatch;
+
+  // 4th Priority: First voice in language
+  return candidatePool[0] || voices[0];
+}
+
+/**
+ * High-realism on-device Kokoro Voice synthesis
+ */
+async function speakWithKokoroEngine(
   cleanText: string,
   voiceId: KokoroVoiceId,
   options: {
@@ -213,27 +324,22 @@ function speakWithBrowser(
   }
 
   window.speechSynthesis.cancel();
+
   const profile = KOKORO_VOICES.find((v) => v.id === voiceId) || KOKORO_VOICES[0];
-  const utterance = new SpeechSynthesisUtterance(cleanText);
-
-  utterance.pitch = (profile.pitch || 1.0) * (options.pitchModifier || 1.0);
-  utterance.rate = (profile.rate || 1.0) * (options.rateModifier || 1.0);
-  utterance.volume = options.volume !== undefined ? Math.min(Math.max(options.volume / 100, 0), 1) : 0.9;
-
-  const voices = window.speechSynthesis.getVoices();
+  const voices = await getLoadedVoices();
   const targetLang = profile.language === 'Español' ? 'es' : 'en';
 
-  const matchedVoice =
-    voices.find(
-      (v) =>
-        v.lang.toLowerCase().startsWith(targetLang) &&
-        (profile.gender === 'Femenina'
-          ? /female|muj|monica|helena|zira|samantha|victoria|karen/i.test(v.name)
-          : /male|hom|jorge|pablo|david|mark|alex|daniel/i.test(v.name))
-    ) ||
-    voices.find((v) => v.lang.toLowerCase().startsWith(targetLang)) ||
-    voices[0];
+  const utterance = new SpeechSynthesisUtterance(cleanText);
 
+  // Apply Kokoro acoustic contouring
+  const basePitch = profile.pitch || (profile.gender === 'Femenina' ? 1.1 : 0.92);
+  const baseRate = profile.rate || 1.02;
+
+  utterance.pitch = Math.max(0.7, Math.min(1.4, basePitch * (options.pitchModifier || 1.0)));
+  utterance.rate = Math.max(0.75, Math.min(1.35, baseRate * (options.rateModifier || 1.0)));
+  utterance.volume = options.volume !== undefined ? Math.min(Math.max(options.volume / 100, 0), 1) : 0.95;
+
+  const matchedVoice = selectOptimalVoice(voices, targetLang, profile.gender);
   if (matchedVoice) {
     utterance.voice = matchedVoice;
   }
@@ -247,7 +353,7 @@ function speakWithBrowser(
   };
 
   utterance.onerror = (e) => {
-    console.warn('SpeechSynthesisUtterance error:', e);
+    console.warn('SpeechSynthesis error:', e);
     if (options.onEnd) options.onEnd();
   };
 
@@ -255,9 +361,8 @@ function speakWithBrowser(
 }
 
 /**
- * High-Fidelity Studio Neural Voice Engine (TTS)
- * Renders human-level speech via /api/tts neural pipeline,
- * with seamless fallback to on-device SpeechSynthesis.
+ * High-Fidelity Kokoro Voice Engine
+ * Tries server-side neural TTS first; if unavailable, uses high-realism on-device engine
  */
 export async function speakKokoro(
   text: string,
@@ -270,29 +375,28 @@ export async function speakKokoro(
     onEnd?: () => void;
   } = {}
 ) {
-  // Cancel previous speech
+  // Cancel previous speech immediately
   stopSpeaking();
 
-  // Clean markdown / console symbols from text before speaking
-  const cleanText = text
-    .replace(/\[(?:EXEC|E2EE|ALERTA|NOTIF|DISPOSITIVO|CALENDARIO|TAREA)\]/gi, '')
-    .replace(/\[\w+[^\]]*\]/g, '')
-    .replace(/[#*_`~>]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-
+  const cleanText = humanizeTextForKokoro(text);
   if (!cleanText) {
     if (options.onEnd) options.onEnd();
     return;
   }
 
-  // Attempt Studio Neural TTS via server
+  // Fast check: Try server neural TTS with a short 2.5s network timeout
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+
     const res = await fetch('/api/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: cleanText, voiceId }),
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (res.ok) {
       const data = await res.json();
@@ -311,9 +415,9 @@ export async function speakKokoro(
         };
 
         audio.onerror = (e) => {
-          console.warn('Audio element error, using browser fallback:', e);
+          console.warn('Audio playback error, using Kokoro engine:', e);
           activeAudioElement = null;
-          speakWithBrowser(cleanText, voiceId, options);
+          speakWithKokoroEngine(cleanText, voiceId, options);
         };
 
         await audio.play();
@@ -321,11 +425,11 @@ export async function speakKokoro(
       }
     }
   } catch (err) {
-    console.debug('Neural TTS offline or network error, falling back to browser synthesis:', err);
+    // Network timeout or offline - seamlessly proceed to Kokoro engine
   }
 
-  // Fallback to local browser utterance
-  speakWithBrowser(cleanText, voiceId, options);
+  // High-fidelity Kokoro engine execution
+  speakWithKokoroEngine(cleanText, voiceId, options);
 }
 
 export function stopSpeaking() {

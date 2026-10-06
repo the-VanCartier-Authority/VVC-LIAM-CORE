@@ -17,6 +17,11 @@ import { EncryptedVaultModal } from './components/EncryptedVaultModal';
 import { SettingsModal } from './components/SettingsModal';
 import { RealTimeAlertToast } from './components/RealTimeAlertToast';
 import { InstallModal } from './components/InstallModal';
+import { GmailModal } from './components/GmailModal';
+import { GoogleDrivePickerModal } from './components/GoogleDrivePickerModal';
+import { GoogleMapsPanel } from './components/GoogleMapsPanel';
+import { initAuth, googleSignIn } from './services/googleAuth';
+import type { User } from 'firebase/auth';
 
 import { 
   type ModelType, 
@@ -268,6 +273,22 @@ export default function App() {
   const [isDeviceControlsOpen, setIsDeviceControlsOpen] = useState(false);
   const [isScreenTorchOpen, setIsScreenTorchOpen] = useState(false);
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
+  const [isGmailOpen, setIsGmailOpen] = useState(false);
+  const [gmailDraft, setGmailDraft] = useState<{ recipient?: string; subject?: string; body?: string }>({});
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [isMapsOpen, setIsMapsOpen] = useState(false);
+  const mapsApiKey = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string) || 'AIzaSyCzVPjGhif2S8wKYBjkk5TuoqAeuCEatUo';
+
+  // Google Auth User State
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = initAuth(
+      (user) => setCurrentUser(user),
+      () => setCurrentUser(null)
+    );
+    return () => unsubscribe();
+  }, []);
 
   // References
   const speechRecognitionRef = useRef<any>(null);
@@ -594,6 +615,24 @@ export default function App() {
             setCalendarEvents((prev) => [eventObj, ...prev]);
           }
 
+          // Handle Gmail Intent
+          if (intentResult.openGmail) {
+            if (intentResult.gmailCompose) {
+              setGmailDraft(intentResult.gmailCompose);
+            }
+            setIsGmailOpen(true);
+          }
+
+          // Handle Google Picker Intent
+          if (intentResult.openPicker) {
+            setIsPickerOpen(true);
+          }
+
+          // Handle Google Maps Intent
+          if (intentResult.openMaps) {
+            setIsMapsOpen(true);
+          }
+
           // Spoken output with Kokoro TTS
           if (!deviceState.isMuted) {
             setIsSpeaking(true);
@@ -861,6 +900,18 @@ export default function App() {
         onOpenCalendar={() => setIsCalendarOpen(true)}
         onOpenVault={() => setIsVaultOpen(true)}
         onOpenDeviceControls={() => setIsDeviceControlsOpen(true)}
+        onOpenGmail={() => setIsGmailOpen(true)}
+        onOpenPicker={() => setIsPickerOpen(true)}
+        onOpenMaps={() => setIsMapsOpen(true)}
+        currentUser={currentUser}
+        onSignInGoogle={async () => {
+          try {
+            const res = await googleSignIn();
+            if (res?.user) setCurrentUser(res.user);
+          } catch (err: any) {
+            console.warn('Sign-in error:', err);
+          }
+        }}
         isMuted={deviceState.isMuted}
         onToggleMute={() => setDeviceState((p) => ({ ...p, isMuted: !p.isMuted }))}
         pendingTasksCount={pendingTasksCount}
@@ -1102,6 +1153,37 @@ export default function App() {
       <InstallModal
         isOpen={isInstallModalOpen}
         onClose={() => setIsInstallModalOpen(false)}
+      />
+
+      {/* Gmail Workspace Modal */}
+      <GmailModal
+        isOpen={isGmailOpen}
+        onClose={() => setIsGmailOpen(false)}
+        currentUser={currentUser}
+        onAuthChange={(u) => setCurrentUser(u)}
+        initialRecipient={gmailDraft.recipient}
+        initialSubject={gmailDraft.subject}
+        initialBody={gmailDraft.body}
+      />
+
+      {/* Google Drive Picker Modal */}
+      <GoogleDrivePickerModal
+        isOpen={isPickerOpen}
+        onClose={() => setIsPickerOpen(false)}
+        currentUser={currentUser}
+        onSignInRequired={async () => {
+          try {
+            const res = await googleSignIn();
+            if (res?.user) setCurrentUser(res.user);
+          } catch {}
+        }}
+      />
+
+      {/* Google Maps Platform Radar Panel */}
+      <GoogleMapsPanel
+        apiKey={mapsApiKey}
+        isOpen={isMapsOpen}
+        onClose={() => setIsMapsOpen(false)}
       />
     </div>
   );

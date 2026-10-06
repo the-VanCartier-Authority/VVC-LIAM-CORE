@@ -27,6 +27,24 @@ interface ChipItem {
 
 const CHIPS: ChipItem[] = [
   {
+    label: '✉️ Abrir Gmail',
+    command: 'Abrir Gmail',
+    icon: <Calendar className="w-3 h-3 text-red-400" />,
+    category: 'sync',
+  },
+  {
+    label: '📁 Google Picker',
+    command: 'Abrir Google Picker para seleccionar archivo',
+    icon: <Share2 className="w-3 h-3 text-blue-400" />,
+    category: 'sync',
+  },
+  {
+    label: '🗺️ Google Maps',
+    command: 'Abrir Google Maps',
+    icon: <CheckSquare className="w-3 h-3 text-cyan-400" />,
+    category: 'device',
+  },
+  {
     label: 'Nueva Tarea Urgente',
     command: 'Crear tarea urgente revisar presupuesto para mañana a las 10:00',
     icon: <CheckSquare className="w-3 h-3 text-[#ff2a5f]" />,
