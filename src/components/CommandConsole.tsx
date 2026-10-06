@@ -10,7 +10,9 @@ import {
   Mic, 
   MicOff, 
   Sparkles,
-  Trash2
+  Trash2,
+  HardDrive,
+  Download
 } from 'lucide-react';
 import type { ConsoleMessage } from '../types';
 
@@ -58,35 +60,77 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  const handleExportChat = () => {
+    if (messages.length === 0) return;
+    const exportText = messages
+      .map(
+        (m) =>
+          `[${m.timestamp}] ${m.sender.toUpperCase()} (${m.modelUsed || 'Sistema'}):\n${m.text}${
+            m.actionDetails ? `\n-> Acción: ${m.actionDetails}` : ''
+          }`
+      )
+      .join('\n\n----------------------------------------\n\n');
+
+    const blob = new Blob([exportText], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `vvc-acia-historial-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="w-full max-w-4xl mx-auto px-4 flex flex-col flex-1 pb-4">
       {/* Console Frame */}
-      <div className="bg-[#07090e] border border-[#1e2638] rounded-lg overflow-hidden shadow-2xl flex flex-col h-[380px] sm:h-[440px]">
+      <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-xl overflow-hidden shadow-2xl flex flex-col h-[380px] sm:h-[440px] transition-colors">
         {/* Terminal Header Bar */}
-        <div className="bg-[#0b0e17] px-4 py-2.5 border-b border-[#1e2638] flex items-center justify-between">
+        <div className="bg-[var(--bg-surface)] px-4 py-2.5 border-b border-[var(--border-subtle)] flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-[#ff2a5f] opacity-80" />
               <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 opacity-80" />
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 opacity-80" />
             </div>
-            <div className="h-3 w-[1px] bg-[#1e2638] mx-1" />
+            <div className="h-3 w-[1px] bg-[var(--border-subtle)] mx-1" />
             <span className="text-xs font-mono text-slate-300 flex items-center gap-1.5">
-              <Terminal className="w-3.5 h-3.5 text-[#00f0ff]" />
-              <span className="text-[#00f0ff]">vvc-acia</span>@obsidian-core:~$
+              <Terminal className="w-3.5 h-3.5 text-[var(--primary-accent)]" />
+              <span className="text-[var(--primary-accent)]">vvc-acia</span>@terminal:~$
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="text-[11px] font-mono text-slate-400 hidden sm:inline flex items-center gap-1">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* On-device storage indicator badge */}
+            <span
+              className="hidden sm:flex items-center gap-1 text-[10px] font-mono text-cyan-400 bg-cyan-950/40 border border-cyan-800/40 px-1.5 py-0.5 rounded shadow-sm"
+              title="Historial persistente guardado localmente en este dispositivo"
+            >
+              <HardDrive className="w-2.5 h-2.5" />
+              <span>DISCO LOCAL ON</span>
+            </span>
+
+            <span className="text-[11px] font-mono text-slate-400 hidden md:inline flex items-center gap-1">
               <Cpu className="w-3 h-3 text-[#b026ff]" />
               {activeModelName}
             </span>
 
+            {/* Export log */}
+            {messages.length > 0 && (
+              <button
+                onClick={handleExportChat}
+                className="p-1 text-slate-400 hover:text-cyan-400 transition-colors"
+                title="Descargar historial de chat (.txt)"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
+            )}
+
             <button
               onClick={onClearConsole}
               className="p-1 text-slate-400 hover:text-red-400 transition-colors"
-              title="Limpiar registro de consola"
+              title="Limpiar registro de consola y memoria local"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -107,12 +151,12 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
             messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`p-3 rounded transition-all ${
+                className={`p-3 rounded-lg transition-all ${
                   msg.sender === 'user'
-                    ? 'bg-[#0f1422] border-l-2 border-[#00f0ff]'
+                    ? 'bg-[var(--bg-surface)] border-l-2 border-[var(--primary-accent)]'
                     : msg.sender === 'assistant'
-                    ? 'bg-[#0a0d14] border-l-2 border-[#b026ff]'
-                    : 'bg-[#121622]/60 border-l-2 border-emerald-400'
+                    ? 'bg-[var(--bg-obsidian)] border-l-2 border-[var(--secondary-accent)]'
+                    : 'bg-[var(--bg-surface)]/70 border-l-2 border-emerald-400'
                 }`}
               >
                 {/* Meta row */}
@@ -121,9 +165,9 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
                     <span
                       className={`font-semibold tracking-wide uppercase ${
                         msg.sender === 'user'
-                          ? 'text-[#00f0ff]'
+                          ? 'text-[var(--primary-accent)]'
                           : msg.sender === 'assistant'
-                          ? 'text-[#b026ff]'
+                          ? 'text-[var(--secondary-accent)]'
                           : 'text-emerald-400'
                       }`}
                     >
@@ -135,7 +179,7 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
                     </span>
 
                     {msg.modelUsed && (
-                      <span className="text-[10px] text-slate-400 bg-[#141a29] px-1.5 py-0.5 rounded border border-[#1e2638]">
+                      <span className="text-[10px] text-slate-400 bg-[var(--bg-card)] px-1.5 py-0.5 rounded border border-[var(--border-subtle)]">
                         {msg.modelUsed}
                       </span>
                     )}
@@ -156,7 +200,7 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
                     {msg.sender === 'assistant' && (
                       <button
                         onClick={() => onSpeakMessage(msg.text)}
-                        className="text-slate-400 hover:text-[#00f0ff] p-0.5 transition-colors"
+                        className="text-slate-400 hover:text-[var(--primary-accent)] p-0.5 transition-colors"
                         title="Escuchar con motor Kokoro TTS"
                       >
                         <Volume2 className="w-3.5 h-3.5" />
@@ -184,8 +228,8 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
 
                 {/* Action details if triggered hardware control */}
                 {msg.actionDetails && (
-                  <div className="mt-2 pt-2 border-t border-[#1e2638]/60 flex items-center gap-2 text-[11px] text-[#00f0ff]">
-                    <span className="px-1.5 py-0.2 bg-[#00f0ff]/10 rounded border border-[#00f0ff]/30 uppercase text-[9px] font-mono">
+                  <div className="mt-2 pt-2 border-t border-[var(--border-subtle)]/60 flex items-center gap-2 text-[11px] text-[var(--primary-accent)]">
+                    <span className="px-1.5 py-0.2 bg-[var(--tag-bg)] rounded border border-[var(--primary-accent)]/30 uppercase text-[9px] font-mono">
                       ACCION DISPOSITIVO
                     </span>
                     <span className="truncate">{msg.actionDetails}</span>
@@ -197,7 +241,7 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
 
           {/* Processing Indicator */}
           {isProcessing && (
-            <div className="p-2.5 rounded bg-[#0a0d14] border-l-2 border-[#ff2a5f] flex items-center gap-2 text-slate-300">
+            <div className="p-2.5 rounded bg-[var(--bg-surface)] border-l-2 border-[#ff2a5f] flex items-center gap-2 text-slate-300">
               <span className="w-2 h-2 rounded-full bg-[#ff2a5f] animate-ping" />
               <span className="text-[#ff2a5f] font-mono text-xs">
                 [NVIDIA NIM / RT-LITE] Procesando inferencia y control de hardware...
@@ -207,7 +251,7 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
         </div>
 
         {/* Input Bar Form */}
-        <form onSubmit={handleSubmit} className="bg-[#0b0e17] p-2.5 border-t border-[#1e2638] flex items-center gap-2">
+        <form onSubmit={handleSubmit} className="bg-[var(--bg-surface)] p-2.5 border-t border-[var(--border-subtle)] flex items-center gap-2">
           <div className="relative flex-1 flex items-center">
             <span className="absolute left-3 text-slate-500 font-mono text-xs pointer-events-none">
               &gt;
@@ -216,8 +260,8 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder="Escribe o dicta un comando (ej: Llamar a Alex, Poner alarma 8:00, Brillo al 70%)..."
-              className="w-full bg-[#06080d] border border-[#1e2638] focus:border-[#00f0ff] rounded pl-7 pr-3 py-2 text-xs font-mono text-slate-100 placeholder:text-slate-500 focus:outline-none transition-colors"
+              placeholder="Escribe o dicta un comando (ej: Llamar a Alex, Poner alarma 8:00, Cambiar tema a Amber)..."
+              className="w-full bg-[var(--bg-obsidian)] border border-[var(--border-subtle)] focus:border-[var(--primary-accent)] rounded pl-7 pr-3 py-2 text-xs font-mono text-[var(--text-primary)] placeholder:text-slate-500 focus:outline-none transition-colors"
             />
           </div>
 
@@ -225,10 +269,10 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
           <button
             type="button"
             onClick={onToggleListening}
-            className={`p-2 rounded border transition-all ${
+            className={`p-2 rounded border transition-all cursor-pointer ${
               isListening
-                ? 'bg-[#00f0ff]/20 border-[#00f0ff] text-[#00f0ff] animate-pulse shadow-[0_0_10px_rgba(0,240,255,0.4)]'
-                : 'bg-[#0f141f] border-[#1e2638] text-slate-300 hover:text-[#00f0ff] hover:border-[#00f0ff]/40'
+                ? 'bg-[var(--tag-bg)] border-[var(--primary-accent)] text-[var(--primary-accent)] animate-pulse shadow-[0_0_10px_var(--accent-glow)]'
+                : 'bg-[var(--bg-card)] border-[var(--border-subtle)] text-slate-300 hover:text-[var(--primary-accent)] hover:border-[var(--primary-accent)]/40'
             }`}
             title={isListening ? 'Micrófono activo' : 'Activar micrófono'}
           >
@@ -239,7 +283,7 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
           <button
             type="submit"
             disabled={!inputText.trim() || isProcessing}
-            className="px-3.5 py-2 rounded bg-[#00f0ff] hover:bg-[#00d0df] text-black font-semibold text-xs font-mono flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:shadow-[0_0_12px_rgba(0,240,255,0.4)]"
+            className="px-3.5 py-2 rounded bg-[var(--primary-accent)] text-black font-semibold text-xs font-mono flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:shadow-[0_0_12px_var(--accent-glow)] cursor-pointer"
           >
             <span>Ejecutar</span>
             <Send className="w-3.5 h-3.5" />

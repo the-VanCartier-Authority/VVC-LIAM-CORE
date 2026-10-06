@@ -27,6 +27,7 @@ import {
   type ModelType, 
   type KokoroVoiceId, 
   type CloudServiceIntegrationType,
+  type ThemeColorId,
   type DeviceState, 
   type ActiveCall, 
   type PhoneContact, 
@@ -181,6 +182,17 @@ export default function App() {
   const [autoDarkMode, setAutoDarkMode] = useState(true);
   const [cloudSyncEnabled, setCloudSyncEnabled] = useState(true);
 
+  // Visual Color Theme State (CSS Variables)
+  const [currentTheme, setCurrentTheme] = useState<ThemeColorId>(() => {
+    return (localStorage.getItem('vvc_acia_theme') as ThemeColorId) || 'obsidian-cyan';
+  });
+
+  // Apply theme to documentElement on load and update
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    localStorage.setItem('vvc_acia_theme', currentTheme);
+  }, [currentTheme]);
+
   // Device & Hardware State
   const [deviceState, setDeviceState] = useState<DeviceState>({
     flashlight: false,
@@ -247,17 +259,30 @@ export default function App() {
   const [activeAlerts, setActiveAlerts] = useState<ActiveNotificationAlert[]>([]);
   const notifiedTaskTimestampsRef = useRef<{ [key: string]: boolean }>({});
 
-  // Console messages
-  const [messages, setMessages] = useState<ConsoleMessage[]>([
-    {
-      id: 'm-init',
-      sender: 'system',
-      text: 'VVC-ACIA OS Obsidian Core v2.4 activo. Sistema avanzado de tareas y recordatorios en tiempo real sincronizado con Google Calendar & Cloud Services.',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-      modelUsed: 'NVIDIA Nemotron 3.5 / RT-Lite Local',
-      isE2EE: true,
-    },
-  ]);
+  // Console messages with on-device persistence
+  const [messages, setMessages] = useState<ConsoleMessage[]>(() => {
+    try {
+      const saved = localStorage.getItem('vvc_acia_chat_history');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('Error reading chat history from local storage:', e);
+    }
+    return [
+      {
+        id: 'm-init',
+        sender: 'system',
+        text: 'VVC-ACIA OS Obsidian Core v2.4 activo. Historial de chat persistente en el dispositivo, cifrado y sincronizado.',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        modelUsed: 'NVIDIA Nemotron 3.5 / RT-Lite Local',
+        isE2EE: true,
+      },
+    ];
+  });
 
   // Voice & Interaction Flags
   const [isListening, setIsListening] = useState(false);
@@ -302,6 +327,16 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('vvc_acia_events', JSON.stringify(calendarEvents));
   }, [calendarEvents]);
+
+  // Persist chat history to on-device localStorage
+  useEffect(() => {
+    try {
+      const historyToSave = messages.slice(-150);
+      localStorage.setItem('vvc_acia_chat_history', JSON.stringify(historyToSave));
+    } catch (e) {
+      console.warn('Error saving chat history to localStorage:', e);
+    }
+  }, [messages]);
 
   // Battery API integration
   useEffect(() => {
@@ -633,6 +668,12 @@ export default function App() {
             setIsMapsOpen(true);
           }
 
+          // Handle Theme Change Intent
+          if (intentResult.newTheme) {
+            setCurrentTheme(intentResult.newTheme);
+            playCyberTone('confirm');
+          }
+
           // Spoken output with Kokoro TTS
           if (!deviceState.isMuted) {
             setIsSpeaking(true);
@@ -870,15 +911,21 @@ export default function App() {
 
   return (
     <div
-      className="min-h-screen bg-[#050608] text-slate-100 flex flex-col relative selection:bg-[#00f0ff]/30 selection:text-white"
+      className="min-h-screen bg-[var(--bg-obsidian)] text-[var(--text-primary)] flex flex-col relative selection:bg-[var(--primary-accent)]/30 selection:text-white transition-colors duration-300"
       style={{
         filter: deviceState.brightness < 100 ? `brightness(${Math.max(0.4, deviceState.brightness / 100)})` : 'none',
       }}
     >
       {/* Background Cyber Scanlines & Glow Grid */}
       <div className="fixed inset-0 pointer-events-none scanline-bg opacity-30 z-0" />
-      <div className="fixed -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[500px] bg-[#00f0ff]/5 blur-[120px] rounded-full pointer-events-none -z-10" />
-      <div className="fixed -bottom-40 right-10 w-[500px] h-[500px] bg-[#b026ff]/5 blur-[120px] rounded-full pointer-events-none -z-10" />
+      <div 
+        className="fixed -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[500px] blur-[120px] rounded-full pointer-events-none -z-10 transition-colors duration-500" 
+        style={{ backgroundColor: 'rgba(var(--primary-accent-rgb), 0.08)' }}
+      />
+      <div 
+        className="fixed -bottom-40 right-10 w-[500px] h-[500px] blur-[120px] rounded-full pointer-events-none -z-10 transition-colors duration-500" 
+        style={{ backgroundColor: 'rgba(var(--secondary-accent-rgb), 0.08)' }}
+      />
 
       {/* Top Bar Header */}
       <Header
@@ -916,6 +963,11 @@ export default function App() {
         onToggleMute={() => setDeviceState((p) => ({ ...p, isMuted: !p.isMuted }))}
         pendingTasksCount={pendingTasksCount}
         onOpenInstallModal={() => setIsInstallModalOpen(true)}
+        currentTheme={currentTheme}
+        onSelectTheme={(theme) => {
+          setCurrentTheme(theme);
+          playCyberTone('confirm');
+        }}
       />
 
       {/* Real-Time Live Notification Alerts Toast */}
@@ -967,7 +1019,10 @@ export default function App() {
           messages={messages}
           onSendMessage={(txt) => handleProcessCommand(txt)}
           onSpeakMessage={handleSpeakMessage}
-          onClearConsole={() => setMessages([])}
+          onClearConsole={() => {
+            setMessages([]);
+            localStorage.removeItem('vvc_acia_chat_history');
+          }}
           isListening={isListening}
           onToggleListening={toggleListening}
           isProcessing={isProcessing}
@@ -1147,6 +1202,8 @@ export default function App() {
         onToggleCloudSync={() => setCloudSyncEnabled(!cloudSyncEnabled)}
         isOffline={isOffline}
         onToggleOffline={() => setIsOffline(!isOffline)}
+        currentTheme={currentTheme}
+        onSelectTheme={(theme) => setCurrentTheme(theme)}
       />
 
       {/* App / APK Installation Guide Modal */}

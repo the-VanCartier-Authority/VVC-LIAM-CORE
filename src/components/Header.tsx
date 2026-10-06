@@ -14,14 +14,17 @@ import {
   Mail,
   Compass,
   FolderOpen,
-  User as UserIcon
+  User as UserIcon,
+  Palette
 } from 'lucide-react';
 import type { User } from 'firebase/auth';
 import { 
   AVAILABLE_MODELS, 
   CLOUD_INTEGRATIONS, 
+  THEME_SCHEMES,
   type ModelType, 
-  type CloudServiceIntegrationType 
+  type CloudServiceIntegrationType,
+  type ThemeColorId
 } from '../types';
 
 interface HeaderProps {
@@ -44,6 +47,8 @@ interface HeaderProps {
   onToggleMute: () => void;
   pendingTasksCount: number;
   onOpenInstallModal: () => void;
+  currentTheme: ThemeColorId;
+  onSelectTheme: (theme: ThemeColorId) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -66,24 +71,27 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleMute,
   pendingTasksCount,
   onOpenInstallModal,
+  currentTheme,
+  onSelectTheme,
 }) => {
   const currentModelInfo = AVAILABLE_MODELS.find((m) => m.id === currentModel) || AVAILABLE_MODELS[0];
   const currentCloudInfo = CLOUD_INTEGRATIONS.find((c) => c.id === currentCloudIntegration) || CLOUD_INTEGRATIONS[0];
+  const currentThemeInfo = THEME_SCHEMES.find((t) => t.id === currentTheme) || THEME_SCHEMES[0];
 
   return (
-    <header className="w-full bg-[#050608]/90 backdrop-blur-md border-b border-[#1e2638] sticky top-0 z-40 transition-colors">
+    <header className="w-full bg-[var(--bg-surface)]/95 backdrop-blur-md border-b border-[var(--border-subtle)] sticky top-0 z-40 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
         {/* Zone 1: Wordmark Brand */}
         <div className="flex items-center gap-3 shrink-0">
-          <div className="relative flex items-center justify-center w-8 h-8 rounded bg-[#0a0d14] border border-[#00f0ff]/40 shadow-[0_0_12px_rgba(0,240,255,0.25)]">
-            <span className="text-[#00f0ff] font-bold text-xs font-mono tracking-widest">VC</span>
-            <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#00f0ff] animate-ping" />
+          <div className="relative flex items-center justify-center w-8 h-8 rounded bg-[var(--bg-card)] border border-[var(--primary-accent)]/40 shadow-[0_0_12px_var(--accent-glow)]">
+            <span className="text-[var(--primary-accent)] font-bold text-xs font-mono tracking-widest">VC</span>
+            <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[var(--primary-accent)] animate-ping" />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm sm:text-base font-bold tracking-wider text-slate-100 font-mono flex items-center gap-2">
+            <span className="text-sm sm:text-base font-bold tracking-wider text-[var(--text-primary)] font-mono flex items-center gap-2">
               VVC-ACIA
-              <span className="text-[10px] uppercase tracking-widest text-[#00f0ff] bg-[#00f0ff]/10 px-1.5 py-0.5 rounded border border-[#00f0ff]/30 hidden sm:inline-block">
-                OS·Obsidian
+              <span className="text-[10px] uppercase tracking-widest text-[var(--primary-accent)] bg-[var(--tag-bg)] px-1.5 py-0.5 rounded border border-[var(--primary-accent)]/30 hidden sm:inline-block">
+                OS·{currentThemeInfo.name.split(' ')[0]}
               </span>
             </span>
           </div>
@@ -276,12 +284,71 @@ export const Header: React.FC<HeaderProps> = ({
             {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5 text-[#00f0ff]" />}
           </button>
 
+          {/* Quick Theme Selector Dropdown */}
+          <div className="relative group">
+            <button
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-mono bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--primary-accent)]/60 text-[var(--text-primary)] transition-all shadow-sm cursor-pointer"
+              title="Cambiar esquema de color de la interfaz (Variables CSS)"
+            >
+              <Palette className="w-3.5 h-3.5 text-[var(--primary-accent)]" />
+              <span
+                className="w-2.5 h-2.5 rounded-full border border-white/20 shrink-0 shadow-sm"
+                style={{ backgroundColor: currentThemeInfo.primaryColor }}
+              />
+              <span className="hidden xl:inline truncate max-w-[90px] font-semibold">
+                {currentThemeInfo.name.split(' ')[0]}
+              </span>
+            </button>
+
+            {/* Dropdown Menu */}
+            <div className="absolute right-0 mt-1 w-64 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl shadow-2xl p-2 hidden group-hover:block group-focus-within:block z-50 animate-fade-in">
+              <div className="text-[10px] text-[var(--text-secondary)] font-mono uppercase px-2 py-1 border-b border-[var(--border-subtle)] mb-1.5 flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <Palette className="w-3 h-3 text-[var(--primary-accent)]" />
+                  <span>Esquema de Color CSS</span>
+                </span>
+                <span className="text-[9px] text-[var(--primary-accent)] font-bold">6 TEMAS</span>
+              </div>
+              <div className="space-y-1">
+                {THEME_SCHEMES.map((scheme) => {
+                  const isSelected = currentTheme === scheme.id;
+                  return (
+                    <button
+                      key={scheme.id}
+                      type="button"
+                      onClick={() => onSelectTheme(scheme.id)}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-mono transition-all flex items-center justify-between cursor-pointer ${
+                        isSelected
+                          ? 'bg-[var(--tag-bg)] text-[var(--primary-accent)] border border-[var(--primary-accent)]/40 shadow-sm'
+                          : 'text-slate-300 hover:bg-[var(--bg-card)] hover:text-white border border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <span
+                          className="w-3 h-3 rounded-full border border-white/20 shrink-0 shadow-sm"
+                          style={{ backgroundColor: scheme.primaryColor }}
+                        />
+                        <div className="flex flex-col truncate">
+                          <span className="font-semibold truncate text-[11px]">{scheme.name}</span>
+                          <span className="text-[9px] text-slate-400 truncate opacity-80">{scheme.tagline}</span>
+                        </div>
+                      </div>
+                      {isSelected && (
+                        <span className="text-[10px] text-[var(--primary-accent)] font-bold ml-1.5 shrink-0">✓</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
           {/* Settings Trigger */}
           <button
             onClick={onOpenSettings}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono bg-[#0f141f] border border-[#1e2638] hover:border-[#00f0ff] text-slate-100 hover:text-[#00f0ff] transition-all shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--primary-accent)] text-slate-100 hover:text-[var(--primary-accent)] transition-all shadow-sm"
           >
-            <Sliders className="w-3.5 h-3.5 text-[#00f0ff]" />
+            <Sliders className="w-3.5 h-3.5 text-[var(--primary-accent)]" />
             <span className="hidden sm:inline">Configuración</span>
           </button>
         </div>

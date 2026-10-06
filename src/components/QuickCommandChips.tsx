@@ -10,7 +10,8 @@ import {
   Calendar,
   Share2,
   Clock,
-  CheckCircle2
+  CheckCircle2,
+  Palette
 } from 'lucide-react';
 
 interface QuickCommandChipsProps {
@@ -26,6 +27,24 @@ interface ChipItem {
 }
 
 const CHIPS: ChipItem[] = [
+  {
+    label: '🎨 Amber Terminal',
+    command: 'Cambiar tema a Amber Terminal',
+    icon: <Palette className="w-3 h-3 text-amber-400" />,
+    category: 'device',
+  },
+  {
+    label: '🟢 Emerald Matrix',
+    command: 'Cambiar tema a Emerald Matrix',
+    icon: <Palette className="w-3 h-3 text-emerald-400" />,
+    category: 'device',
+  },
+  {
+    label: '💠 Obsidian Cyan',
+    command: 'Cambiar tema a Obsidian Cyan',
+    icon: <Palette className="w-3 h-3 text-cyan-400" />,
+    category: 'device',
+  },
   {
     label: '✉️ Abrir Gmail',
     command: 'Abrir Gmail',
@@ -108,7 +127,7 @@ export const QuickCommandChips: React.FC<QuickCommandChipsProps> = ({
     <div className="w-full max-w-4xl mx-auto px-4 py-2">
       <div className="flex items-center justify-between mb-2">
         <span className="text-[11px] font-mono tracking-widest text-slate-400 uppercase flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#00f0ff]" />
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary-accent)] shadow-[0_0_6px_var(--accent-glow)]" />
           Comandos Vocales de Tareas, Calendario & Teléfono
         </span>
         <span className="text-[10px] font-mono text-slate-500">
@@ -122,7 +141,7 @@ export const QuickCommandChips: React.FC<QuickCommandChipsProps> = ({
             key={idx}
             onClick={() => onExecuteCommand(chip.command)}
             disabled={disabled}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#0a0d14] border border-[#1e2638] hover:border-[#00f0ff]/50 hover:bg-[#0f141f] text-slate-200 text-xs font-mono whitespace-nowrap transition-all hover:scale-102 hover:shadow-[0_0_10px_rgba(0,240,255,0.2)] disabled:opacity-50 disabled:pointer-events-none"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--primary-accent)]/50 hover:bg-[var(--bg-surface)] text-[var(--text-primary)] text-xs font-mono whitespace-nowrap transition-all hover:scale-102 hover:shadow-[0_0_10px_var(--accent-glow)] disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
             title={`Ejecutar: "${chip.command}"`}
           >
             {chip.icon}

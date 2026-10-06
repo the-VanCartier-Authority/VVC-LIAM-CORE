@@ -1,4 +1,4 @@
-import type { DeviceState, PhoneContact, AlarmItem, TimerItem, CalendarEvent, TaskItem } from '../types';
+import type { DeviceState, PhoneContact, AlarmItem, TimerItem, CalendarEvent, TaskItem, ThemeColorId } from '../types';
 
 export interface CommandExecutionResult {
   isHandled: boolean;
@@ -23,6 +23,7 @@ export interface CommandExecutionResult {
   openPicker?: boolean;
   openMaps?: boolean;
   mapsQuery?: string;
+  newTheme?: ThemeColorId;
 }
 
 export function parseNaturalVoiceCommand(
@@ -549,6 +550,78 @@ export function parseNaturalVoiceCommand(
       openMaps: true,
       mapsQuery: place,
     };
+  }
+
+  // 20. ESQUEMAS DE COLOR Y TEMAS VISUALES (VARIABLES CSS)
+  const isThemeCommand =
+    query.includes('tema') ||
+    query.includes('esquema de color') ||
+    query.includes('color de interfaz') ||
+    query.includes('modo visual') ||
+    query.includes('cambiar color') ||
+    query.includes('amber terminal') ||
+    query.includes('emerald matrix') ||
+    query.includes('cyberpunk neon') ||
+    query.includes('blood tactical') ||
+    query.includes('cobalt stealth') ||
+    query.includes('obsidian cyan') ||
+    query.includes('paleta');
+
+  if (isThemeCommand) {
+    if (query.includes('amber') || query.includes('ámbar') || query.includes('ambar') || query.includes('amarillo') || query.includes('terminal')) {
+      return {
+        isHandled: true,
+        spokenResponse: 'Esquema Amber Terminal activado. Fósforo ámbar retro CRT configurado mediante variables CSS.',
+        actionType: 'security',
+        actionDetails: 'Tema cambiado a Amber Terminal',
+        newTheme: 'amber-terminal',
+      };
+    }
+    if (query.includes('emerald') || query.includes('matrix') || query.includes('verde') || query.includes('esmeralda')) {
+      return {
+        isHandled: true,
+        spokenResponse: 'Esquema Emerald Matrix activado. Fósforo verde cibernético en línea mediante variables CSS.',
+        actionType: 'security',
+        actionDetails: 'Tema cambiado a Emerald Matrix',
+        newTheme: 'emerald-matrix',
+      };
+    }
+    if (query.includes('cyberpunk') || query.includes('neon') || query.includes('fucsia') || query.includes('morado') || query.includes('púrpura')) {
+      return {
+        isHandled: true,
+        spokenResponse: 'Esquema Cyberpunk Neon activado. Fucsia y púrpura nocturno aplicados mediante variables CSS.',
+        actionType: 'security',
+        actionDetails: 'Tema cambiado a Cyberpunk Neon',
+        newTheme: 'cyberpunk-neon',
+      };
+    }
+    if (query.includes('blood') || query.includes('tactical') || query.includes('táctico') || query.includes('rojo') || query.includes('carmesí')) {
+      return {
+        isHandled: true,
+        spokenResponse: 'Esquema Blood Tactical activado. Modo de alerta crítica y combate visual.',
+        actionType: 'security',
+        actionDetails: 'Tema cambiado a Blood Tactical',
+        newTheme: 'blood-tactical',
+      };
+    }
+    if (query.includes('cobalt') || query.includes('stealth') || query.includes('azul') || query.includes('hielo')) {
+      return {
+        isHandled: true,
+        spokenResponse: 'Esquema Cobalt Stealth activado. Azul ártico de operaciones encubiertas.',
+        actionType: 'security',
+        actionDetails: 'Tema cambiado a Cobalt Stealth',
+        newTheme: 'cobalt-stealth',
+      };
+    }
+    if (query.includes('obsidian') || query.includes('cyan') || query.includes('cian') || query.includes('defecto') || query.includes('original')) {
+      return {
+        isHandled: true,
+        spokenResponse: 'Esquema Obsidian Cyan original restaurado.',
+        actionType: 'security',
+        actionDetails: 'Tema cambiado a Obsidian Cyan (Default)',
+        newTheme: 'obsidian-cyan',
+      };
+    }
   }
 
   return {

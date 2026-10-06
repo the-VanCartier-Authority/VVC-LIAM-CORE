@@ -16,15 +16,18 @@ import {
   Bell,
   Share2,
   Calendar,
-  Layers
+  Layers,
+  Palette
 } from 'lucide-react';
 import { 
   AVAILABLE_MODELS, 
   KOKORO_VOICES, 
   CLOUD_INTEGRATIONS,
+  THEME_SCHEMES,
   type ModelType, 
   type KokoroVoiceId,
-  type CloudServiceIntegrationType 
+  type CloudServiceIntegrationType,
+  type ThemeColorId
 } from '../types';
 import { speakKokoro } from '../utils/speech';
 
@@ -53,6 +56,8 @@ interface SettingsModalProps {
   onToggleCloudSync: () => void;
   isOffline: boolean;
   onToggleOffline: () => void;
+  currentTheme: ThemeColorId;
+  onSelectTheme: (theme: ThemeColorId) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -80,6 +85,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onToggleCloudSync,
   isOffline,
   onToggleOffline,
+  currentTheme,
+  onSelectTheme,
 }) => {
   const [apiKeyInput, setApiKeyInput] = useState(nvidiaApiKey);
   const [endpointInput, setEndpointInput] = useState(customEndpoint || 'https://integrate.api.nvidia.com/v1/chat/completions');
@@ -274,7 +281,85 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
-          {/* SECTION 2: NOTIFICACIONES EN TIEMPO REAL & WEB PUSH */}
+          {/* SECTION 2: ESQUEMA DE COLOR DE LA INTERFAZ (VARIABLES CSS) */}
+          <div className="bg-[#0b0e17] border border-[#1e2638] rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-white flex items-center gap-1.5">
+                <Palette className="w-4 h-4 text-[#00f0ff]" />
+                Esquema de Color de la Interfaz (Variables CSS)
+              </span>
+              <span className="text-[10px] text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/30 font-mono">
+                {THEME_SCHEMES.find((t) => t.id === currentTheme)?.name.split(' ')[0]}
+              </span>
+            </div>
+
+            <p className="text-slate-400 text-xs leading-relaxed">
+              Personaliza el entorno visual del sistema mediante variables CSS dinámicas. Modifica la paleta cromática, orbe de voz, terminal y resplandores en tiempo real.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
+              {THEME_SCHEMES.map((scheme) => {
+                const isSelected = currentTheme === scheme.id;
+                return (
+                  <button
+                    key={scheme.id}
+                    type="button"
+                    onClick={() => onSelectTheme(scheme.id)}
+                    className={`p-3 rounded-xl border text-left transition-all relative overflow-hidden flex flex-col justify-between cursor-pointer ${
+                      isSelected
+                        ? 'border-cyan-400 bg-cyan-950/30 shadow-[0_0_15px_rgba(0,240,255,0.25)]'
+                        : 'border-[#1e2638] bg-[#07090e] hover:border-slate-600 hover:bg-[#0c101a]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-mono font-bold text-slate-100 flex items-center gap-1.5">
+                        <span
+                          className="w-3 h-3 rounded-full border border-white/20 shrink-0 shadow-sm"
+                          style={{ backgroundColor: scheme.primaryColor }}
+                        />
+                        <span>{scheme.name}</span>
+                      </span>
+                      {isSelected && (
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                          ACTIVO
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-[11px] text-slate-400 leading-tight mb-2.5">
+                      {scheme.tagline}
+                    </p>
+
+                    {/* Color Swatch Strip */}
+                    <div className="flex items-center justify-between mt-auto pt-2 border-t border-slate-800/60">
+                      <div className="flex items-center gap-1.5">
+                        <div
+                          className="w-4 h-4 rounded-md border border-white/10 shadow-sm"
+                          style={{ backgroundColor: scheme.primaryColor }}
+                          title={`Primario: ${scheme.primaryColor}`}
+                        />
+                        <div
+                          className="w-4 h-4 rounded-md border border-white/10 shadow-sm"
+                          style={{ backgroundColor: scheme.secondaryColor }}
+                          title={`Secundario: ${scheme.secondaryColor}`}
+                        />
+                        <div
+                          className="w-4 h-4 rounded-md border border-white/10 shadow-sm"
+                          style={{ backgroundColor: scheme.bgColor }}
+                          title={`Fondo: ${scheme.bgColor}`}
+                        />
+                      </div>
+                      <span className="text-[10px] font-mono text-slate-500 uppercase">
+                        {scheme.primaryColor}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* SECTION 3: NOTIFICACIONES EN TIEMPO REAL & WEB PUSH */}
           <div className="bg-[#0b0e17] border border-[#1e2638] rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-white flex items-center gap-1.5">

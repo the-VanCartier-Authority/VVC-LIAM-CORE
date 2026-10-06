@@ -1,21 +1,115 @@
 @import "tailwindcss";
 
 @layer base {
-  :root {
+  :root,
+  [data-theme="obsidian-cyan"] {
+    --primary-accent: #00f0ff;
+    --primary-accent-rgb: 0, 240, 255;
+    --secondary-accent: #b026ff;
+    --secondary-accent-rgb: 176, 38, 255;
+    --accent-glow: rgba(0, 240, 255, 0.4);
+    --accent-glow-secondary: rgba(176, 38, 255, 0.4);
     --bg-obsidian: #050608;
     --bg-surface: #0a0d14;
     --bg-card: #0f141f;
     --border-subtle: #1e2638;
-    --neon-blue: #00f0ff;
-    --neon-violet: #b026ff;
-    --neon-red: #ff2a5f;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --tag-bg: rgba(0, 240, 255, 0.12);
+    --glow-shadow: 0 0 25px rgba(0, 240, 255, 0.35);
+  }
+
+  [data-theme="amber-terminal"] {
+    --primary-accent: #ffaa00;
+    --primary-accent-rgb: 255, 170, 0;
+    --secondary-accent: #ff6600;
+    --secondary-accent-rgb: 255, 102, 0;
+    --accent-glow: rgba(255, 170, 0, 0.4);
+    --accent-glow-secondary: rgba(255, 102, 0, 0.4);
+    --bg-obsidian: #0a0702;
+    --bg-surface: #140e04;
+    --bg-card: #1f1608;
+    --border-subtle: #3a2810;
+    --text-primary: #ffeed6;
+    --text-secondary: #cba87c;
+    --tag-bg: rgba(255, 170, 0, 0.12);
+    --glow-shadow: 0 0 25px rgba(255, 170, 0, 0.35);
+  }
+
+  [data-theme="emerald-matrix"] {
+    --primary-accent: #00ff66;
+    --primary-accent-rgb: 0, 255, 102;
+    --secondary-accent: #00b341;
+    --secondary-accent-rgb: 0, 179, 65;
+    --accent-glow: rgba(0, 255, 102, 0.4);
+    --accent-glow-secondary: rgba(0, 179, 65, 0.4);
+    --bg-obsidian: #020904;
+    --bg-surface: #06150b;
+    --bg-card: #0b2214;
+    --border-subtle: #133821;
+    --text-primary: #d1fae5;
+    --text-secondary: #6ee7b7;
+    --tag-bg: rgba(0, 255, 102, 0.12);
+    --glow-shadow: 0 0 25px rgba(0, 255, 102, 0.35);
+  }
+
+  [data-theme="cyberpunk-neon"] {
+    --primary-accent: #ff007f;
+    --primary-accent-rgb: 255, 0, 127;
+    --secondary-accent: #9d00ff;
+    --secondary-accent-rgb: 157, 0, 255;
+    --accent-glow: rgba(255, 0, 127, 0.4);
+    --accent-glow-secondary: rgba(157, 0, 255, 0.4);
+    --bg-obsidian: #0b020c;
+    --bg-surface: #150517;
+    --bg-card: #220826;
+    --border-subtle: #3d1045;
+    --text-primary: #fce7f3;
+    --text-secondary: #f472b6;
+    --tag-bg: rgba(255, 0, 127, 0.12);
+    --glow-shadow: 0 0 25px rgba(255, 0, 127, 0.35);
+  }
+
+  [data-theme="blood-tactical"] {
+    --primary-accent: #ff2a5f;
+    --primary-accent-rgb: 255, 42, 95;
+    --secondary-accent: #ff6b35;
+    --secondary-accent-rgb: 255, 107, 53;
+    --accent-glow: rgba(255, 42, 95, 0.4);
+    --accent-glow-secondary: rgba(255, 107, 53, 0.4);
+    --bg-obsidian: #0d0306;
+    --bg-surface: #18070d;
+    --bg-card: #250a15;
+    --border-subtle: #451225;
+    --text-primary: #ffe4e6;
+    --text-secondary: #fda4af;
+    --tag-bg: rgba(255, 42, 95, 0.12);
+    --glow-shadow: 0 0 25px rgba(255, 42, 95, 0.35);
+  }
+
+  [data-theme="cobalt-stealth"] {
+    --primary-accent: #38bdf8;
+    --primary-accent-rgb: 56, 189, 248;
+    --secondary-accent: #6366f1;
+    --secondary-accent-rgb: 99, 102, 241;
+    --accent-glow: rgba(56, 189, 248, 0.4);
+    --accent-glow-secondary: rgba(99, 102, 241, 0.4);
+    --bg-obsidian: #030712;
+    --bg-surface: #0a1122;
+    --bg-card: #101c3a;
+    --border-subtle: #1e3a80;
+    --text-primary: #e0f2fe;
+    --text-secondary: #7dd3fc;
+    --tag-bg: rgba(56, 189, 248, 0.12);
+    --glow-shadow: 0 0 25px rgba(56, 189, 248, 0.35);
   }
 
   body {
-    background-color: #050608;
-    color: #e2e8f0;
+    background-color: var(--bg-obsidian);
+    color: var(--text-primary);
     font-family: 'JetBrains Mono', 'Fira Code', monospace;
     overflow-x: hidden;
+    transition: background-color 0.35s ease, color 0.35s ease;
   }
 }
 
@@ -25,23 +119,31 @@
   height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #07090e;
+  background: var(--bg-surface);
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: var(--border-subtle);
   border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #00f0ff55;
+  background: var(--primary-accent);
 }
 
-/* Neon Glow Utilities */
+/* Dynamic Theme Neon Glow Utilities */
+.glow-theme {
+  box-shadow: 0 0 20px var(--accent-glow), inset 0 0 10px rgba(var(--primary-accent-rgb), 0.15);
+}
+
+.text-glow-theme {
+  text-shadow: 0 0 10px var(--primary-accent);
+}
+
 .glow-blue {
-  box-shadow: 0 0 20px rgba(0, 240, 255, 0.35), inset 0 0 10px rgba(0, 240, 255, 0.15);
+  box-shadow: 0 0 20px var(--accent-glow), inset 0 0 10px rgba(var(--primary-accent-rgb), 0.15);
 }
 
 .glow-violet {
-  box-shadow: 0 0 20px rgba(176, 38, 255, 0.35), inset 0 0 10px rgba(176, 38, 255, 0.15);
+  box-shadow: 0 0 20px var(--accent-glow-secondary), inset 0 0 10px rgba(var(--secondary-accent-rgb), 0.15);
 }
 
 .glow-red {
@@ -49,27 +151,27 @@
 }
 
 .text-glow-blue {
-  text-shadow: 0 0 10px rgba(0, 240, 255, 0.7);
+  text-shadow: 0 0 10px var(--primary-accent);
 }
 
 .text-glow-violet {
-  text-shadow: 0 0 10px rgba(176, 38, 255, 0.7);
+  text-shadow: 0 0 10px var(--secondary-accent);
 }
 
 .text-glow-red {
   text-shadow: 0 0 10px rgba(255, 42, 95, 0.7);
 }
 
-/* Subtle CRT scanline effect for vanguard console aesthetics */
+/* Dynamic CRT Scanline Background using CSS Variables */
 .scanline-bg {
   background: linear-gradient(
     rgba(18, 16, 16, 0) 50%, 
-    rgba(0, 0, 0, 0.25) 50%
+    rgba(0, 0, 0, 0.28) 50%
   ), linear-gradient(
     90deg,
-    rgba(255, 0, 0, 0.03),
-    rgba(0, 255, 0, 0.01),
-    rgba(0, 0, 255, 0.03)
+    rgba(var(--primary-accent-rgb), 0.03),
+    rgba(var(--secondary-accent-rgb), 0.01),
+    rgba(var(--primary-accent-rgb), 0.03)
   );
   background-size: 100% 3px, 6px 100%;
 }

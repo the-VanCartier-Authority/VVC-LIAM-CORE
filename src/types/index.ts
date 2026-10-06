@@ -517,3 +517,92 @@ export interface ActiveNotificationAlert {
   category: string;
   timestamp: number;
 }
+
+export type ThemeColorId =
+  | 'obsidian-cyan'
+  | 'amber-terminal'
+  | 'emerald-matrix'
+  | 'cyberpunk-neon'
+  | 'blood-tactical'
+  | 'cobalt-stealth';
+
+export interface ThemeColorScheme {
+  id: ThemeColorId;
+  name: string;
+  tagline: string;
+  primaryColor: string;
+  secondaryColor: string;
+  bgColor: string;
+  cardColor: string;
+  borderColor: string;
+  previewGradient: string;
+}
+
+export const THEME_SCHEMES: ThemeColorScheme[] = [
+  {
+    id: 'obsidian-cyan',
+    name: 'Obsidian Cyan (Default)',
+    tagline: 'Cian cuántico y violeta sobre negro obsidiana',
+    primaryColor: '#00f0ff',
+    secondaryColor: '#b026ff',
+    bgColor: '#050608',
+    cardColor: '#0f141f',
+    borderColor: '#1e2638',
+    previewGradient: 'from-[#00f0ff] to-[#b026ff]',
+  },
+  {
+    id: 'amber-terminal',
+    name: 'Amber Terminal',
+    tagline: 'Fósforo ámbar retro CRT con tonos ocres cálidos',
+    primaryColor: '#ffaa00',
+    secondaryColor: '#ff6600',
+    bgColor: '#0d0903',
+    cardColor: '#21180b',
+    borderColor: '#3a2812',
+    previewGradient: 'from-[#ffaa00] to-[#ff6600]',
+  },
+  {
+    id: 'emerald-matrix',
+    name: 'Emerald Matrix',
+    tagline: 'Terminal verde fósforo cibernético estilo mainframe',
+    primaryColor: '#00ff66',
+    secondaryColor: '#00b341',
+    bgColor: '#030d07',
+    cardColor: '#0b2216',
+    borderColor: '#123d24',
+    previewGradient: 'from-[#00ff66] to-[#00b341]',
+  },
+  {
+    id: 'cyberpunk-neon',
+    name: 'Cyberpunk Neon',
+    tagline: 'Fucsia radioactivo y púrpura nocturno',
+    primaryColor: '#ff007f',
+    secondaryColor: '#9d00ff',
+    bgColor: '#0c040d',
+    cardColor: '#230c26',
+    borderColor: '#3d1544',
+    previewGradient: 'from-[#ff007f] to-[#9d00ff]',
+  },
+  {
+    id: 'blood-tactical',
+    name: 'Blood Tactical',
+    tagline: 'Rojo carmesí de alerta crítica y carbón militar',
+    primaryColor: '#ff2a5f',
+    secondaryColor: '#ff6b35',
+    bgColor: '#0d0407',
+    cardColor: '#250a16',
+    borderColor: '#451527',
+    previewGradient: 'from-[#ff2a5f] to-[#ff6b35]',
+  },
+  {
+    id: 'cobalt-stealth',
+    name: 'Cobalt Stealth',
+    tagline: 'Azul hielo ártico y zafiro de operaciones especiales',
+    primaryColor: '#38bdf8',
+    secondaryColor: '#6366f1',
+    bgColor: '#030712',
+    cardColor: '#101c3d',
+    borderColor: '#1e3a8a',
+    previewGradient: 'from-[#38bdf8] to-[#6366f1]',
+  },
+];

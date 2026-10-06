@@ -42,23 +42,29 @@ export const VoiceOrbVisualizer: React.FC<VoiceOrbVisualizerProps> = ({
 
       ctx.clearRect(0, 0, width, height);
 
-      // Determine colors based on active state
-      let primaryColor = '#00f0ff'; // Neon blue
-      let secondaryColor = '#b026ff'; // Neon violet
-      let glowColor = 'rgba(0, 240, 255, 0.4)';
+      // Determine colors based on active theme CSS variables
+      const rootStyle = getComputedStyle(document.documentElement);
+      const themePrimary = rootStyle.getPropertyValue('--primary-accent').trim() || '#00f0ff';
+      const themeSecondary = rootStyle.getPropertyValue('--secondary-accent').trim() || '#b026ff';
+      const themeGlow = rootStyle.getPropertyValue('--accent-glow').trim() || 'rgba(0, 240, 255, 0.4)';
+      const themeGlowSecondary = rootStyle.getPropertyValue('--accent-glow-secondary').trim() || 'rgba(176, 38, 255, 0.5)';
+
+      let primaryColor = themePrimary;
+      let secondaryColor = themeSecondary;
+      let glowColor = themeGlow;
 
       if (isSpeaking) {
-        primaryColor = '#b026ff';
-        secondaryColor = '#00f0ff';
-        glowColor = 'rgba(176, 38, 255, 0.5)';
+        primaryColor = themeSecondary;
+        secondaryColor = themePrimary;
+        glowColor = themeGlowSecondary;
       } else if (isProcessing) {
         primaryColor = '#ff2a5f';
-        secondaryColor = '#b026ff';
+        secondaryColor = themeSecondary;
         glowColor = 'rgba(255, 42, 95, 0.5)';
       } else if (isListening) {
-        primaryColor = '#00f0ff';
-        secondaryColor = '#38bdf8';
-        glowColor = 'rgba(0, 240, 255, 0.6)';
+        primaryColor = themePrimary;
+        secondaryColor = themeSecondary;
+        glowColor = themeGlow;
       }
 
       // 1. Draw outer ambient holographic grid circles
@@ -153,7 +159,13 @@ export const VoiceOrbVisualizer: React.FC<VoiceOrbVisualizerProps> = ({
   return (
     <div className="relative flex flex-col items-center justify-center py-6 px-4">
       {/* Background radial gradient spotlight */}
-      <div className="absolute w-72 h-72 rounded-full bg-[#00f0ff]/5 blur-3xl pointer-events-none -z-10" />
+      <div
+        className="absolute w-72 h-72 rounded-full blur-3xl pointer-events-none -z-10 transition-all duration-500"
+        style={{
+          background: 'radial-gradient(circle, var(--accent-glow) 0%, transparent 70%)',
+          opacity: isListening || isSpeaking ? 0.7 : 0.25,
+        }}
+      />
 
       {/* Interactive Visualizer Sphere Container */}
       <div className="relative flex items-center justify-center w-80 h-80">
@@ -168,30 +180,57 @@ export const VoiceOrbVisualizer: React.FC<VoiceOrbVisualizerProps> = ({
         <button
           onClick={onToggleListening}
           aria-label={isListening ? 'Detener escucha' : 'Activar micrófono para hablar'}
-          className={`relative z-10 w-28 h-28 rounded-full flex flex-col items-center justify-center transition-all duration-300 focus:outline-none cursor-pointer ${
+          style={
             isListening
-              ? 'bg-[#00f0ff]/20 border-2 border-[#00f0ff] shadow-[0_0_30px_rgba(0,240,255,0.7)] scale-105'
+              ? {
+                  borderColor: 'var(--primary-accent)',
+                  backgroundColor: 'rgba(var(--primary-accent-rgb), 0.2)',
+                  boxShadow: '0 0 35px var(--accent-glow)',
+                }
               : isSpeaking
-              ? 'bg-[#b026ff]/20 border-2 border-[#b026ff] shadow-[0_0_30px_rgba(176,38,255,0.7)]'
+              ? {
+                  borderColor: 'var(--secondary-accent)',
+                  backgroundColor: 'rgba(var(--secondary-accent-rgb), 0.2)',
+                  boxShadow: '0 0 35px var(--accent-glow-secondary)',
+                }
               : isProcessing
-              ? 'bg-[#ff2a5f]/20 border-2 border-[#ff2a5f] shadow-[0_0_25px_rgba(255,42,95,0.6)] animate-pulse'
-              : 'bg-[#0a0d14] border border-[#1e2638] hover:border-[#00f0ff]/60 hover:shadow-[0_0_20px_rgba(0,240,255,0.3)] hover:scale-105'
+              ? {
+                  borderColor: '#ff2a5f',
+                  backgroundColor: 'rgba(255, 42, 95, 0.2)',
+                  boxShadow: '0 0 25px rgba(255, 42, 95, 0.6)',
+                }
+              : {
+                  borderColor: 'var(--border-subtle)',
+                  backgroundColor: 'var(--bg-surface)',
+                }
+          }
+          className={`relative z-10 w-28 h-28 rounded-full border-2 flex flex-col items-center justify-center transition-all duration-300 focus:outline-none cursor-pointer ${
+            isListening || isSpeaking ? 'scale-105' : 'hover:scale-105'
           }`}
         >
           {/* Animated Core Icon */}
           <div className="relative">
             {isSpeaking ? (
-              <Volume2 className="w-8 h-8 text-[#b026ff] animate-bounce" />
+              <Volume2 className="w-8 h-8 animate-bounce" style={{ color: 'var(--secondary-accent)' }} />
             ) : isListening ? (
-              <Mic className="w-8 h-8 text-[#00f0ff] animate-pulse" />
+              <Mic className="w-8 h-8 animate-pulse" style={{ color: 'var(--primary-accent)' }} />
             ) : isProcessing ? (
               <Radio className="w-8 h-8 text-[#ff2a5f] animate-spin" />
             ) : (
-              <MicOff className="w-8 h-8 text-slate-400 group-hover:text-[#00f0ff]" />
+              <MicOff className="w-8 h-8 text-slate-400" />
             )}
           </div>
 
-          <span className="text-[10px] font-mono tracking-widest font-semibold mt-1 uppercase text-slate-200">
+          <span
+            className="text-[10px] font-mono tracking-widest font-semibold mt-1 uppercase"
+            style={{
+              color: isListening
+                ? 'var(--primary-accent)'
+                : isSpeaking
+                ? 'var(--secondary-accent)'
+                : 'var(--text-primary)',
+            }}
+          >
             {isListening ? 'ESCUDRIÑANDO' : isSpeaking ? 'HABLANDO' : isProcessing ? 'CALCULANDO' : 'ACTIVAR'}
           </span>
         </button>
