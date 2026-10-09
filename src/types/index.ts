@@ -15,7 +15,12 @@ export type ModelType =
   | 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning'
   | 'meta/llama-3.2-11b-vision-instruct'
   | 'nvidia/riva-translate-4b-instruct-v2'
-  | 'rt-lite-local';
+  | 'rt-lite-local'
+  | 'rt-lite-hardware'
+  | 'rt-lite-telephony'
+  | 'rt-lite-agenda'
+  | 'rt-lite-docs'
+  | 'rt-lite-security';
 
 export type CloudServiceIntegrationType =
   | 'local_only'
@@ -123,11 +128,56 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
   },
   {
     id: 'rt-lite-local',
-    name: 'RT-Lite On-Device Engine',
+    name: 'RT-Lite Master Omni-Engine',
     provider: 'VVC-ACIA Local',
     category: 'RT-Lite Local',
-    description: 'Motor local en el dispositivo. Cero latencia, 100% privado, funciona sin internet ni API Key.',
-    bestFor: 'Operaciones críticas, modo offline y control de hardware inmediato',
+    description: 'Motor unificado maestro en el dispositivo. Control integral de todas las funciones sin conexión ni API Key.',
+    bestFor: 'Control global del teléfono, privacidad absoluta y cero latencia',
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'rt-lite-hardware',
+    name: 'RT-Lite Hardware & Device Control',
+    provider: 'VVC-ACIA Local',
+    category: 'RT-Lite Local',
+    description: 'Motor dedicado para linterna física y de pantalla, volumen, brillo, Wi-Fi, Bluetooth y batería.',
+    bestFor: 'Control físico inmediato de actuadores del teléfono',
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'rt-lite-telephony',
+    name: 'RT-Lite Telecom & Communications',
+    provider: 'VVC-ACIA Local',
+    category: 'RT-Lite Local',
+    description: 'Motor especializado en llamadas celulares, mensajería directa SMS, WhatsApp y libreta de contactos.',
+    bestFor: 'Comunicaciones directas por voz y mensajería',
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'rt-lite-agenda',
+    name: 'RT-Lite Calendar & Schedule Matrix',
+    provider: 'VVC-ACIA Local',
+    category: 'RT-Lite Local',
+    description: 'Programación de eventos complejos, detección y resolución de conflictos y sync Google/Outlook/Apple.',
+    bestFor: 'Gestión avanzada de calendario, tareas, alarmas y temporizadores',
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'rt-lite-docs',
+    name: 'RT-Lite Document & Spreadsheet Studio',
+    provider: 'VVC-ACIA Local',
+    category: 'RT-Lite Local',
+    description: 'Generación local de archivos de texto estructurado y hojas de cálculo con exportación a PDF descargable.',
+    bestFor: 'Creación de reportes, presupuestos, minutas y exportación a PDF',
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'rt-lite-security',
+    name: 'RT-Lite Obsidian Vault & Security',
+    provider: 'VVC-ACIA Local',
+    category: 'RT-Lite Local',
+    description: 'Cifrado E2EE de grado militar AES-GCM-256, service worker y alertas push nativas en segundo plano.',
+    bestFor: 'Bóveda de credenciales, notas secretas y notificaciones push persistentes',
     isFreeEndpoint: true,
   },
   {
@@ -457,6 +507,28 @@ export interface CalendarEvent {
   linkedTaskId?: string;
   attendees?: string[];
   iCalUID?: string;
+  recurrence?: 'none' | 'daily' | 'weekly' | 'weekdays' | 'monthly';
+  source?: 'vvc-acia' | 'google' | 'outlook' | 'apple';
+  syncStatus?: 'synced' | 'local' | 'conflict_resolved';
+  conflictNote?: string;
+}
+
+export interface TextDocumentData {
+  id: string;
+  title: string;
+  author?: string;
+  date: string;
+  content: string;
+  category: 'informe' | 'minuta' | 'tarea' | 'proyecto' | 'general';
+}
+
+export interface SpreadsheetData {
+  id: string;
+  title: string;
+  date: string;
+  columns: string[];
+  rows: Array<Record<string, string | number>>;
+  hasTotals?: boolean;
 }
 
 export interface ThirdPartyIntegrationSettings {
@@ -502,7 +574,7 @@ export interface ConsoleMessage {
   sender: 'user' | 'assistant' | 'system';
   text: string;
   timestamp: string;
-  actionType?: 'call' | 'message' | 'torch' | 'volume' | 'brightness' | 'alarm' | 'timer' | 'reminder' | 'task' | 'calendar' | 'security' | 'model' | 'sync' | 'gmail' | 'picker' | 'maps';
+  actionType?: 'call' | 'message' | 'torch' | 'volume' | 'brightness' | 'alarm' | 'timer' | 'reminder' | 'task' | 'calendar' | 'security' | 'model' | 'sync' | 'gmail' | 'picker' | 'maps' | 'document' | 'spreadsheet';
   actionDetails?: string;
   modelUsed?: string;
   isE2EE?: boolean;
@@ -604,5 +676,127 @@ export const THEME_SCHEMES: ThemeColorScheme[] = [
     cardColor: '#101c3d',
     borderColor: '#1e3a8a',
     previewGradient: 'from-[#38bdf8] to-[#6366f1]',
+  },
+];
+
+export interface AgentProfile {
+  id: string;
+  name: string;
+  role: string;
+  description: string;
+  systemPrompt: string;
+  temperature?: number;
+  maxTokens?: number;
+  defaultVoiceId?: KokoroVoiceId;
+  preferredModel?: ModelType;
+  capabilities?: string[];
+  rules?: string[];
+  icon?: string;
+  color?: string;
+  isDefault?: boolean;
+  createdAt?: number;
+  customData?: Record<string, any>;
+}
+
+export const DEFAULT_AGENTS: AgentProfile[] = [
+  {
+    id: 'ag-executive',
+    name: 'Coordinador Ejecutivo Obsidian',
+    role: 'Director de Operaciones & Estrategia',
+    description: 'Optimizado para decisiones estratégicas de alta velocidad, síntesis ejecutiva y gestión de prioridades críticas.',
+    systemPrompt: 'Actúas como el Coordinador Ejecutivo Principal de VVC-ACIA. Tu tono es directo, sobrio, formal y altamente resolutivo. Priorizas la optimización del tiempo, la resolución de conflictos y los entregables concretos.',
+    temperature: 0.5,
+    maxTokens: 600,
+    defaultVoiceId: 'es_mateo',
+    preferredModel: 'meta/llama-3.2-11b-vision-instruct',
+    capabilities: ['agenda', 'resolucion_conflictos', 'resumen_ejecutivo', 'prioridades'],
+    rules: [
+      'Responde siempre en menos de 3 oraciones concisas listas para ser sintetizadas por voz.',
+      'Si se detecta un conflicto de horario, propón la solución y franja libre de inmediato.',
+      'Mantén un tono ejecutivo, respetuoso y orientado a resultados.'
+    ],
+    icon: 'Briefcase',
+    color: '#00f0ff',
+    isDefault: true,
+  },
+  {
+    id: 'ag-security',
+    name: 'Ingeniero Ciberseguridad & Hardware',
+    role: 'Arquitecto de Seguridad E2EE & Control Físico',
+    description: 'Especialista en protocolos criptográficos AES-GCM, bóveda blindada, telemetría de batería y sensores de hardware.',
+    systemPrompt: 'Eres el Oficial de Seguridad Criptográfica y Control de Hardware de VVC-ACIA. Te enfocas en la privacidad de datos (Zero-Knowledge), auditoría de claves, gestión segura de la bóveda y control de actuadores del teléfono (linterna, volumen, brillo, redes).',
+    temperature: 0.3,
+    maxTokens: 500,
+    defaultVoiceId: 'es_mateo',
+    preferredModel: 'nvidia/nemotron-3.5-lightning-30b-a3b',
+    capabilities: ['cifrado_e2ee', 'hardware_torch', 'wifi_bluetooth', 'boveda_segura'],
+    rules: [
+      'Valida que cada acción sensible mencione el estado de cifrado E2EE.',
+      'Sé riguroso y conciso en los diagnósticos técnicos del dispositivo.',
+      'Prioriza la seguridad local sin enviar secretos a la nube.'
+    ],
+    icon: 'Shield',
+    color: '#ff2a5f',
+    isDefault: true,
+  },
+  {
+    id: 'ag-finance',
+    name: 'Analista Financiero & Documental',
+    role: 'Controller de Datos & Generador PDF',
+    description: 'Experto en generación de hojas de cálculo operativas, balances, presupuestos y documentos oficiales descargables en PDF.',
+    systemPrompt: 'Eres el Analista Financiero y Documental de VVC-ACIA. Tu especialidad es estructurar información en tablas, calcular balances, presupuestos, inventarios y redactar informes formales listos para exportar a PDF.',
+    temperature: 0.4,
+    maxTokens: 750,
+    defaultVoiceId: 'es_sofia',
+    preferredModel: 'meta/llama-3.2-11b-vision-instruct',
+    capabilities: ['hojas_calculo', 'documentos_pdf', 'presupuestos', 'csv_export'],
+    rules: [
+      'Presenta cifras con precisión y claridad estructurada.',
+      'Ofrece generar la tabla o informe en PDF cuando se hable de presupuestos o minutas.',
+      'Mantén un estilo analítico y ordenado.'
+    ],
+    icon: 'FileText',
+    color: '#00ff66',
+    isDefault: true,
+  },
+  {
+    id: 'ag-diplomat',
+    name: 'Asesor de Comunicaciones & Mensajería',
+    role: 'Especialista en Diplomacia, Gmail & WhatsApp',
+    description: 'Diseñado para redacción de correos electrónicos profesionales en Gmail Workspace, mensajes de WhatsApp y llamadas efectivas.',
+    systemPrompt: 'Eres el Especialista en Comunicaciones y Diplomacia de VVC-ACIA. Redactas borradores de correos para Gmail, mensajes de texto y WhatsApp con el tono exacto (formal, persuasivo o cercano) y asistes en la gestión de contactos.',
+    temperature: 0.7,
+    maxTokens: 600,
+    defaultVoiceId: 'es_sofia',
+    preferredModel: 'meta/llama-3.2-11b-vision-instruct',
+    capabilities: ['gmail_draft', 'whatsapp_sms', 'contactos', 'redaccion_diplomatica'],
+    rules: [
+      'Formula los borradores de forma clara antes de pedir confirmación de envío.',
+      'Adapta el tono según la relación con el destinatario.',
+      'Comunica con calidez y elocuencia profesional.'
+    ],
+    icon: 'Mail',
+    color: '#b026ff',
+    isDefault: true,
+  },
+  {
+    id: 'ag-tactical',
+    name: 'Operador Táctico RT-Lite',
+    role: 'Automatizador de Cero Latencia & Modo Offline',
+    description: 'Respuestas telegráficas inmediatas (<20ms), control rápido de temporizadores, alarmas y modo supervivencia sin internet.',
+    systemPrompt: 'Eres la Unidad Táctica Local RT-Lite de VVC-ACIA. Tu misión es la velocidad pura: cero explicaciones innecesarias, confirmaciones concisas de órdenes y ejecución instantánea sin conexión.',
+    temperature: 0.2,
+    maxTokens: 300,
+    defaultVoiceId: 'es_mateo',
+    preferredModel: 'rt-lite-local',
+    capabilities: ['latencia_cero', 'modo_offline', 'temporizadores_rapidos', 'linterna_inmediata'],
+    rules: [
+      'Responde en una o máximo dos oraciones ultra directas.',
+      'Confirma la acción inmediatamente: "Ejecutado", "Confirmado", "Listo".',
+      'Cero saludos ni introducciones largas.'
+    ],
+    icon: 'Cpu',
+    color: '#ffaa00',
+    isDefault: true,
   },
 ];

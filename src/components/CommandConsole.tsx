@@ -12,7 +12,8 @@ import {
   Sparkles,
   Trash2,
   HardDrive,
-  Download
+  Download,
+  Bot
 } from 'lucide-react';
 import type { ConsoleMessage } from '../types';
 
@@ -25,6 +26,8 @@ interface CommandConsoleProps {
   onToggleListening: () => void;
   isProcessing: boolean;
   activeModelName: string;
+  activeAgentName?: string;
+  onOpenAgents?: () => void;
 }
 
 export const CommandConsole: React.FC<CommandConsoleProps> = ({
@@ -36,6 +39,8 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
   onToggleListening,
   isProcessing,
   activeModelName,
+  activeAgentName,
+  onOpenAgents,
 }) => {
   const [inputText, setInputText] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -110,6 +115,18 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
               <HardDrive className="w-2.5 h-2.5" />
               <span>DISCO LOCAL ON</span>
             </span>
+
+            {/* Active Agent Badge */}
+            {activeAgentName && (
+              <button
+                onClick={onOpenAgents}
+                className="flex items-center gap-1 text-[10px] font-mono text-[#00f0ff] bg-[#00f0ff]/10 border border-[#00f0ff]/30 px-2 py-0.5 rounded hover:bg-[#00f0ff]/20 transition-all cursor-pointer shadow-sm"
+                title="Agente activo gobernando las directivas del LLM. Clic para cambiar o editar especificación JSON."
+              >
+                <Bot className="w-3 h-3 text-[#00f0ff]" />
+                <span className="truncate max-w-[110px] font-semibold">{activeAgentName}</span>
+              </button>
+            )}
 
             <span className="text-[11px] font-mono text-slate-400 hidden md:inline flex items-center gap-1">
               <Cpu className="w-3 h-3 text-[#b026ff]" />

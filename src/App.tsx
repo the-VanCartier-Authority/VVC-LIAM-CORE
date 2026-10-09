@@ -20,6 +20,8 @@ import { InstallModal } from './components/InstallModal';
 import { GmailModal } from './components/GmailModal';
 import { GoogleDrivePickerModal } from './components/GoogleDrivePickerModal';
 import { GoogleMapsPanel } from './components/GoogleMapsPanel';
+import { DocumentSpreadsheetModal } from './components/DocumentSpreadsheetModal';
+import { AgentsModal } from './components/AgentsModal';
 import { initAuth, googleSignIn } from './services/googleAuth';
 import type { User } from 'firebase/auth';
 
@@ -38,9 +40,11 @@ import {
   type EncryptedVaultItem, 
   type ConsoleMessage,
   type ActiveNotificationAlert,
+  type AgentProfile,
   AVAILABLE_MODELS,
   CLOUD_INTEGRATIONS,
-  KOKORO_VOICES
+  KOKORO_VOICES,
+  DEFAULT_AGENTS
 } from './types';
 
 import { 
@@ -61,6 +65,18 @@ import {
   downloadICSFile, 
   dispatchTaskWebhook 
 } from './utils/ical';
+
+import {
+  generateGoogleCalendarUrl,
+  generateOutlookCalendarUrl,
+} from './utils/calendarSync';
+
+import {
+  registerServiceWorker,
+  sendBackgroundAlert,
+  testNativePushNotification,
+  initNotificationClickListener
+} from './services/pushNotificationService';
 
 const INITIAL_CONTACTS: PhoneContact[] = [
   { id: 'c1', name: 'Carlos Méndez', phone: '+34 612 345 678', relation: 'Colega de Proyecto', favorite: true },
@@ -302,6 +318,36 @@ export default function App() {
   const [gmailDraft, setGmailDraft] = useState<{ recipient?: string; subject?: string; body?: string }>({});
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isMapsOpen, setIsMapsOpen] = useState(false);
+  const [isDocsModalOpen, setIsDocsModalOpen] = useState(false);
+  const [docsModalMode, setDocsModalMode] = useState<'document' | 'spreadsheet'>('document');
+  const [isAgentsModalOpen, setIsAgentsModalOpen] = useState(false);
+
+  // Custom Agents Matrix State
+  const [agents, setAgents] = useState<AgentProfile[]>(() => {
+    const saved = localStorage.getItem('vvc_acia_custom_agents');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch {}
+    }
+    return DEFAULT_AGENTS;
+  });
+
+  const [activeAgentId, setActiveAgentId] = useState<string>(() => {
+    return localStorage.getItem('vvc_acia_active_agent_id') || 'ag-executive';
+  });
+
+  // Save agents and active ID to localStorage
+  useEffect(() => {
+    localStorage.setItem('vvc_acia_custom_agents', JSON.stringify(agents));
+  }, [agents]);
+
+  useEffect(() => {
+    localStorage.setItem('vvc_acia_active_agent_id', activeAgentId);
+  }, [activeAgentId]);
+
+  const activeAgent = agents.find((a) => a.id === activeAgentId) || agents[0] || DEFAULT_AGENTS[0];
   const mapsApiKey = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string) || 'AIzaSyCzVPjGhif2S8wKYBjkk5TuoqAeuCEatUo';
 
   // Google Auth User State
@@ -368,6 +414,23 @@ export default function App() {
     };
   }, []);
 
+  // Service Worker Initialization & Background Notification Click Handler
+  useEffect(() => {
+    registerServiceWorker().then((reg) => {
+      if (reg) {
+        console.log('[VVC-ACIA OS] Service Worker inicializado con éxito para alertas en segundo plano.');
+      }
+    });
+
+    const cleanupClickListener = initNotificationClickListener(({ taskId }) => {
+      if (taskId) {
+        setIsCalendarOpen(true);
+      }
+    });
+
+    return () => cleanupClickListener();
+  }, []);
+
   // Timers countdown ticker
   useEffect(() => {
     const timerInterval = setInterval(() => {
@@ -378,6 +441,13 @@ export default function App() {
           if (nextSec === 0) {
             playCyberTone('alarm');
             speakKokoro(`¡Atención! El temporizador ${t.label} ha finalizado.`, selectedVoiceId);
+            sendBackgroundAlert(`VVC-ACIA // Temporizador Finalizado`, {
+              body: `El temporizador "${t.label}" ha concluido.`,
+              icon: '/pwa-192x192.png',
+              badge: '/pwa-192x192.png',
+              tag: `timer-${t.id}`,
+              requireInteraction: true,
+            });
             return { ...t, remainingSeconds: 0, isRunning: false, isCompleted: true };
           }
           return { ...t, remainingSeconds: nextSec };
@@ -424,15 +494,15 @@ export default function App() {
               speakKokoro(`Atención. Recordatorio programado: ${task.title}. Prioridad ${task.priority}.`, selectedVoiceId);
             }
 
-            // 4. Browser Web Notification (if permission granted)
-            if ('Notification' in window && Notification.permission === 'granted') {
-              try {
-                new Notification(`VVC-ACIA // ${task.title}`, {
-                  body: `Hora: ${task.timeDue} · Prioridad: ${task.priority.toUpperCase()}`,
-                  icon: '/favicon.ico',
-                });
-              } catch {}
-            }
+            // 4. Native Browser & Service Worker Push Notification (Active in background)
+            sendBackgroundAlert(`VVC-ACIA // ${task.title}`, {
+              body: `Hora: ${task.timeDue} · Prioridad: ${task.priority.toUpperCase()}`,
+              icon: '/pwa-192x192.png',
+              badge: '/pwa-192x192.png',
+              tag: `task-${task.id}`,
+              taskId: task.id,
+              requireInteraction: true,
+            });
 
             // 5. Dispatch third-party webhook if configured
             if (thirdPartyWebhookUrl) {
@@ -511,8 +581,8 @@ export default function App() {
       setStatusLabel('PROCESANDO');
 
       try {
-        // Step 1: Run through upgraded RT-Lite Local Intent Parser with existing tasks
-        const intentResult = parseNaturalVoiceCommand(commandText, deviceState, contacts, tasks);
+        // Step 1: Run through upgraded RT-Lite Local Intent Parser with existing tasks and calendar events
+        const intentResult = parseNaturalVoiceCommand(commandText, deviceState, contacts, tasks, calendarEvents);
 
         if (intentResult.isHandled) {
           playCyberTone('confirm');
@@ -636,18 +706,59 @@ export default function App() {
             setTimers((prev) => [...prev, timerObj]);
           }
 
+          // Update calendar events if conflicts were resolved
+          if (intentResult.eventsToUpdate) {
+            setCalendarEvents(intentResult.eventsToUpdate);
+          }
+
           // Add calendar event
           if (intentResult.newCalendarEvent) {
             const eventObj: CalendarEvent = {
               id: `e-${Date.now()}`,
-              title: intentResult.newCalendarEvent.title,
-              date: intentResult.newCalendarEvent.date,
-              time: intentResult.newCalendarEvent.time,
-              location: intentResult.newCalendarEvent.location,
-              description: intentResult.newCalendarEvent.description,
-              isAutomated: true,
+              ...intentResult.newCalendarEvent,
             };
             setCalendarEvents((prev) => [eventObj, ...prev]);
+          }
+
+          // Handle multi-provider Calendar Sync trigger
+          if (intentResult.triggerCalendarSync) {
+            if (intentResult.triggerCalendarSync === 'google' && intentResult.newCalendarEvent) {
+              const directUrl = generateGoogleCalendarUrl({ id: 'sync-google', ...intentResult.newCalendarEvent });
+              try { window.open(directUrl, '_blank'); } catch {}
+            } else if (intentResult.triggerCalendarSync === 'outlook' && intentResult.newCalendarEvent) {
+              const directUrl = generateOutlookCalendarUrl({ id: 'sync-outlook', ...intentResult.newCalendarEvent });
+              try { window.open(directUrl, '_blank'); } catch {}
+            } else {
+              downloadICSFile(calendarEvents, tasks);
+            }
+          }
+
+          // Handle Open Calendar Intent
+          if (intentResult.openCalendar) {
+            setIsCalendarOpen(true);
+          }
+
+          // Handle Open Docs & Spreadsheet Studio Intent
+          if (intentResult.openDocs) {
+            if (intentResult.docsMode) {
+              setDocsModalMode(intentResult.docsMode);
+            }
+            setIsDocsModalOpen(true);
+          }
+
+          // Handle Open Agents Matrix Intent
+          if (intentResult.openAgents) {
+            setIsAgentsModalOpen(true);
+            if (intentResult.targetAgentName) {
+              const found = agents.find(
+                (a) =>
+                  a.name.toLowerCase().includes(intentResult.targetAgentName!.toLowerCase()) ||
+                  a.role.toLowerCase().includes(intentResult.targetAgentName!.toLowerCase())
+              );
+              if (found) {
+                setActiveAgentId(found.id);
+              }
+            }
           }
 
           // Handle Gmail Intent
@@ -674,6 +785,16 @@ export default function App() {
             playCyberTone('confirm');
           }
 
+          // Handle Native Push Notification Test Intent
+          if (intentResult.triggerPushTest) {
+            testNativePushNotification();
+          }
+
+          // Handle Open Settings Modal Intent
+          if (intentResult.openSettings) {
+            setIsSettingsOpen(true);
+          }
+
           // Spoken output with Kokoro TTS
           if (!deviceState.isMuted) {
             setIsSpeaking(true);
@@ -696,7 +817,7 @@ export default function App() {
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
             actionType: intentResult.actionType,
             actionDetails: intentResult.actionDetails,
-            modelUsed: 'RT-Lite Local',
+            modelUsed: `${activeAgent.name.split(' ')[0]} (RT-Lite)`,
             isE2EE: true,
           };
           setMessages((prev) => [...prev, assistantMsg]);
@@ -705,9 +826,9 @@ export default function App() {
           return;
         }
 
-        // Step 2: If not an immediate hardware command, run through active model (NVIDIA or RT-Lite Local)
-        if (isOffline || currentModel === 'rt-lite-local') {
-          const localAnswer = generateRTLiteResponse(commandText);
+        // Step 2: If not an immediate hardware command, run through active model (NVIDIA or any RT-Lite Engine)
+        if (isOffline || currentModel.startsWith('rt-lite')) {
+          const localAnswer = generateRTLiteResponse(commandText, currentModel);
           if (!deviceState.isMuted) {
             setIsSpeaking(true);
             speakKokoro(localAnswer, selectedVoiceId, {
@@ -721,6 +842,7 @@ export default function App() {
             });
           }
 
+          const currentModelMeta = AVAILABLE_MODELS.find((m) => m.id === currentModel);
           setMessages((prev) => [
             ...prev,
             {
@@ -728,7 +850,7 @@ export default function App() {
               sender: 'assistant',
               text: localAnswer,
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-              modelUsed: 'RT-Lite On-Device',
+              modelUsed: `${currentModelMeta?.name || 'RT-Lite On-Device'} · ${activeAgent.name.split(' ')[0]}`,
               isE2EE: true,
             },
           ]);
@@ -737,9 +859,21 @@ export default function App() {
           return;
         }
 
-        // Online NVIDIA Model Inference with Cloud Context
+        // Online NVIDIA Model Inference with Active Agent Profile & Cloud Context
         const cloudInfo = CLOUD_INTEGRATIONS.find((c) => c.id === currentCloudIntegration) || CLOUD_INTEGRATIONS[0];
-        const systemPrompt = `Eres VVC-ACIA, un asistente personal de voz obsidian de vanguardia. Cuentas con un gestor avanzado de tareas y recordatorios en tiempo real, integración con ${cloudInfo.name}, calendario y funciones del teléfono. Responde de forma concisa, ejecutiva y clara en español en menos de 3 oraciones para ser hablada por voz.`;
+
+        const agentRulesSection = activeAgent.rules && activeAgent.rules.length > 0
+          ? `\n\nREGLAS DE ACTUACIÓN:\n${activeAgent.rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}`
+          : '';
+
+        const agentCapabilitiesSection = activeAgent.capabilities && activeAgent.capabilities.length > 0
+          ? `\nCAPACIDADES ESPECIALIZADAS: ${activeAgent.capabilities.join(', ')}`
+          : '';
+
+        const systemPrompt = `[IDENTIDAD DE AGENTE ACTIVO: ${activeAgent.name.toUpperCase()} // ${activeAgent.role.toUpperCase()}]\n${activeAgent.systemPrompt}${agentRulesSection}${agentCapabilitiesSection}\n\n[CONTEXTO OPERATIVO]:\nAsistente personal de voz VVC-ACIA Obsidian Core. Integración activa con ${cloudInfo.name}. Control de calendario, tareas y funciones del teléfono. Responde de forma concisa, clara y ejecutiva en español (máximo 3 oraciones) para ser sintetizado por voz de manera natural.`;
+
+        const agentTemperature = activeAgent.temperature !== undefined ? activeAgent.temperature : 0.6;
+        const agentMaxTokens = activeAgent.maxTokens !== undefined ? activeAgent.maxTokens : 800;
 
         const res = await fetch('/api/chat/nvidia', {
           method: 'POST',
@@ -752,8 +886,8 @@ export default function App() {
               { role: 'system', content: systemPrompt },
               { role: 'user', content: commandText },
             ],
-            temperature: 0.6,
-            max_tokens: 800,
+            temperature: agentTemperature,
+            max_tokens: agentMaxTokens,
           }),
         });
 
@@ -951,6 +1085,12 @@ export default function App() {
         onToggleOffline={() => setIsOffline(!isOffline)}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenCalendar={() => setIsCalendarOpen(true)}
+        onOpenDocs={() => {
+          setDocsModalMode('document');
+          setIsDocsModalOpen(true);
+        }}
+        onOpenAgents={() => setIsAgentsModalOpen(true)}
+        activeAgentName={activeAgent.name}
         onOpenVault={() => setIsVaultOpen(true)}
         onOpenDeviceControls={() => setIsDeviceControlsOpen(true)}
         onOpenGmail={() => setIsGmailOpen(true)}
@@ -1034,6 +1174,8 @@ export default function App() {
           onToggleListening={toggleListening}
           isProcessing={isProcessing}
           activeModelName={activeModelObj.name}
+          activeAgentName={activeAgent.name}
+          onOpenAgents={() => setIsAgentsModalOpen(true)}
         />
       </main>
 
@@ -1248,6 +1390,73 @@ export default function App() {
         apiKey={mapsApiKey}
         isOpen={isMapsOpen}
         onClose={() => setIsMapsOpen(false)}
+      />
+
+      {/* Document & Spreadsheet Studio Modal (Native PDF & Text/CSV Export) */}
+      <DocumentSpreadsheetModal
+        isOpen={isDocsModalOpen}
+        onClose={() => setIsDocsModalOpen(false)}
+        initialMode={docsModalMode}
+        onNotify={(msg) => {
+          playCyberTone('confirm');
+          speakKokoro(msg, selectedVoiceId);
+        }}
+      />
+
+      {/* Specialized Agents Matrix Modal (JSON Blocks, Custom Agents, File Import/Export) */}
+      <AgentsModal
+        isOpen={isAgentsModalOpen}
+        onClose={() => setIsAgentsModalOpen(false)}
+        agents={agents}
+        activeAgentId={activeAgentId}
+        onSelectAgent={(id) => {
+          setActiveAgentId(id);
+          const ag = agents.find((a) => a.id === id);
+          if (ag) {
+            playCyberTone('confirm');
+            speakKokoro(`Agente "${ag.name}" activado. Directivas y parámetros del LLM actualizados.`, selectedVoiceId);
+          }
+        }}
+        onAddAgent={(newAgent, activate) => {
+          setAgents((prev) => {
+            const filtered = prev.filter((a) => a.id !== newAgent.id);
+            return [...filtered, newAgent];
+          });
+          if (activate) {
+            setActiveAgentId(newAgent.id);
+          }
+          playCyberTone('confirm');
+        }}
+        onAddAgents={(newAgents, activateFirst) => {
+          setAgents((prev) => {
+            const newIds = new Set(newAgents.map((a) => a.id));
+            const filtered = prev.filter((a) => !newIds.has(a.id));
+            return [...filtered, ...newAgents];
+          });
+          if (activateFirst && newAgents.length > 0) {
+            setActiveAgentId(newAgents[0].id);
+          }
+          playCyberTone('confirm');
+        }}
+        onUpdateAgent={(updated) => {
+          setAgents((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+        }}
+        onDeleteAgent={(id) => {
+          setAgents((prev) => prev.filter((a) => a.id !== id));
+          if (activeAgentId === id) {
+            setActiveAgentId('ag-executive');
+          }
+        }}
+        onResetAgents={() => {
+          setAgents(DEFAULT_AGENTS);
+          setActiveAgentId('ag-executive');
+          playCyberTone('confirm');
+          speakKokoro('Agentes predeterminados restaurados.', selectedVoiceId);
+        }}
+        onNotify={(msg) => {
+          playCyberTone('confirm');
+          speakKokoro(msg, selectedVoiceId);
+        }}
       />
     </div>
   );

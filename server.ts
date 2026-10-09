@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
+import webpush from 'web-push';
 
 dotenv.config();
 
@@ -35,6 +36,135 @@ const VOICE_MAP: Record<string, string> = {
   en_adam: 'Charon',
 };
 
+// Web Push & VAPID Setup for Background Native Push Notifications
+let vapidPublicKey = process.env.VAPID_PUBLIC_KEY || '';
+let vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || '';
+
+if (!vapidPublicKey || !vapidPrivateKey) {
+  const generatedKeys = webpush.generateVAPIDKeys();
+  vapidPublicKey = generatedKeys.publicKey;
+  vapidPrivateKey = generatedKeys.privateKey;
+  console.log('[VVC-ACIA Push] VAPID keys inicializadas para Web Push en segundo plano.');
+}
+
+try {
+  webpush.setVapidDetails(
+    'mailto:vvc-acia@obsidian.local',
+    vapidPublicKey,
+    vapidPrivateKey
+  );
+} catch (vapidErr) {
+  console.warn('[VVC-ACIA Push] Error configurando VAPID details:', vapidErr);
+}
+
+// In-memory Push Subscriptions registry
+interface PushSubRecord {
+  endpoint: string;
+  expirationTime?: number | null;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+}
+const pushSubscriptions = new Map<string, PushSubRecord>();
+
+// Service Worker Direct Routes with proper MIME type and scope headers
+app.get('/sw.js', (_req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.setHeader('Service-Worker-Allowed', '/');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.sendFile(path.resolve(__dirname, 'public', 'sw.js'));
+});
+
+app.get('/sw-push.js', (_req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.setHeader('Service-Worker-Allowed', '/');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.sendFile(path.resolve(__dirname, 'public', 'sw-push.js'));
+});
+
+// Push Notification Endpoints
+app.get('/api/push/vapid-public-key', (_req: Request, res: Response) => {
+  res.json({ publicKey: vapidPublicKey });
+});
+
+app.post('/api/push/subscribe', (req: Request, res: Response) => {
+  const sub = req.body;
+  if (!sub || !sub.endpoint || !sub.keys) {
+    return res.status(400).json({ error: 'Suscripción Web Push no válida.' });
+  }
+  pushSubscriptions.set(sub.endpoint, sub);
+  console.log(`[VVC-ACIA Push] Nueva suscripción registrada. Total activas: ${pushSubscriptions.size}`);
+  return res.json({ success: true, count: pushSubscriptions.size });
+});
+
+app.post('/api/push/unsubscribe', (req: Request, res: Response) => {
+  const { endpoint } = req.body;
+  if (endpoint) {
+    pushSubscriptions.delete(endpoint);
+    console.log(`[VVC-ACIA Push] Suscripción eliminada. Restantes: ${pushSubscriptions.size}`);
+  }
+  return res.json({ success: true, count: pushSubscriptions.size });
+});
+
+app.post('/api/push/send', async (req: Request, res: Response) => {
+  try {
+    const { title, body, icon, badge, url, taskId, delayMs, tag } = req.body;
+    const payload = JSON.stringify({
+      title: title || 'VVC-ACIA // Alerta en Segundo Plano',
+      body: body || 'Alerta o recordatorio programado en segundo plano.',
+      icon: icon || '/pwa-192x192.png',
+      badge: badge || '/pwa-192x192.png',
+      tag: tag || `vvc-alert-${Date.now()}`,
+      url: url || '/',
+      taskId: taskId || null,
+      timestamp: Date.now(),
+    });
+
+    const dispatch = async () => {
+      let sentCount = 0;
+      const expired: string[] = [];
+
+      for (const [endpoint, sub] of pushSubscriptions.entries()) {
+        try {
+          await webpush.sendNotification(sub as any, payload);
+          sentCount++;
+        } catch (err: any) {
+          console.warn('[VVC-ACIA Push] Envío fallido para endpoint:', endpoint, err?.statusCode);
+          if (err?.statusCode === 404 || err?.statusCode === 410) {
+            expired.push(endpoint);
+          }
+        }
+      }
+
+      for (const ep of expired) {
+        pushSubscriptions.delete(ep);
+      }
+
+      return { sent: sentCount, total: pushSubscriptions.size };
+    };
+
+    if (delayMs && Number(delayMs) > 0) {
+      setTimeout(dispatch, Number(delayMs));
+      return res.json({ success: true, scheduled: true, delayMs: Number(delayMs) });
+    }
+
+    const result = await dispatch();
+    return res.json({ success: true, ...result });
+  } catch (error: any) {
+    console.error('[VVC-ACIA Push] Error en /api/push/send:', error);
+    return res.status(500).json({ error: error?.message || 'Error al emitir notificación push.' });
+  }
+});
+
+app.get('/api/push/status', (_req: Request, res: Response) => {
+  res.json({
+    enabled: true,
+    hasVapidKey: Boolean(vapidPublicKey),
+    activeSubscribers: pushSubscriptions.size,
+  });
+});
+
 // API Configuration endpoint
 app.get('/api/config', (_req: Request, res: Response) => {
   res.json({
@@ -42,6 +172,7 @@ app.get('/api/config', (_req: Request, res: Response) => {
     hasGeminiKey: Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY'),
     defaultModel: 'meta/llama-3.2-11b-vision-instruct',
     hasNeuralTTS: Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY'),
+    hasPushEnabled: true,
   });
 });
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Cpu, 
@@ -17,7 +17,13 @@ import {
   Share2,
   Calendar,
   Layers,
-  Palette
+  Palette,
+  Radio,
+  Smartphone,
+  RefreshCw,
+  AlertCircle,
+  CheckCircle2,
+  Clock
 } from 'lucide-react';
 import { 
   AVAILABLE_MODELS, 
@@ -30,6 +36,18 @@ import {
   type ThemeColorId
 } from '../types';
 import { speakKokoro } from '../utils/speech';
+import {
+  isServiceWorkerSupported,
+  isPushSupported,
+  getNotificationPermission,
+  requestNotificationPermission,
+  subscribeToPushNotifications,
+  unsubscribeFromPushNotifications,
+  getPushSubscriptionStatus,
+  testNativePushNotification,
+  scheduleBackgroundAlert,
+  type PushSubscriptionStatus
+} from '../services/pushNotificationService';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -96,6 +114,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(() => {
     return 'Notification' in window ? Notification.permission : 'default';
   });
+  const [pushStatus, setPushStatus] = useState<PushSubscriptionStatus>({
+    isSupported: true,
+    isServiceWorkerReady: false,
+    permission: 'default',
+    isSubscribed: false,
+  });
+  const [isPushLoading, setIsPushLoading] = useState(false);
+  const [isTestingPush, setIsTestingPush] = useState(false);
+  const [isSchedulingPush, setIsSchedulingPush] = useState(false);
+  const [pushFeedbackMessage, setPushFeedbackMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      refreshPushStatus();
+    }
+  }, [isOpen]);
+
+  const refreshPushStatus = async () => {
+    try {
+      const status = await getPushSubscriptionStatus();
+      setPushStatus(status);
+      setNotificationPermission(status.permission);
+    } catch (e) {
+      console.warn('Error fetching push status:', e);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -117,16 +161,63 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     });
   };
 
-  const handleRequestPushNotifications = async () => {
-    if ('Notification' in window) {
-      const perm = await Notification.requestPermission();
+  const handleEnablePush = async () => {
+    setIsPushLoading(true);
+    setPushFeedbackMessage(null);
+    try {
+      const perm = await requestNotificationPermission();
       setNotificationPermission(perm);
       if (perm === 'granted') {
-        new Notification('VVC-ACIA // Notificaciones Activas', {
-          body: 'Las alertas de tareas y recordatorios en tiempo real se mostrarán en tu sistema.',
-          icon: '/favicon.ico',
-        });
+        const subResult = await subscribeToPushNotifications();
+        await refreshPushStatus();
+        if (subResult.success) {
+          setPushFeedbackMessage('✓ Service Worker & Push configurados para alertas en segundo plano.');
+        } else {
+          setPushFeedbackMessage(subResult.error || 'Permiso concedido. Service Worker activado.');
+        }
+      } else if (perm === 'denied') {
+        setPushFeedbackMessage('✕ Permiso denegado por el navegador. Habilítalo en los ajustes del sitio.');
       }
+    } finally {
+      setIsPushLoading(false);
+      setTimeout(() => setPushFeedbackMessage(null), 4500);
+    }
+  };
+
+  const handleTestImmediatePush = async () => {
+    setIsTestingPush(true);
+    setPushFeedbackMessage(null);
+    try {
+      const res = await testNativePushNotification();
+      setPushFeedbackMessage(res.message);
+    } catch (err: any) {
+      setPushFeedbackMessage(`Error: ${err?.message || 'Fallo al disparar alerta'}`);
+    } finally {
+      setIsTestingPush(false);
+      setTimeout(() => setPushFeedbackMessage(null), 4000);
+    }
+  };
+
+  const handleTestDelayedPush = async () => {
+    setIsSchedulingPush(true);
+    setPushFeedbackMessage('⏱️ Alerta programada en 5 segundos. Minimiza o cambia de pestaña ahora para verificar...');
+    try {
+      await scheduleBackgroundAlert(
+        'VVC-ACIA // Alerta en Segundo Plano',
+        {
+          body: '¡Alerta recibida! La aplicación está en segundo plano y el Service Worker entregó la notificación nativa.',
+          tag: `scheduled-bg-${Date.now()}`,
+          requireInteraction: true,
+        },
+        5000
+      );
+    } catch (err: any) {
+      setPushFeedbackMessage(`Error: ${err?.message || 'Fallo al programar alerta'}`);
+    } finally {
+      setTimeout(() => {
+        setIsSchedulingPush(false);
+        setPushFeedbackMessage(null);
+      }, 7000);
     }
   };
 
@@ -359,36 +450,113 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
-          {/* SECTION 3: NOTIFICACIONES EN TIEMPO REAL & WEB PUSH */}
-          <div className="bg-[#0b0e17] border border-[#1e2638] rounded-xl p-4 space-y-3">
+          {/* SECTION 3: SERVICE WORKER & NOTIFICACIONES PUSH NATIVAS EN SEGUNDO PLANO */}
+          <div className="bg-[#0b0e17] border border-[#1e2638] rounded-xl p-4 space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-white flex items-center gap-1.5">
-                <Bell className="w-4 h-4 text-amber-400" />
-                Notificaciones en Tiempo Real & Alertas del Sistema
+                <Radio className="w-4 h-4 text-[#00f0ff] animate-pulse" />
+                Service Worker & Notificaciones Push Nativas (Segundo Plano)
               </span>
-              <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30">
-                VVC-ACIA Watcher
+              <span className="text-[10px] text-[#00f0ff] bg-[#00f0ff]/10 px-2 py-0.5 rounded border border-[#00f0ff]/30 font-mono">
+                SW Core / Web Push V2.4
               </span>
             </div>
 
             <p className="text-slate-400 text-xs leading-relaxed">
-              El asistente monitorea continuamente las tareas y recordatorios cada segundo, emitiendo tonos acústicos y anuncios vocales de Kokoro TTS cuando llega la hora programada.
+              Permite a VVC-ACIA ejecutar un <strong className="text-slate-200">Service Worker en segundo plano</strong> para recibir alertas críticas, avisos de tareas programadas y temporizadores directamente a través del sistema de notificaciones nativo de tu navegador y sistema operativo, incluso cuando la ventana esté minimizada.
             </p>
 
-            <div className="flex items-center justify-between p-2.5 rounded bg-[#07090e] border border-[#1e2638]">
-              <div>
-                <div className="text-xs text-white">Notificaciones Web del Navegador (Push)</div>
-                <div className="text-[10px] text-slate-400">
-                  Estado actual: <span className="text-[#00f0ff] font-bold uppercase">{notificationPermission}</span>
+            {/* Status Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <div className="p-2.5 rounded-lg bg-[#07090e] border border-[#1e2638] flex flex-col justify-between">
+                <span className="text-[10px] text-slate-400 uppercase font-mono tracking-wider flex items-center gap-1">
+                  <Smartphone className="w-3 h-3 text-[#00f0ff]" />
+                  Service Worker
+                </span>
+                <div className="mt-1 flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${pushStatus.isServiceWorkerReady ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-amber-400'}`} />
+                  <span className="text-xs font-semibold text-white">
+                    {pushStatus.isServiceWorkerReady ? 'Activo & Registrado' : 'No Registrado'}
+                  </span>
                 </div>
               </div>
 
+              <div className="p-2.5 rounded-lg bg-[#07090e] border border-[#1e2638] flex flex-col justify-between">
+                <span className="text-[10px] text-slate-400 uppercase font-mono tracking-wider flex items-center gap-1">
+                  <Bell className="w-3 h-3 text-amber-400" />
+                  Permiso Navegador
+                </span>
+                <div className="mt-1 flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${
+                    notificationPermission === 'granted' 
+                      ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' 
+                      : notificationPermission === 'denied' 
+                      ? 'bg-rose-500' 
+                      : 'bg-slate-400'
+                  }`} />
+                  <span className="text-xs font-semibold text-white capitalize">
+                    {notificationPermission === 'granted' ? 'Concedido ✓' : notificationPermission === 'denied' ? 'Bloqueado ✕' : 'Pendiente'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-lg bg-[#07090e] border border-[#1e2638] flex flex-col justify-between">
+                <span className="text-[10px] text-slate-400 uppercase font-mono tracking-wider flex items-center gap-1">
+                  <Radio className="w-3 h-3 text-[#b026ff]" />
+                  Servidor Web Push
+                </span>
+                <div className="mt-1 flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${pushStatus.isSubscribed ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-slate-500'}`} />
+                  <span className="text-xs font-semibold text-white">
+                    {pushStatus.isSubscribed ? 'Suscrito al Servidor' : 'Sin Suscripción'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Feedback message banner if present */}
+            {pushFeedbackMessage && (
+              <div className="p-2.5 rounded-lg bg-[#00f0ff]/10 border border-[#00f0ff]/30 text-[#00f0ff] text-xs flex items-center gap-2 animate-fade-in">
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-[#00f0ff]" />
+                <span>{pushFeedbackMessage}</span>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-[#1e2638]/70">
               <button
                 type="button"
-                onClick={handleRequestPushNotifications}
-                className="px-3 py-1.5 rounded bg-[#00f0ff]/10 hover:bg-[#00f0ff]/20 text-[#00f0ff] border border-[#00f0ff]/30 text-xs transition-colors"
+                onClick={handleEnablePush}
+                disabled={isPushLoading}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#00f0ff] hover:bg-[#00d0df] text-black font-semibold text-xs transition-all shadow-[0_0_12px_rgba(0,240,255,0.25)] disabled:opacity-50"
               >
-                {notificationPermission === 'granted' ? 'Permitidas ✓' : 'Solicitar Permiso'}
+                {isPushLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Bell className="w-3.5 h-3.5" />}
+                <span>
+                  {notificationPermission === 'granted' && pushStatus.isSubscribed
+                    ? 'Re-sincronizar Service Worker & Push'
+                    : 'Habilitar Notificaciones Push & SW'}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleTestImmediatePush}
+                disabled={isTestingPush}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#141a29] hover:bg-[#1a2336] text-[#00f0ff] border border-[#00f0ff]/40 text-xs transition-colors disabled:opacity-50"
+              >
+                {isTestingPush ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                <span>{isTestingPush ? 'Emitiendo...' : 'Probar Alerta Inmediata'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleTestDelayedPush}
+                disabled={isSchedulingPush}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#141a29] hover:bg-[#1a2336] text-amber-400 border border-amber-500/40 text-xs transition-colors disabled:opacity-50"
+                title="Programa una alerta en 5 segundos para que minimices o cambies de ventana y pruebes la notificación nativa en segundo plano"
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>{isSchedulingPush ? 'Programada (Minimiza ya)...' : 'Probar en 5s (Minimizar App)'}</span>
               </button>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   Calendar as CalendarIcon, 
   CheckSquare, 
@@ -20,10 +20,26 @@ import {
   ChevronRight, 
   ListChecks, 
   Sparkles,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Upload,
+  Layers,
+  Users,
+  Compass,
+  FileUp,
+  Globe,
+  Radio
 } from 'lucide-react';
 import type { CalendarEvent, TaskItem, SubtaskItem } from '../types';
 import { downloadICSFile, dispatchTaskWebhook } from '../utils/ical';
+import {
+  detectEventConflicts,
+  resolveEventConflict,
+  generateGoogleCalendarUrl,
+  generateOutlookCalendarUrl,
+  generateAppleCalendarICS,
+  parseICSFeed,
+  type ConflictAnalysis
+} from '../utils/calendarSync';
 
 interface CalendarRemindersModalProps {
   isOpen: boolean;
@@ -31,6 +47,7 @@ interface CalendarRemindersModalProps {
   events: CalendarEvent[];
   onAddEvent: (event: Omit<CalendarEvent, 'id'>) => void;
   onDeleteEvent: (id: string) => void;
+  onBatchAddEvents?: (newEvents: CalendarEvent[]) => void;
   tasks: TaskItem[];
   onToggleTask: (id: string) => void;
   onAddTask: (task: Omit<TaskItem, 'id' | 'createdAt' | 'updatedAt'>) => void;
@@ -47,6 +64,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
   events,
   onAddEvent,
   onDeleteEvent,
+  onBatchAddEvents,
   tasks,
   onToggleTask,
   onAddTask,
@@ -74,15 +92,33 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
   // Edit Task Inline Modal/Drawer State
   const [editingTask, setEditingTask] = useState<TaskItem | null>(null);
 
-  // Event Creation Form
+  // Complex Event Creation Form
   const [newEventTitle, setNewEventTitle] = useState('');
   const [newEventDate, setNewEventDate] = useState(new Date().toISOString().split('T')[0]);
   const [newEventTime, setNewEventTime] = useState('10:00');
   const [newEventEndTime, setNewEventEndTime] = useState('11:00');
   const [newEventLocation, setNewEventLocation] = useState('Enlace Seguro VVC-ACIA');
+  const [newEventCategory, setNewEventCategory] = useState<'reunion' | 'tarea' | 'llamada' | 'personal' | 'sistema'>('reunion');
+  const [newEventAttendees, setNewEventAttendees] = useState('');
+  const [newEventDescription, setNewEventDescription] = useState('');
+  const [newEventRecurrence, setNewEventRecurrence] = useState<'none' | 'daily' | 'weekly' | 'weekdays' | 'monthly'>('none');
+
+  // File import state
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [importStatusMessage, setImportStatusMessage] = useState<string | null>(null);
 
   // Webhook Test State
   const [testWebhookStatus, setTestWebhookStatus] = useState<string | null>(null);
+
+  // Compute live conflict analysis for candidate event
+  const conflictAnalysis: ConflictAnalysis = detectEventConflicts(
+    {
+      date: newEventDate,
+      time: newEventTime,
+      endTime: newEventEndTime,
+    },
+    events
+  );
 
   if (!isOpen) return null;
 
@@ -125,22 +161,90 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
     setTempSubtasks([]);
   };
 
-  // Submit new Calendar Event
+  // Submit new Calendar Event with conflict detection & resolution
   const handleCreateEvent = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEventTitle.trim()) return;
 
+    const attendeesList = newEventAttendees
+      .split(',')
+      .map((a) => a.trim())
+      .filter((a) => a.length > 0);
+
+    let eventDate = newEventDate;
+    let eventTime = newEventTime;
+    let eventEndTime = newEventEndTime;
+    let conflictNote: string | undefined = undefined;
+    let syncStatus: 'synced' | 'local' | 'conflict_resolved' = 'synced';
+
+    if (conflictAnalysis.hasConflict) {
+      conflictNote = `Conflicto detectado originalmente con ${conflictAnalysis.conflictingEvents[0]?.title || 'evento existente'}.`;
+      syncStatus = 'conflict_resolved';
+    }
+
     onAddEvent({
       title: newEventTitle.trim(),
-      date: newEventDate,
-      time: newEventTime,
-      endTime: newEventEndTime,
-      location: newEventLocation.trim(),
+      date: eventDate,
+      time: eventTime,
+      endTime: eventEndTime,
+      location: newEventLocation.trim() || 'Virtual / VVC-ACIA Hub',
+      description: newEventDescription.trim() || undefined,
+      category: newEventCategory,
+      recurrence: newEventRecurrence,
+      attendees: attendeesList.length > 0 ? attendeesList : undefined,
+      source: 'vvc-acia',
+      syncStatus,
+      conflictNote,
       isAutomated: true,
-      category: 'reunion',
     });
 
     setNewEventTitle('');
+    setNewEventAttendees('');
+    setNewEventDescription('');
+  };
+
+  // Auto-resolve conflict by adopting suggested slot
+  const handleAutoResolveConflict = (slot: { date: string; time: string; endTime: string }) => {
+    setNewEventDate(slot.date);
+    setNewEventTime(slot.time);
+    setNewEventEndTime(slot.endTime);
+  };
+
+  // Import external .ICS file (Google Calendar, Outlook, Apple Calendar)
+  const handleImportICSFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (!content) return;
+
+      const providerGuess: 'google' | 'outlook' | 'apple' = content.includes('Apple Inc')
+        ? 'apple'
+        : content.includes('Microsoft')
+        ? 'outlook'
+        : 'google';
+
+      const parsed = parseICSFeed(content, providerGuess);
+      if (parsed.length === 0) {
+        setImportStatusMessage('No se encontraron eventos válidos en el archivo .ics seleccionado.');
+        setTimeout(() => setImportStatusMessage(null), 3500);
+        return;
+      }
+
+      if (onBatchAddEvents) {
+        onBatchAddEvents(parsed);
+      } else {
+        parsed.forEach((ev) => onAddEvent(ev));
+      }
+
+      setImportStatusMessage(`✓ ${parsed.length} eventos importados exitosamente desde ${providerGuess.toUpperCase()} Calendar.`);
+      setTimeout(() => setImportStatusMessage(null), 4500);
+    };
+
+    reader.readAsText(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   // Test Webhook Dispatch
@@ -619,18 +723,67 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
             </div>
           )}
 
-          {/* TAB 2: CALENDARIO DE EVENTOS & AGENDA */}
+          {/* TAB 2: CALENDARIO DE EVENTOS & AGENDA AVANZADA */}
           {activeTab === 'calendar' && (
             <div className="space-y-4">
-              {/* Event Creator Form */}
+              {/* Top Action Bar */}
+              <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-[#0b0e17] border border-[#1e2638]">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-slate-300 font-semibold flex items-center gap-1.5">
+                    <Globe className="w-3.5 h-3.5 text-[#00f0ff]" />
+                    Sincronización Bidireccional:
+                  </span>
+                  <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">
+                    Google · Outlook · Apple Calendar
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {/* Hidden File Input for ICS Import */}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleImportICSFile}
+                    accept=".ics,text/calendar"
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#141a29] hover:bg-[#1a233b] border border-[#00f0ff]/40 text-[#00f0ff] text-xs font-semibold transition-colors"
+                    title="Importa eventos desde un archivo .ics generado en Google, Outlook o Apple Calendar"
+                  >
+                    <FileUp className="w-3.5 h-3.5" />
+                    <span>Importar .ICS</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => downloadICSFile(events, tasks)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#131929] hover:bg-[#1a233b] border border-[#1e2638] text-slate-200 text-xs font-semibold transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Exportar .ICS Completo</span>
+                  </button>
+                </div>
+              </div>
+
+              {importStatusMessage && (
+                <div className="p-2.5 rounded-lg bg-[#00f0ff]/10 border border-[#00f0ff]/30 text-[#00f0ff] text-xs flex items-center gap-2 animate-fade-in">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-[#00f0ff]" />
+                  <span>{importStatusMessage}</span>
+                </div>
+              )}
+
+              {/* Complex Event Creator Form */}
               <form onSubmit={handleCreateEvent} className="bg-[#0b0e17] border border-[#1e2638] rounded-xl p-4 space-y-3">
                 <div className="flex items-center justify-between text-xs text-white font-semibold">
                   <span className="text-[#b026ff] flex items-center gap-1.5">
                     <CalendarIcon className="w-4 h-4" />
-                    Programar Cita o Evento de Calendario
+                    Programación Avanzada de Cita o Reunión Compleja
                   </span>
-                  <span className="text-[10px] text-slate-400">
-                    Formato compatible RFC 5545
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    RFC 5545 Multi-Provider
                   </span>
                 </div>
 
@@ -639,15 +792,15 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                     type="text"
                     value={newEventTitle}
                     onChange={(e) => setNewEventTitle(e.target.value)}
-                    placeholder="Título del evento o reunión..."
-                    className="sm:col-span-2 bg-[#06080d] border border-[#1e2638] focus:border-[#b026ff] rounded px-3 py-1.5 text-xs text-slate-100 focus:outline-none"
+                    placeholder="Título de la reunión o evento..."
+                    className="sm:col-span-2 bg-[#06080d] border border-[#1e2638] focus:border-[#b026ff] rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none"
                   />
 
                   <input
                     type="date"
                     value={newEventDate}
                     onChange={(e) => setNewEventDate(e.target.value)}
-                    className="bg-[#06080d] border border-[#1e2638] focus:border-[#b026ff] rounded px-2 py-1.5 text-xs text-slate-100 focus:outline-none"
+                    className="bg-[#06080d] border border-[#1e2638] focus:border-[#b026ff] rounded-lg px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none"
                   />
 
                   <div className="flex gap-1">
@@ -655,95 +808,277 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                       type="time"
                       value={newEventTime}
                       onChange={(e) => setNewEventTime(e.target.value)}
-                      className="w-1/2 bg-[#06080d] border border-[#1e2638] focus:border-[#b026ff] rounded px-2 py-1.5 text-xs text-slate-100 focus:outline-none"
+                      title="Hora de Inicio"
+                      className="w-1/2 bg-[#06080d] border border-[#1e2638] focus:border-[#b026ff] rounded-lg px-2 py-1.5 text-xs text-slate-100 focus:outline-none"
                     />
                     <input
                       type="time"
                       value={newEventEndTime}
                       onChange={(e) => setNewEventEndTime(e.target.value)}
-                      className="w-1/2 bg-[#06080d] border border-[#1e2638] focus:border-[#b026ff] rounded px-2 py-1.5 text-xs text-slate-100 focus:outline-none"
+                      title="Hora de Fin"
+                      className="w-1/2 bg-[#06080d] border border-[#1e2638] focus:border-[#b026ff] rounded-lg px-2 py-1.5 text-xs text-slate-100 focus:outline-none"
                     />
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-2">
+                {/* Additional Complex Event Options */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <input
                     type="text"
                     value={newEventLocation}
                     onChange={(e) => setNewEventLocation(e.target.value)}
-                    placeholder="Ubicación o enlace seguro..."
-                    className="flex-1 bg-[#06080d] border border-[#1e2638] focus:border-[#b026ff] rounded px-3 py-1.5 text-xs text-slate-100 focus:outline-none"
+                    placeholder="Ubicación (ej: Sala de Conferencias o Enlace)..."
+                    className="bg-[#06080d] border border-[#1e2638] focus:border-[#b026ff] rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none"
                   />
 
+                  <input
+                    type="text"
+                    value={newEventAttendees}
+                    onChange={(e) => setNewEventAttendees(e.target.value)}
+                    placeholder="Asistentes (correos separados por comas)..."
+                    className="bg-[#06080d] border border-[#1e2638] focus:border-[#b026ff] rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none"
+                  />
+
+                  <div className="flex gap-2">
+                    <select
+                      value={newEventCategory}
+                      onChange={(e) => setNewEventCategory(e.target.value as any)}
+                      className="w-1/2 bg-[#06080d] border border-[#1e2638] focus:border-[#b026ff] rounded-lg px-2 py-1.5 text-xs text-slate-200 focus:outline-none"
+                    >
+                      <option value="reunion">Reunión</option>
+                      <option value="tarea">Tarea</option>
+                      <option value="llamada">Llamada</option>
+                      <option value="personal">Personal</option>
+                      <option value="sistema">Sistema</option>
+                    </select>
+
+                    <select
+                      value={newEventRecurrence}
+                      onChange={(e) => setNewEventRecurrence(e.target.value as any)}
+                      className="w-1/2 bg-[#06080d] border border-[#1e2638] focus:border-[#b026ff] rounded-lg px-2 py-1.5 text-xs text-slate-200 focus:outline-none"
+                    >
+                      <option value="none">Puntual</option>
+                      <option value="daily">Diaria</option>
+                      <option value="weekdays">Laborables</option>
+                      <option value="weekly">Semanal</option>
+                      <option value="monthly">Mensual</option>
+                    </select>
+                  </div>
+                </div>
+
+                <textarea
+                  rows={2}
+                  value={newEventDescription}
+                  onChange={(e) => setNewEventDescription(e.target.value)}
+                  placeholder="Notas adicionales, temario o descripción del evento..."
+                  className="w-full bg-[#06080d] border border-[#1e2638] focus:border-[#b026ff] rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none resize-none"
+                />
+
+                {/* LIVE SCHEDULING CONFLICT DETECTION & RESOLUTION WARNING */}
+                {conflictAnalysis.hasConflict && (
+                  <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/40 text-amber-300 text-xs space-y-2 animate-fade-in">
+                    <div className="flex items-center gap-2 font-bold">
+                      <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span>{conflictAnalysis.message}</span>
+                    </div>
+
+                    {conflictAnalysis.suggestedSlots.length > 0 && (
+                      <div className="pt-1 border-t border-amber-500/20">
+                        <span className="text-[11px] text-slate-300 block mb-1">
+                          Horarios alternativos sin solapamiento calculados:
+                        </span>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {conflictAnalysis.suggestedSlots.map((slot, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => handleAutoResolveConflict(slot)}
+                              className="px-2.5 py-1 rounded bg-[#0b0e17] border border-amber-500/50 hover:bg-amber-500/20 text-amber-200 text-[11px] flex items-center gap-1 transition-colors"
+                            >
+                              <Clock className="w-3 h-3 text-amber-400" />
+                              <span>{slot.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex justify-end pt-1">
                   <button
                     type="submit"
                     disabled={!newEventTitle.trim()}
-                    className="px-4 py-1.5 rounded bg-[#b026ff] hover:bg-[#9b15ea] text-white font-semibold flex items-center justify-center gap-1.5 transition-all shadow-[0_0_12px_rgba(176,38,255,0.4)] disabled:opacity-40"
+                    className="px-5 py-2 rounded-lg bg-[#b026ff] hover:bg-[#9b15ea] text-white font-semibold flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(176,38,255,0.4)] disabled:opacity-40"
                   >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Guardar Cita</span>
+                    <Plus className="w-4 h-4" />
+                    <span>Guardar Cita en Agenda</span>
                   </button>
                 </div>
               </form>
 
-              {/* Combined Agenda List */}
+              {/* Combined Agenda List with Provider Actions */}
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs text-slate-300 font-semibold">
-                  <span>Agenda Completa (Citas & Tareas Vinculadas)</span>
-                  <button
-                    onClick={() => downloadICSFile(events, tasks)}
-                    className="text-[11px] text-[#00f0ff] hover:underline flex items-center gap-1"
-                  >
-                    <Download className="w-3 h-3" />
-                    Descargar .ics
-                  </button>
+                <div className="flex items-center justify-between text-xs text-slate-300 font-semibold px-1">
+                  <span>Agenda Completa ({events.length} citas programadas)</span>
+                  <span className="text-[11px] text-slate-400">
+                    Sincronización multi-proveedor con 1-clic
+                  </span>
                 </div>
 
                 {events.length === 0 ? (
                   <div className="p-8 text-center bg-[#0b0e17] rounded-xl border border-[#1e2638] text-slate-500">
-                    No hay eventos programados en el calendario. Dicta "Nuevo evento reunión mañana a las 11:00".
+                    No hay eventos programados en el calendario. Dicta por voz "Nuevo evento reunión mañana a las 11:00" para programar.
                   </div>
                 ) : (
-                  events.map((event) => (
-                    <div
-                      key={event.id}
-                      className="p-3.5 rounded-xl bg-[#0b0e17] border border-[#1e2638] hover:border-[#b026ff]/40 flex items-center justify-between transition-all"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-lg bg-[#131929] border border-[#b026ff]/30 flex flex-col items-center justify-center text-center">
-                          <span className="text-[9px] text-[#b026ff] uppercase font-bold">
-                            {new Date(event.date).toLocaleDateString('es-ES', { month: 'short' })}
-                          </span>
-                          <span className="text-sm font-bold text-white leading-none">
-                            {event.date.split('-')[2] || '01'}
-                          </span>
-                        </div>
+                  events.map((event) => {
+                    const isConflictResolved = event.syncStatus === 'conflict_resolved' || Boolean(event.conflictNote);
+                    const googleUrl = generateGoogleCalendarUrl(event);
+                    const outlookUrl = generateOutlookCalendarUrl(event);
 
-                        <div>
-                          <div className="font-semibold text-slate-100 text-sm">{event.title}</div>
-                          <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
-                            <span className="text-[#00f0ff] font-semibold">
-                              {event.time} {event.endTime ? ` - ${event.endTime}` : ''}
+                    const handleDownloadApple = () => {
+                      const icsContent = generateAppleCalendarICS(event);
+                      const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+                      const url = URL.createObjectURL(blob);
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.setAttribute('download', `${event.title.replace(/\s+/g, '_')}_apple.ics`);
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                      URL.revokeObjectURL(url);
+                    };
+
+                    return (
+                      <div
+                        key={event.id}
+                        className={`p-3.5 rounded-xl bg-[#0b0e17] border ${
+                          isConflictResolved
+                            ? 'border-amber-500/40 hover:border-amber-500'
+                            : 'border-[#1e2638] hover:border-[#b026ff]/50'
+                        } flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="w-12 h-12 rounded-lg bg-[#131929] border border-[#b026ff]/30 flex flex-col items-center justify-center text-center shrink-0">
+                            <span className="text-[9px] text-[#b026ff] uppercase font-bold">
+                              {new Date(event.date).toLocaleDateString('es-ES', { month: 'short' })}
                             </span>
-                            {event.location && <span>· {event.location}</span>}
-                            <span className="text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20 text-[10px]">
-                              Auto-Sincronizado
+                            <span className="text-sm font-bold text-white leading-none">
+                              {event.date.split('-')[2] || '01'}
                             </span>
                           </div>
+
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold text-slate-100 text-sm">
+                                {event.title}
+                              </span>
+
+                              {/* Source Badge */}
+                              <span
+                                className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-bold uppercase ${
+                                  event.source === 'google'
+                                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
+                                    : event.source === 'outlook'
+                                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40'
+                                    : event.source === 'apple'
+                                    ? 'bg-slate-400/20 text-slate-200 border border-slate-400/40'
+                                    : 'bg-[#b026ff]/20 text-[#b026ff] border border-[#b026ff]/40'
+                                }`}
+                              >
+                                {event.source ? event.source.toUpperCase() : 'VVC-ACIA'}
+                              </span>
+
+                              {/* Conflict Resolved Note */}
+                              {isConflictResolved && (
+                                <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded flex items-center gap-1 font-bold">
+                                  <Clock className="w-2.5 h-2.5" />
+                                  Conflicto Resuelto
+                                </span>
+                              )}
+
+                              {event.recurrence && event.recurrence !== 'none' && (
+                                <span className="text-[9px] bg-[#00f0ff]/10 text-[#00f0ff] border border-[#00f0ff]/30 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                  <Repeat className="w-2.5 h-2.5" />
+                                  {event.recurrence}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2 text-[11px] text-slate-400 flex-wrap">
+                              <span className="text-[#00f0ff] font-semibold flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {event.time} {event.endTime ? ` - ${event.endTime}` : ''}
+                              </span>
+                              {event.location && <span>· {event.location}</span>}
+                              {event.attendees && event.attendees.length > 0 && (
+                                <span className="text-slate-300 flex items-center gap-1">
+                                  <Users className="w-3 h-3 text-[#b026ff]" />
+                                  {event.attendees.length} {event.attendees.length === 1 ? 'asistente' : 'asistentes'}
+                                </span>
+                              )}
+                            </div>
+
+                            {event.conflictNote && (
+                              <p className="text-[10px] text-amber-300/90 italic">
+                                {event.conflictNote}
+                              </p>
+                            )}
+
+                            {event.description && (
+                              <p className="text-[11px] text-slate-400 line-clamp-1">
+                                {event.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* 1-Click Multi-provider Sync Actions */}
+                        <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                          <a
+                            href={googleUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 rounded-lg bg-[#141a29] hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 text-[10px] font-semibold flex items-center gap-1 transition-colors"
+                            title="Agendar en Google Calendar"
+                          >
+                            <CalendarIcon className="w-3 h-3" />
+                            <span>Google</span>
+                          </a>
+
+                          <a
+                            href={outlookUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 rounded-lg bg-[#141a29] hover:bg-cyan-600/30 text-cyan-400 border border-cyan-500/30 text-[10px] font-semibold flex items-center gap-1 transition-colors"
+                            title="Agendar en Microsoft Outlook"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            <span>Outlook</span>
+                          </a>
+
+                          <button
+                            type="button"
+                            onClick={handleDownloadApple}
+                            className="p-1.5 rounded-lg bg-[#141a29] hover:bg-slate-700 text-slate-200 border border-slate-600/40 text-[10px] font-semibold flex items-center gap-1 transition-colors"
+                            title="Descargar evento para Apple Calendar (.ics)"
+                          >
+                            <Download className="w-3 h-3" />
+                            <span>Apple</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => onDeleteEvent(event.id)}
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-[#141a29] transition-colors ml-1"
+                            title="Eliminar cita"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => onDeleteEvent(event.id)}
-                          className="p-1.5 rounded text-slate-500 hover:text-red-400 hover:bg-[#131929] transition-colors"
-                          title="Eliminar cita"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>

@@ -15,7 +15,9 @@ import {
   Compass,
   FolderOpen,
   User as UserIcon,
-  Palette
+  Palette,
+  FileText,
+  Bot
 } from 'lucide-react';
 import type { User } from 'firebase/auth';
 import { 
@@ -36,6 +38,9 @@ interface HeaderProps {
   onToggleOffline: () => void;
   onOpenSettings: () => void;
   onOpenCalendar: () => void;
+  onOpenDocs: () => void;
+  onOpenAgents?: () => void;
+  activeAgentName?: string;
   onOpenVault: () => void;
   onOpenDeviceControls: () => void;
   onOpenGmail: () => void;
@@ -60,6 +65,9 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleOffline,
   onOpenSettings,
   onOpenCalendar,
+  onOpenDocs,
+  onOpenAgents,
+  activeAgentName,
   onOpenVault,
   onOpenDeviceControls,
   onOpenGmail,
@@ -141,6 +149,23 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
+          {/* Specialized Agents Matrix Button */}
+          {onOpenAgents && (
+            <button
+              onClick={onOpenAgents}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono rounded bg-[#090f1d] border border-[#00f0ff]/40 hover:border-[#00f0ff] text-slate-200 hover:text-white transition-all shadow-[0_0_10px_rgba(0,240,255,0.15)]"
+              title={`Matriz de Agentes: ${activeAgentName || 'Coordinador'}`}
+            >
+              <Bot className="w-3.5 h-3.5 text-[#00f0ff]" />
+              <span className="truncate max-w-[100px] lg:max-w-[130px] font-semibold text-cyan-300">
+                {activeAgentName || 'Agente'}
+              </span>
+              <span className="text-[9px] px-1 py-0.2 rounded bg-[#00f0ff]/20 text-[#00f0ff] font-bold border border-[#00f0ff]/40">
+                JSON
+              </span>
+            </button>
+          )}
+
           {/* Cloud Service Integration Indicator Button */}
           <button
             onClick={onOpenSettings}
@@ -165,6 +190,16 @@ export const Header: React.FC<HeaderProps> = ({
                 {pendingTasksCount}
               </span>
             )}
+          </button>
+
+          {/* Document & Spreadsheet Studio Link with PDF Export */}
+          <button
+            onClick={onOpenDocs}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono text-slate-300 hover:text-emerald-400 hover:bg-[#0f141f] rounded transition-colors"
+            title="Estudio de Documentos de Texto y Hojas de Cálculo con exportación a PDF"
+          >
+            <FileText className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Docs & PDF</span>
           </button>
 
           {/* E2EE Encrypted Vault Link */}

@@ -11,7 +11,11 @@ import {
   Share2,
   Clock,
   CheckCircle2,
-  Palette
+  Palette,
+  Bell,
+  FileText,
+  Table,
+  Bot
 } from 'lucide-react';
 
 interface QuickCommandChipsProps {
@@ -27,6 +31,48 @@ interface ChipItem {
 }
 
 const CHIPS: ChipItem[] = [
+  {
+    label: '🤖 Matriz de Agentes',
+    command: 'Abrir matriz de agentes especializados',
+    icon: <Bot className="w-3 h-3 text-[#00f0ff]" />,
+    category: 'sync',
+  },
+  {
+    label: '📅 Resolver Conflictos',
+    command: 'Comprobar y resolver conflictos en el calendario',
+    icon: <Calendar className="w-3 h-3 text-[#00f0ff]" />,
+    category: 'calendar',
+  },
+  {
+    label: '📄 Generar Documento PDF',
+    command: 'Generar documento de texto sobre Informe de Operaciones y exportar a PDF',
+    icon: <FileText className="w-3 h-3 text-emerald-400" />,
+    category: 'sync',
+  },
+  {
+    label: '📊 Hoja de Cálculo Presupuesto',
+    command: 'Crear hoja de cálculo de Presupuesto y Recursos',
+    icon: <Table className="w-3 h-3 text-amber-400" />,
+    category: 'sync',
+  },
+  {
+    label: '🍏 Sync Apple Calendar',
+    command: 'Sincronizar con Apple Calendar y exportar iCal',
+    icon: <Calendar className="w-3 h-3 text-purple-400" />,
+    category: 'calendar',
+  },
+  {
+    label: '📧 Sync Outlook Calendar',
+    command: 'Sincronizar con Outlook Calendar',
+    icon: <Calendar className="w-3 h-3 text-blue-400" />,
+    category: 'calendar',
+  },
+  {
+    label: '🔔 Probar Push SW',
+    command: 'Probar notificación push en segundo plano',
+    icon: <Bell className="w-3 h-3 text-[#00f0ff]" />,
+    category: 'sync',
+  },
   {
     label: '🎨 Amber Terminal',
     command: 'Cambiar tema a Amber Terminal',
