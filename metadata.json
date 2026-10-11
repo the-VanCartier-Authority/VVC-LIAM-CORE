@@ -1,6 +1,6 @@
 {
-  "name": "VVC-ACIA // Obsidian Voice Assistant",
-  "description": "Asistente personal de voz de vanguardia con control de funciones telefónicas, cifrado E2EE, soporte para modelos NVIDIA Build, RT Lite offline y motor de voz Kokoro.",
+  "name": "VVC LIAM CORE",
+  "description": "VVC LIAM CORE (Control // Analyze // Execute). Núcleo operativo de IA autónoma con orquestación VAOS, bifurcación de agentes exclusivos (Vladimir, Valentina, Victoria) y telemetría en tiempo real.",
   "requestFramePermissions": [
     "microphone",
     "camera"

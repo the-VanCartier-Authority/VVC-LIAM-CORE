@@ -70,6 +70,7 @@ export interface CommandExecutionResult {
   detectedConflict?: ConflictAnalysis;
   openAgents?: boolean;
   targetAgentName?: string;
+  openTelemetry?: boolean;
 }
 
 export function parseNaturalVoiceCommand(
@@ -1159,6 +1160,26 @@ Se valida la exportación formal en formato PDF de alta fidelidad para distribuc
         targetAgentName: target,
       };
     }
+  }
+
+  // 24. ABRIR TELEMETRÍA D3 Y MONITOR DE RENDIMIENTO VAOS
+  if (
+    query.includes('telemetría') ||
+    query.includes('telemetria') ||
+    query.includes('rendimiento') ||
+    query.includes('latencia') ||
+    query.includes('tokens por segundo') ||
+    query.includes('monitor de batería') ||
+    query.includes('monitor de bateria') ||
+    query.includes('orquestador vaos')
+  ) {
+    return {
+      isHandled: true,
+      spokenResponse: 'Desplegando el panel de telemetría D3.js en tiempo real. Curvas de latencia, throughput y métricas del orquestador VAOS activas.',
+      actionType: 'model',
+      actionDetails: 'Panel de Telemetría D3.js y Orquestador VAOS desplegado.',
+      openTelemetry: true,
+    };
   }
 
   return {

@@ -17,7 +17,8 @@ import {
   User as UserIcon,
   Palette,
   FileText,
-  Bot
+  Bot,
+  Activity
 } from 'lucide-react';
 import type { User } from 'firebase/auth';
 import { 
@@ -28,6 +29,7 @@ import {
   type CloudServiceIntegrationType,
   type ThemeColorId
 } from '../types';
+import { VvcLiamLogo } from './VvcLiamLogo';
 
 interface HeaderProps {
   currentModel: ModelType;
@@ -40,6 +42,7 @@ interface HeaderProps {
   onOpenCalendar: () => void;
   onOpenDocs: () => void;
   onOpenAgents?: () => void;
+  onOpenTelemetry?: () => void;
   activeAgentName?: string;
   onOpenVault: () => void;
   onOpenDeviceControls: () => void;
@@ -67,6 +70,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenCalendar,
   onOpenDocs,
   onOpenAgents,
+  onOpenTelemetry,
   activeAgentName,
   onOpenVault,
   onOpenDeviceControls,
@@ -89,20 +93,9 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="w-full bg-[var(--bg-surface)]/95 backdrop-blur-md border-b border-[var(--border-subtle)] sticky top-0 z-40 transition-colors">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-        {/* Zone 1: Wordmark Brand */}
+        {/* Zone 1: Official VVC LIAM CORE Brand Emblem & Wordmark */}
         <div className="flex items-center gap-3 shrink-0">
-          <div className="relative flex items-center justify-center w-8 h-8 rounded bg-[var(--bg-card)] border border-[var(--primary-accent)]/40 shadow-[0_0_12px_var(--accent-glow)]">
-            <span className="text-[var(--primary-accent)] font-bold text-xs font-mono tracking-widest">VC</span>
-            <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[var(--primary-accent)] animate-ping" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm sm:text-base font-bold tracking-wider text-[var(--text-primary)] font-mono flex items-center gap-2">
-              VVC-ACIA
-              <span className="text-[10px] uppercase tracking-widest text-[var(--primary-accent)] bg-[var(--tag-bg)] px-1.5 py-0.5 rounded border border-[var(--primary-accent)]/30 hidden sm:inline-block">
-                OS·{currentThemeInfo.name.split(' ')[0]}
-              </span>
-            </span>
-          </div>
+          <VvcLiamLogo variant="compact" size="sm" showTagline={true} />
         </div>
 
         {/* Zone 2: Navigation & Quick Hub Links */}
@@ -177,6 +170,18 @@ export const Header: React.FC<HeaderProps> = ({
               {currentCloudInfo.provider}
             </span>
           </button>
+
+          {/* Real-time D3.js Telemetry & VAOS Button */}
+          {onOpenTelemetry && (
+            <button
+              onClick={onOpenTelemetry}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono rounded bg-[#120B1C] border border-[#261833] hover:border-[#00FF66]/50 text-[#00FF66] transition-all shadow-[0_0_12px_rgba(0,255,102,0.12)]"
+              title="Panel de Telemetría D3.js en tiempo real y Orquestador VAOS (Latencia, Tokens/seg, Batería)"
+            >
+              <Activity className="w-3.5 h-3.5 text-[#00FF66] animate-pulse" />
+              <span className="font-bold">Telemetría (D3)</span>
+            </button>
+          )}
 
           {/* Calendar & Tasks Link */}
           <button

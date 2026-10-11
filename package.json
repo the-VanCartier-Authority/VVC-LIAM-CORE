@@ -1,11 +1,15 @@
 {
-  "name": "react-example",
+  "name": "vvc-liam-core",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "VVC LIAM CORE // Control · Analyze · Execute - Multiplatform Voice & Task Orchestrator (VAOS)",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build",
+    "build:android": "vite build",
+    "build:desktop": "vite build",
+    "build:ios": "vite build",
     "start": "node server.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
@@ -16,6 +20,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@vis.gl/react-google-maps": "^1.10.1",
     "@vitejs/plugin-react": "^6.1.1",
+    "d3": "^7.9.0",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "firebase": "^12.19.0",
@@ -29,6 +34,7 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "@types/d3": "^7.4.3",
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "@types/react": "^19.3.0",

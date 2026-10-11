@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 import webpush from 'web-push';
+import { createVaosRouter } from './src/server/vaosOrchestrator.ts';
 
 dotenv.config();
 
@@ -15,6 +16,9 @@ const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json({ limit: '15mb' }));
+
+// Mount VAOS Smart Routing Orchestrator (Policy Engine, Fast Path & Async Queue)
+app.use('/api/vaos', createVaosRouter());
 
 // NVIDIA Build default endpoint
 const NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';

@@ -22,6 +22,8 @@ import { GoogleDrivePickerModal } from './components/GoogleDrivePickerModal';
 import { GoogleMapsPanel } from './components/GoogleMapsPanel';
 import { DocumentSpreadsheetModal } from './components/DocumentSpreadsheetModal';
 import { AgentsModal } from './components/AgentsModal';
+import { TelemetryPanel } from './components/TelemetryPanel';
+import { platformService } from './core/adapters/PlatformService';
 import { initAuth, googleSignIn } from './services/googleAuth';
 import type { User } from 'firebase/auth';
 
@@ -44,7 +46,8 @@ import {
   AVAILABLE_MODELS,
   CLOUD_INTEGRATIONS,
   KOKORO_VOICES,
-  DEFAULT_AGENTS
+  DEFAULT_AGENTS,
+  EXCLUSIVE_AGENTS
 } from './types';
 
 import { 
@@ -200,7 +203,7 @@ export default function App() {
 
   // Visual Color Theme State (CSS Variables)
   const [currentTheme, setCurrentTheme] = useState<ThemeColorId>(() => {
-    return (localStorage.getItem('vvc_acia_theme') as ThemeColorId) || 'obsidian-cyan';
+    return (localStorage.getItem('vvc_acia_theme') as ThemeColorId) || 'liam-core-official';
   });
 
   // Apply theme to documentElement on load and update
@@ -292,9 +295,9 @@ export default function App() {
       {
         id: 'm-init',
         sender: 'system',
-        text: 'VVC-ACIA OS Obsidian Core v2.4 activo. Historial de chat persistente en el dispositivo, cifrado y sincronizado.',
+        text: 'VVC LIAM CORE v1.0.0 activo (Control // Analyze // Execute). Orquestador VAOS con Policy Engine, agentes exclusivos (Vladimir, Valentina, Victoria) y telemetría D3.js en tiempo real.',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-        modelUsed: 'NVIDIA Nemotron 3.5 / RT-Lite Local',
+        modelUsed: 'VVC LIAM CORE // VAOS Orchestrator',
         isE2EE: true,
       },
     ];
@@ -321,21 +324,29 @@ export default function App() {
   const [isDocsModalOpen, setIsDocsModalOpen] = useState(false);
   const [docsModalMode, setDocsModalMode] = useState<'document' | 'spreadsheet'>('document');
   const [isAgentsModalOpen, setIsAgentsModalOpen] = useState(false);
+  const [isTelemetryOpen, setIsTelemetryOpen] = useState(false);
 
-  // Custom Agents Matrix State
+  // Custom Agents Matrix State (with VAOS Bifurcation: Exclusive Private Agents vs Public)
   const [agents, setAgents] = useState<AgentProfile[]>(() => {
     const saved = localStorage.getItem('vvc_acia_custom_agents');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Guarantee exclusive private agents (Vladimir, Valentina, Victoria) are present
+          const hasVladimir = parsed.some((a) => a.id === 'exclusive-vladimir');
+          if (!hasVladimir) {
+            return [...EXCLUSIVE_AGENTS, ...parsed.filter((p) => !p.id.startsWith('exclusive-'))];
+          }
+          return parsed;
+        }
       } catch {}
     }
     return DEFAULT_AGENTS;
   });
 
   const [activeAgentId, setActiveAgentId] = useState<string>(() => {
-    return localStorage.getItem('vvc_acia_active_agent_id') || 'ag-executive';
+    return localStorage.getItem('vvc_acia_active_agent_id') || 'exclusive-vladimir';
   });
 
   // Save agents and active ID to localStorage
@@ -418,7 +429,7 @@ export default function App() {
   useEffect(() => {
     registerServiceWorker().then((reg) => {
       if (reg) {
-        console.log('[VVC-ACIA OS] Service Worker inicializado con éxito para alertas en segundo plano.');
+        console.log('[VVC LIAM CORE] Service Worker inicializado con éxito para alertas en segundo plano.');
       }
     });
 
@@ -441,7 +452,7 @@ export default function App() {
           if (nextSec === 0) {
             playCyberTone('alarm');
             speakKokoro(`¡Atención! El temporizador ${t.label} ha finalizado.`, selectedVoiceId);
-            sendBackgroundAlert(`VVC-ACIA // Temporizador Finalizado`, {
+            sendBackgroundAlert(`VVC LIAM CORE // Temporizador Finalizado`, {
               body: `El temporizador "${t.label}" ha concluido.`,
               icon: '/pwa-192x192.png',
               badge: '/pwa-192x192.png',
@@ -495,7 +506,7 @@ export default function App() {
             }
 
             // 4. Native Browser & Service Worker Push Notification (Active in background)
-            sendBackgroundAlert(`VVC-ACIA // ${task.title}`, {
+            sendBackgroundAlert(`VVC LIAM CORE // ${task.title}`, {
               body: `Hora: ${task.timeDue} · Prioridad: ${task.priority.toUpperCase()}`,
               icon: '/pwa-192x192.png',
               badge: '/pwa-192x192.png',
@@ -761,6 +772,11 @@ export default function App() {
             }
           }
 
+          // Handle Open Telemetry Panel Intent (VAOS & D3.js)
+          if (intentResult.openTelemetry) {
+            setIsTelemetryOpen(true);
+          }
+
           // Handle Gmail Intent
           if (intentResult.openGmail) {
             if (intentResult.gmailCompose) {
@@ -862,6 +878,14 @@ export default function App() {
         // Online NVIDIA Model Inference with Active Agent Profile & Cloud Context
         const cloudInfo = CLOUD_INTEGRATIONS.find((c) => c.id === currentCloudIntegration) || CLOUD_INTEGRATIONS[0];
 
+        // Dispatch to VAOS Policy Engine & Telemetry Gateway in background
+        platformService.api.dispatchVaos({
+          command: commandText,
+          agentId: activeAgent.id,
+          isExclusiveAgent: activeAgent.isExclusivePrivate,
+          injectedSkills: activeAgent.injectedSkills || [],
+        }).catch((err) => console.warn('[VAOS Gateway]', err));
+
         const agentRulesSection = activeAgent.rules && activeAgent.rules.length > 0
           ? `\n\nREGLAS DE ACTUACIÓN:\n${activeAgent.rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}`
           : '';
@@ -870,7 +894,11 @@ export default function App() {
           ? `\nCAPACIDADES ESPECIALIZADAS: ${activeAgent.capabilities.join(', ')}`
           : '';
 
-        const systemPrompt = `[IDENTIDAD DE AGENTE ACTIVO: ${activeAgent.name.toUpperCase()} // ${activeAgent.role.toUpperCase()}]\n${activeAgent.systemPrompt}${agentRulesSection}${agentCapabilitiesSection}\n\n[CONTEXTO OPERATIVO]:\nAsistente personal de voz VVC-ACIA Obsidian Core. Integración activa con ${cloudInfo.name}. Control de calendario, tareas y funciones del teléfono. Responde de forma concisa, clara y ejecutiva en español (máximo 3 oraciones) para ser sintetizado por voz de manera natural.`;
+        const agentSkillsSection = activeAgent.injectedSkills && activeAgent.injectedSkills.length > 0
+          ? `\nSKILLS INYECTADOS DINÁMICAMENTE (VAOS): ${activeAgent.injectedSkills.join(', ')}`
+          : '';
+
+        const systemPrompt = `[IDENTIDAD DE AGENTE ACTIVO: ${activeAgent.name.toUpperCase()} // ${activeAgent.role.toUpperCase()}]\n${activeAgent.systemPrompt}${agentRulesSection}${agentCapabilitiesSection}${agentSkillsSection}\n\n[CONTEXTO OPERATIVO]:\nVVC LIAM CORE (Control // Analyze // Execute). Orquestador VAOS de alta velocidad con Policy Engine. Integración activa con ${cloudInfo.name}. Control de calendario, tareas y funciones del teléfono. Responde de forma concisa, clara y ejecutiva en español (máximo 3 oraciones) sin fricción ("Más control. Menos ruido.").`;
 
         const agentTemperature = activeAgent.temperature !== undefined ? activeAgent.temperature : 0.6;
         const agentMaxTokens = activeAgent.maxTokens !== undefined ? activeAgent.maxTokens : 800;
@@ -1090,6 +1118,7 @@ export default function App() {
           setIsDocsModalOpen(true);
         }}
         onOpenAgents={() => setIsAgentsModalOpen(true)}
+        onOpenTelemetry={() => setIsTelemetryOpen(true)}
         activeAgentName={activeAgent.name}
         onOpenVault={() => setIsVaultOpen(true)}
         onOpenDeviceControls={() => setIsDeviceControlsOpen(true)}
@@ -1457,6 +1486,13 @@ export default function App() {
           playCyberTone('confirm');
           speakKokoro(msg, selectedVoiceId);
         }}
+      />
+
+      {/* Real-time D3.js Telemetry & VAOS Orchestrator Panel */}
+      <TelemetryPanel
+        isOpen={isTelemetryOpen}
+        onClose={() => setIsTelemetryOpen(false)}
+        activeAgentName={activeAgent.name}
       />
     </div>
   );

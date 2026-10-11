@@ -25,16 +25,16 @@ export const InstallModal: React.FC<InstallModalProps> = ({ isOpen, onClose }) =
 
   if (!isOpen) return null;
 
-  const capacitorCommands = `# 1. Instalar Capacitor para Android en el proyecto
+  const capacitorCommands = `# 1. Instalar Capacitor para Android / Desktop en el proyecto
 npm install @capacitor/core @capacitor/android
-npx cap init "VVC-ACIA" com.vvcacia.voice --web-dir dist
+npx cap init "VVC LIAM CORE" com.vvcliam.core --web-dir dist
 
 # 2. Compilar y sincronizar assets web
 npm run build
 npx cap add android
 npx cap sync
 
-# 3. Generar APK instalable en Android Studio o CLI
+# 3. Generar APK nativo de Android o binario de escritorio
 npx cap open android
 # En Android Studio: Build > Build Bundle(s) / APK(s) > Build APK(s)`;
 

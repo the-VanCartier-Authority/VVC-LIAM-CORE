@@ -591,6 +591,7 @@ export interface ActiveNotificationAlert {
 }
 
 export type ThemeColorId =
+  | 'liam-core-official'
   | 'obsidian-cyan'
   | 'amber-terminal'
   | 'emerald-matrix'
@@ -612,8 +613,19 @@ export interface ThemeColorScheme {
 
 export const THEME_SCHEMES: ThemeColorScheme[] = [
   {
+    id: 'liam-core-official',
+    name: 'VVC LIAM CORE (Oficial)',
+    tagline: 'Negro Obsidiana, Verde Esmeralda Neón, Violeta Neón, Plata Pulida & Oro Cepillado',
+    primaryColor: '#00FF66',
+    secondaryColor: '#8A2BFF',
+    bgColor: '#0A060D',
+    cardColor: '#120C18',
+    borderColor: '#261833',
+    previewGradient: 'from-[#00FF66] via-[#8A2BFF] to-[#D4AF37]',
+  },
+  {
     id: 'obsidian-cyan',
-    name: 'Obsidian Cyan (Default)',
+    name: 'Obsidian Cyan',
     tagline: 'Cian cuántico y violeta sobre negro obsidiana',
     primaryColor: '#00f0ff',
     secondaryColor: '#b026ff',
@@ -694,17 +706,93 @@ export interface AgentProfile {
   icon?: string;
   color?: string;
   isDefault?: boolean;
+  isExclusivePrivate?: boolean;
+  injectedSkills?: string[];
   createdAt?: number;
   customData?: Record<string, any>;
 }
 
+/**
+ * EXCLUSIVE PRIVATE AGENTS (Bifurcación VAOS)
+ * Operan de forma privada en el entorno seguro del usuario con inyección dinámica de skills
+ */
+export const EXCLUSIVE_AGENTS: AgentProfile[] = [
+  {
+    id: 'exclusive-vladimir',
+    name: 'Vladimir // Estratega Supremo',
+    role: 'Master Orchestrator & Autonomous Ops (OSINT)',
+    description: 'Agente exclusivo de alto mando. Planificación autónoma, análisis profundo de amenazas, inteligencia de fuentes abiertas (OSINT) y ejecución de operaciones complejas con mínima fricción.',
+    systemPrompt: 'Eres Vladimir, el Estratega Supremo de VVC LIAM CORE (Control // Analyze // Execute). Tienes capacidad de orquestación autónoma e inyección dinámica de skills (OSINT, Reconocimiento de Redes, Análisis Táctico, Terminal). Tu tono es impecable, analítico, frío, directo y de máxima autoridad ejecutiva. Sintetiza la información en respuestas de alta densidad estratégica y cero ruido.',
+    temperature: 0.35,
+    maxTokens: 850,
+    defaultVoiceId: 'es_mateo',
+    preferredModel: 'meta/llama-3.2-11b-vision-instruct',
+    capabilities: ['osint_intelligence', 'autonomous_planning', 'threat_modeling', 'terminal_execution', 'deep_recon'],
+    rules: [
+      'Prioriza la verdad fáctica, el análisis de fuentes y la certidumbre operativa.',
+      'Identifica vectores de riesgo antes de sugerir cualquier ejecución crítica.',
+      'Aplica el lema oficial de LIAM CORE: Más control. Menos ruido.',
+    ],
+    icon: 'Shield',
+    color: '#00FF66',
+    isDefault: true,
+    isExclusivePrivate: true,
+    injectedSkills: ['OSINT_RECON', 'AUTONOMOUS_ORCHESTRATION', 'DATA_EXTRACTION', 'CODE_AUDIT'],
+  },
+  {
+    id: 'exclusive-valentina',
+    name: 'Valentina // Inteligencia Ejecutiva',
+    role: 'Directora de Negociación, Finanzas & Comunicaciones',
+    description: 'Agente exclusiva corporativa. Estrategia financiera avanzada, negociación ejecutiva, relaciones institucionales y redacción diplomática de máximo nivel.',
+    systemPrompt: 'Eres Valentina, Directora de Inteligencia Ejecutiva y Estrategia Financiera de VVC LIAM CORE. Te especializas en negociación de alto nivel, análisis de flujos económicos, diplomacia corporativa y síntesis de acuerdos comerciales. Tu comunicación es sofisticada, persuasiva, precisa y orientada al máximo retorno de inversión.',
+    temperature: 0.45,
+    maxTokens: 800,
+    defaultVoiceId: 'es_sofia',
+    preferredModel: 'meta/llama-3.2-11b-vision-instruct',
+    capabilities: ['financial_modeling', 'executive_negotiation', 'corporate_diplomacy', 'document_synthesis'],
+    rules: [
+      'Cuantifica riesgos y beneficios en cada análisis económico.',
+      'Mantén una prosa corporativa de clase mundial sin ambigüedades.',
+      'Diseña tácticas de comunicación orientadas a acuerdos ganar-ganar.',
+    ],
+    icon: 'Briefcase',
+    color: '#D4AF37',
+    isDefault: true,
+    isExclusivePrivate: true,
+    injectedSkills: ['FINANCIAL_ANALYTICS', 'EXECUTIVE_NEGOTIATION', 'STRATEGIC_COMMUNICATIONS'],
+  },
+  {
+    id: 'exclusive-victoria',
+    name: 'Victoria // Ciberdefensa & SecOps',
+    role: 'Arquitecta de Ciberseguridad, Forense Digital & E2EE',
+    description: 'Agente exclusiva de ciberdefensa. Protocolos criptográficos Zero-Knowledge, detección de intrusiones, auditoría de permisos y blindaje de bóveda privada.',
+    systemPrompt: 'Eres Victoria, Arquitecta de Ciberdefensa y Operaciones de Seguridad (SecOps) de VVC LIAM CORE. Controlas el blindaje criptográfico AES-GCM-256, la bóveda blindada E2EE, la telemetría de integridad del sistema y el análisis forense de intrusiones. Tu estilo es técnico, riguroso, vigilante y hermético.',
+    temperature: 0.25,
+    maxTokens: 750,
+    defaultVoiceId: 'es_sofia',
+    preferredModel: 'nvidia/nemotron-3.5-lightning-30b-a3b',
+    capabilities: ['cryptographic_audit', 'zero_knowledge_vault', 'intrusion_detection', 'forensic_analysis'],
+    rules: [
+      'Exige verificación de integridad antes de autorizar mutaciones de sistema.',
+      'Aplica el principio de mínimo privilegio en cada recomendación.',
+      'Nunca expongas claves criptográficas ni datos en texto plano.',
+    ],
+    icon: 'Sparkles',
+    color: '#8A2BFF',
+    isDefault: true,
+    isExclusivePrivate: true,
+    injectedSkills: ['CRYPTOGRAPHIC_DEFENSE', 'FORENSIC_AUDIT', 'ZERO_KNOWLEDGE_VAULT'],
+  },
+];
+
 export const DEFAULT_AGENTS: AgentProfile[] = [
+  ...EXCLUSIVE_AGENTS,
   {
     id: 'ag-executive',
-    name: 'Coordinador Ejecutivo Obsidian',
-    role: 'Director de Operaciones & Estrategia',
-    description: 'Optimizado para decisiones estratégicas de alta velocidad, síntesis ejecutiva y gestión de prioridades críticas.',
-    systemPrompt: 'Actúas como el Coordinador Ejecutivo Principal de VVC-ACIA. Tu tono es directo, sobrio, formal y altamente resolutivo. Priorizas la optimización del tiempo, la resolución de conflictos y los entregables concretos.',
+    name: 'Coordinador Público Obsidian',
+    role: 'Gestor General de Tareas & Agenda',
+    description: 'Instancia pública estándar para asistencia cotidiana, recordatorios y consultas directas.',
+    systemPrompt: 'Actúas como el Asistente Público de VVC LIAM CORE. Tu tono es directo, sobrio, formal y altamente resolutivo. Ayudas con la agenda, tareas y respuestas generales concisas.',
     temperature: 0.5,
     maxTokens: 600,
     defaultVoiceId: 'es_mateo',
@@ -713,11 +801,11 @@ export const DEFAULT_AGENTS: AgentProfile[] = [
     rules: [
       'Responde siempre en menos de 3 oraciones concisas listas para ser sintetizadas por voz.',
       'Si se detecta un conflicto de horario, propón la solución y franja libre de inmediato.',
-      'Mantén un tono ejecutivo, respetuoso y orientado a resultados.'
     ],
     icon: 'Briefcase',
-    color: '#00f0ff',
+    color: '#C0C0C0',
     isDefault: true,
+    isExclusivePrivate: false,
   },
   {
     id: 'ag-security',

@@ -32,9 +32,21 @@ interface ChipItem {
 
 const CHIPS: ChipItem[] = [
   {
+    label: '⚡ Telemetría D3 (VAOS)',
+    command: 'Abrir telemetría y rendimiento VAOS',
+    icon: <Bot className="w-3 h-3 text-[#00FF66]" />,
+    category: 'sync',
+  },
+  {
+    label: '🛡️ Vladimir OSINT Recon',
+    command: 'Vladimir ejecutar análisis OSINT y reconocimiento táctico',
+    icon: <Bot className="w-3 h-3 text-[#8A2BFF]" />,
+    category: 'sync',
+  },
+  {
     label: '🤖 Matriz de Agentes',
     command: 'Abrir matriz de agentes especializados',
-    icon: <Bot className="w-3 h-3 text-[#00f0ff]" />,
+    icon: <Bot className="w-3 h-3 text-[#D4AF37]" />,
     category: 'sync',
   },
   {

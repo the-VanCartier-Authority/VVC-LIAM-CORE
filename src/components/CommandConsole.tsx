@@ -80,7 +80,7 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `vvc-acia-historial-${new Date().toISOString().split('T')[0]}.txt`;
+    a.download = `vvc-liam-core-historial-${new Date().toISOString().split('T')[0]}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -102,7 +102,7 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
             <div className="h-3 w-[1px] bg-[var(--border-subtle)] mx-1" />
             <span className="text-xs font-mono text-slate-300 flex items-center gap-1.5">
               <Terminal className="w-3.5 h-3.5 text-[var(--primary-accent)]" />
-              <span className="text-[var(--primary-accent)]">vvc-acia</span>@terminal:~$
+              <span className="text-[var(--primary-accent)] font-bold">vvc-liam-core</span>@terminal:~$
             </span>
           </div>
 

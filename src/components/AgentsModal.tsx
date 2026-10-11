@@ -523,11 +523,16 @@ export const AgentsModal: React.FC<AgentsModalProps> = ({
                               {renderAgentIcon(agent.icon, agentColor)}
                             </div>
                             <div>
-                              <h3 className="font-bold text-sm text-white font-mono flex items-center gap-1.5">
-                                {agent.name}
+                              <h3 className="font-bold text-sm text-white font-mono flex items-center gap-1.5 flex-wrap">
+                                <span>{agent.name}</span>
+                                {agent.isExclusivePrivate && (
+                                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#D4AF37]/15 text-[#D4AF37] border border-[#D4AF37]/30 font-bold uppercase tracking-wider">
+                                    PRIVADO // EXCLUSIVO
+                                  </span>
+                                )}
                                 {isActive && (
-                                  <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-[#00f0ff] text-black font-extrabold uppercase">
-                                    ACTIVO
+                                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#00FF66] text-black font-extrabold uppercase">
+                                    ACTIVO EN LLM
                                   </span>
                                 )}
                               </h3>
@@ -601,6 +606,21 @@ export const AgentsModal: React.FC<AgentsModalProps> = ({
                             </span>
                           ))}
                         </div>
+
+                        {/* Injected Skills (for Exclusive Agents) */}
+                        {agent.injectedSkills && agent.injectedSkills.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1.5 mb-3 pt-2 border-t border-[#1e2638]/70 font-mono text-[10px]">
+                            <span className="text-[#D4AF37] font-bold">Skills Inyectados:</span>
+                            {agent.injectedSkills.map((skill, i) => (
+                              <span
+                                key={i}
+                                className="px-2 py-0.5 rounded bg-[#8A2BFF]/15 border border-[#8A2BFF]/40 text-[#8A2BFF] font-semibold"
+                              >
+                                {skill}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
                       {/* Activation Button */}
