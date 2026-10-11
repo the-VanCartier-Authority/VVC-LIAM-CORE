@@ -114,7 +114,7 @@ export function stopMicrophoneAnalyzer() {
 
 /**
  * Speech to Text (STT) Controller
- * Robust implementation with fresh instance per session, silence debounce, and auto-commit
+ * Robust implementation with continuous stream, permission request, silence debounce, and auto-commit
  */
 export function initSpeechRecognition(callbacks: {
   onResult: (transcript: string, isFinal: boolean) => void;
@@ -127,7 +127,7 @@ export function initSpeechRecognition(callbacks: {
 
   if (!SpeechRecognitionClass) {
     return {
-      start: () => callbacks.onError('El navegador no soporta reconocimiento de voz (Web Speech API).'),
+      start: () => callbacks.onError('El navegador no soporta reconocimiento de voz (Web Speech API). Por favor usa Google Chrome, Edge o Safari.'),
       stop: () => {},
       abort: () => {},
       isSupported: false,
@@ -138,6 +138,7 @@ export function initSpeechRecognition(callbacks: {
   let silenceTimer: any = null;
   let accumulatedTranscript = '';
   let hasCommitted = false;
+  let isManuallyStopped = false;
 
   const clearSilence = () => {
     if (silenceTimer) {
@@ -152,6 +153,7 @@ export function initSpeechRecognition(callbacks: {
     const text = finalText.trim();
     if (text) {
       hasCommitted = true;
+      playCyberTone('confirm');
       callbacks.onResult(text, true);
     }
   };
@@ -167,16 +169,34 @@ export function initSpeechRecognition(callbacks: {
   };
 
   return {
-    start: () => {
+    start: async () => {
       stopActive();
       hasCommitted = false;
+      isManuallyStopped = false;
       accumulatedTranscript = '';
+
+      // Warm up / verify microphone permission if mediaDevices is available
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          // Release initial test track so SpeechRecognition can bind cleanly
+          stream.getTracks().forEach((t) => t.stop());
+        } catch (mediaErr: any) {
+          console.warn('Microphone permission check returned warning:', mediaErr);
+          if (mediaErr.name === 'NotAllowedError' || mediaErr.name === 'PermissionDeniedError') {
+            callbacks.onError('Permiso de micrófono denegado. Permite el acceso al micrófono en el navegador.');
+            callbacks.onEnd();
+            return;
+          }
+        }
+      }
 
       try {
         const recognition = new SpeechRecognitionClass();
         activeRecognition = recognition;
 
-        recognition.continuous = false;
+        // Continuous mode ensures voice stream doesn't drop abruptly after short pauses
+        recognition.continuous = true;
         recognition.interimResults = true;
         recognition.maxAlternatives = 1;
 
@@ -193,33 +213,29 @@ export function initSpeechRecognition(callbacks: {
           let currentFinal = '';
           let currentInterim = '';
 
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
+          for (let i = 0; i < event.results.length; ++i) {
             const transcript = event.results[i][0].transcript;
             if (event.results[i].isFinal) {
-              currentFinal += transcript;
+              currentFinal += transcript + ' ';
             } else {
               currentInterim += transcript;
             }
           }
 
-          const currentBest = (currentFinal || currentInterim).trim();
+          const currentBest = (currentFinal + currentInterim).trim();
           if (currentBest) {
             accumulatedTranscript = currentBest;
             callbacks.onResult(currentBest, false);
 
-            // Silence debounce timer: commit after 1.2s of no new speech
+            // Silence debounce timer: auto-commit after 1.5s of no new speech
             clearSilence();
             silenceTimer = setTimeout(() => {
               if (accumulatedTranscript.trim() && !hasCommitted) {
                 commitTranscript(accumulatedTranscript);
                 stopActive();
+                callbacks.onEnd();
               }
-            }, 1200);
-          }
-
-          if (currentFinal.trim()) {
-            commitTranscript(currentFinal);
-            stopActive();
+            }, 1500);
           }
         };
 
@@ -229,10 +245,8 @@ export function initSpeechRecognition(callbacks: {
           console.warn('SpeechRecognition error:', errorType);
 
           if (errorType === 'no-speech') {
-            if (accumulatedTranscript.trim() && !hasCommitted) {
-              commitTranscript(accumulatedTranscript);
-              return;
-            }
+            // Keep listening unless silence timer fires
+            return;
           }
 
           if (errorType === 'not-allowed' || errorType === 'permission-denied') {
@@ -259,13 +273,16 @@ export function initSpeechRecognition(callbacks: {
       }
     },
     stop: () => {
+      isManuallyStopped = true;
       clearSilence();
       if (accumulatedTranscript.trim() && !hasCommitted) {
         commitTranscript(accumulatedTranscript);
       }
       stopActive();
+      callbacks.onEnd();
     },
     abort: () => {
+      isManuallyStopped = true;
       clearSilence();
       hasCommitted = true;
       if (activeRecognition) {
@@ -274,6 +291,7 @@ export function initSpeechRecognition(callbacks: {
         } catch {}
         activeRecognition = null;
       }
+      callbacks.onEnd();
     },
     isSupported: true,
   };
@@ -292,7 +310,7 @@ function humanizeTextForKokoro(rawText: string): string {
     .replace(/\[\w+[^\]]*\]/g, '')
     .replace(/[`*_~#<>]/g, '')
     .replace(/https?:\/\/\S+/g, 'enlace web')
-    .replace(/\bVVC-ACIA\b/gi, 'V V C Asía')
+    .replace(/\b(?:VVC[\s-]?)?(?:LIAM\s+CORE|ACIA)\b/gi, 'V V C Liam Cor')
     .replace(/\bE2EE\b/gi, 'cifrado total')
     .replace(/\bNVIDIA\b/gi, 'Envidia')
     .replace(/\bNIM\b/gi, 'N I M')
