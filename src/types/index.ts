@@ -1,20 +1,38 @@
 export type ModelType =
-  | 'nvidia/nemotron-3.5-lightning-30b-a3b'
-  | 'deepseek-ai/deepseek-v4.1-flash'
+  // --- Especialistas en Codificación y Desarrollo (NVIDIA NIM) ---
+  | 'qwen/qwen2.5-coder-32b-instruct'
+  | 'qwen/qwen2.5-coder-7b-instruct'
+  | 'mistralai/codestral-22b-instruct-v0.1'
+  | 'deepseek-ai/deepseek-coder-33b-instruct'
+  | 'meta/codellama-70b-instruct'
+  | 'bigcode/starcoder2-15b'
+  | 'poolside/laguna-xs-2.1'
+  // --- Familia GLM (Zhipu AI / NVIDIA Build) ---
   | 'z-ai/glm-5-3'
   | 'z-ai/glm-5-3-flash'
-  | 'moonshotai/kimi-k3'
-  | 'meta/muse-glimmer-30b'
-  | 'poolside/laguna-xs-2.1'
+  | 'thudm/glm-4-9b-chat'
+  // --- Razonamiento Profundo y Frontier (NVIDIA NIM) ---
+  | 'deepseek-ai/deepseek-r1'
+  | 'deepseek-ai/deepseek-v3'
+  | 'deepseek-ai/deepseek-v4.1-flash'
+  | 'nvidia/llama-3.1-nemotron-70b-instruct'
+  | 'meta/llama-3.3-70b-instruct'
+  | 'meta/llama-3.1-405b-instruct'
+  | 'mistralai/mistral-large-2-instruct'
   | 'nvidia/nemotron-3-ultra-550b-a55b'
-  | 'google/diffusiongemma-26b-a4b-it'
-  | 'google/gemma-4-31b-it'
   | 'nvidia/nemotron-3-super-120b-a12b'
+  | 'nvidia/nemotron-3.5-lightning-30b-a3b'
+  | 'moonshotai/kimi-k3'
   | 'openai/gpt-oss-20b'
+  // --- Voz Rápida, Multimodal y Herramientas ---
+  | 'meta/llama-3.2-11b-vision-instruct'
+  | 'meta/muse-glimmer-30b'
+  | 'google/gemma-4-31b-it'
+  | 'google/diffusiongemma-26b-a4b-it'
   | 'mistralai/mistral-nemotron'
   | 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning'
-  | 'meta/llama-3.2-11b-vision-instruct'
   | 'nvidia/riva-translate-4b-instruct-v2'
+  // --- Motores Locales RT-Lite (On-Device) ---
   | 'rt-lite-local'
   | 'rt-lite-hardware'
   | 'rt-lite-telephony'
@@ -97,42 +115,444 @@ export const CLOUD_INTEGRATIONS: CloudIntegrationInfo[] = [
   },
 ];
 
+export type ModelDomain =
+  | 'coding'
+  | 'flagship_reasoning'
+  | 'fast_voice'
+  | 'multimodal'
+  | 'agents_tools'
+  | 'offline_device';
+
+export type ModelTier =
+  | 'Flagship Full'
+  | 'Lite / Flash'
+  | 'Coding Specialist'
+  | 'Fast Voice'
+  | 'Specialist'
+  | 'Local On-Device';
+
 export interface ModelInfo {
   id: ModelType;
   name: string;
   provider: string;
   category: 'NVIDIA NIM' | 'RT-Lite Local';
+  domain: ModelDomain;
+  tier: ModelTier;
   description: string;
   bestFor: string;
+  contextWindow?: string;
+  maxTokens?: number;
   isFreeEndpoint?: boolean;
 }
 
 export const AVAILABLE_MODELS: ModelInfo[] = [
+  // ==========================================
+  // 1. ESPECIALISTAS EN CODIFICACIÓN & INGENIERÍA DE SOFTWARE
+  // ==========================================
   {
-    id: 'meta/llama-3.2-11b-vision-instruct',
-    name: 'Llama 3.2 11B Fast (NVIDIA NIM)',
+    id: 'qwen/qwen2.5-coder-32b-instruct',
+    name: 'Qwen 2.5 Coder 32B Instruct',
+    provider: 'Alibaba Cloud / NVIDIA Build',
+    category: 'NVIDIA NIM',
+    domain: 'coding',
+    tier: 'Coding Specialist',
+    description: 'El modelo insignia open-source de programación. Rendimiento de nivel superior en generación de código, depuración, refactorización masiva y comprensión de 92+ lenguajes.',
+    bestFor: 'Ingeniería de software, refactorización y arquitectura (Recomendado para Código)',
+    contextWindow: '128K',
+    maxTokens: 4096,
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'mistralai/codestral-22b-instruct-v0.1',
+    name: 'Codestral 22B Instruct',
+    provider: 'Mistral AI / NVIDIA Build',
+    category: 'NVIDIA NIM',
+    domain: 'coding',
+    tier: 'Coding Specialist',
+    description: 'Especialista puro en código diseñado por Mistral. Optimizado para Fill-in-the-Middle (FIM), generación de pruebas unitarias y lógica algorítmica en más de 80 lenguajes.',
+    bestFor: 'Completado de código FIM, tests unitarios y scripts backend',
+    contextWindow: '32K',
+    maxTokens: 4096,
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'deepseek-ai/deepseek-coder-33b-instruct',
+    name: 'DeepSeek Coder 33B Instruct',
+    provider: 'DeepSeek / NVIDIA Build',
+    category: 'NVIDIA NIM',
+    domain: 'coding',
+    tier: 'Coding Specialist',
+    description: 'Entrenado desde cero con 2 billones de tokens de código y lenguaje natural. Destaca en algoritmos matemáticos, optimización de rendimiento y desarrollo full-stack.',
+    bestFor: 'Algoritmos matemáticos complejos, optimización y estructuras de datos',
+    contextWindow: '64K',
+    maxTokens: 4096,
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'qwen/qwen2.5-coder-7b-instruct',
+    name: 'Qwen 2.5 Coder 7B Fast',
+    provider: 'Alibaba Cloud / NVIDIA Build',
+    category: 'NVIDIA NIM',
+    domain: 'coding',
+    tier: 'Coding Specialist',
+    description: 'Versión ágil de Qwen Coder con latencia ultra-baja. Ideal para generación interactiva de scripts Bash, consultas SQL y snippets inmediatos en caliente.',
+    bestFor: 'Scripts rápidos de terminal, comandos shell y consultas SQL (<1s)',
+    contextWindow: '32K',
+    maxTokens: 2048,
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'meta/codellama-70b-instruct',
+    name: 'Code Llama 70B Instruct',
     provider: 'Meta / NVIDIA Build',
     category: 'NVIDIA NIM',
-    description: 'Respuesta ultra-rápida (<1 seg) en tiempo real con NVIDIA Build Cloud. Máxima velocidad de voz.',
-    bestFor: 'Conversación fluida por voz instantánea (Recomendado)',
+    domain: 'coding',
+    tier: 'Coding Specialist',
+    description: 'La variante de código más masiva de la familia Llama. Diseñado para auditar grandes bases de código, modernizar código legacy y análisis estático profundo.',
+    bestFor: 'Auditoría de código legacy y análisis estático empresarial',
+    contextWindow: '100K',
+    maxTokens: 4096,
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'bigcode/starcoder2-15b',
+    name: 'StarCoder2 15B',
+    provider: 'BigCode (ServiceNow & Hugging Face) / NVIDIA Build',
+    category: 'NVIDIA NIM',
+    domain: 'coding',
+    tier: 'Coding Specialist',
+    description: 'Entrenado sobre The Stack v2 en 600+ lenguajes de programación. Fuerte apego a especificaciones sintácticas y comprensión de APIs modernas.',
+    bestFor: 'Completado de sintaxis estricta y APIs modernas',
+    contextWindow: '16K',
+    maxTokens: 4096,
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'poolside/laguna-xs-2.1',
+    name: 'Laguna XS 2.1',
+    provider: 'Poolside / NVIDIA Build',
+    category: 'NVIDIA NIM',
+    domain: 'coding',
+    tier: 'Coding Specialist',
+    description: 'Codificación agentic interactiva, navegación de árboles de directorios y operaciones de consola en tiempo real.',
+    bestFor: 'Comandos técnicos y operaciones de terminal',
+    contextWindow: '32K',
+    maxTokens: 2048,
+    isFreeEndpoint: true,
+  },
+
+  // ==========================================
+  // 2. FAMILIA GLM (ZHIPU AI / NVIDIA BUILD)
+  // ==========================================
+  {
+    id: 'z-ai/glm-5-3',
+    name: 'GLM-5.3 Flagship (Full Engine)',
+    provider: 'Zhipu AI / NVIDIA Build',
+    category: 'NVIDIA NIM',
+    domain: 'flagship_reasoning',
+    tier: 'Flagship Full',
+    description: 'Versión insignia completa de GLM-5.3 sin reducciones. Máxima capacidad de razonamiento multi-paso, arquitectura MoE avanzada, resolución de problemas complejos, programación bilingüe y tool calling de grado de producción.',
+    bestFor: 'Razonamiento complejo de máximo nivel, arquitectura y funciones de sistema (Flagship)',
+    contextWindow: '128K',
+    maxTokens: 4096,
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'z-ai/glm-5-3-flash',
+    name: 'GLM-5.3 Flash (Lite Edition)',
+    provider: 'Zhipu AI / NVIDIA Build',
+    category: 'NVIDIA NIM',
+    domain: 'fast_voice',
+    tier: 'Lite / Flash',
+    description: 'Versión ligera (Lite) de alta velocidad de GLM-5.3. Optimizada para latencia ultra-baja (<250ms), streaming en tiempo real y consumo mínimo de recursos.',
+    bestFor: 'Respuestas inmediatas de voz, baja latencia y chat interactivo ligero (Lite)',
+    contextWindow: '32K',
+    maxTokens: 1024,
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'thudm/glm-4-9b-chat',
+    name: 'GLM-4 9B Chat',
+    provider: 'Zhipu AI / Tsinghua / NVIDIA Build',
+    category: 'NVIDIA NIM',
+    domain: 'agents_tools',
+    tier: 'Lite / Flash',
+    description: 'Modelo abierto bilingüe (Inglés/Español/Chino) optimizado para diálogo, seguimiento de instrucciones y llamadas a herramientas estructuradas.',
+    bestFor: 'Conversación técnica equilibrada y llamadas a funciones',
+    contextWindow: '128K',
+    maxTokens: 2048,
+    isFreeEndpoint: true,
+  },
+
+  // ==========================================
+  // 3. RAZONAMIENTO PROFUNDO & MODELOS FRONTIER
+  // ==========================================
+  {
+    id: 'deepseek-ai/deepseek-r1',
+    name: 'DeepSeek R1 Reasoning',
+    provider: 'DeepSeek / NVIDIA Build',
+    category: 'NVIDIA NIM',
+    domain: 'flagship_reasoning',
+    tier: 'Flagship Full',
+    description: 'Pionero en razonamiento deductivo puro con cadena de pensamiento explícita (Chain-of-Thought). Supera benchmarks en matemáticas, lógica formal y codificación de alto impacto.',
+    bestFor: 'Resolución de problemas de alta complejidad lógica y matemáticas avanzadas',
+    contextWindow: '64K',
+    maxTokens: 4096,
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'deepseek-ai/deepseek-v3',
+    name: 'DeepSeek V3 671B MoE',
+    provider: 'DeepSeek / NVIDIA Build',
+    category: 'NVIDIA NIM',
+    domain: 'flagship_reasoning',
+    tier: 'Flagship Full',
+    description: 'Arquitectura Mixture-of-Experts con 671B parámetros (37B activos). Rendimiento benchmark líder en todas las disciplinas generales, código y lenguaje.',
+    bestFor: 'Inteligencia general de escala masiva y análisis estratégico',
+    contextWindow: '128K',
+    maxTokens: 4096,
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'nvidia/llama-3.1-nemotron-70b-instruct',
+    name: 'Llama 3.1 Nemotron 70B',
+    provider: 'NVIDIA Build',
+    category: 'NVIDIA NIM',
+    domain: 'flagship_reasoning',
+    tier: 'Flagship Full',
+    description: 'Modelo afinado por NVIDIA con alineación RLHF para máxima veracidad, reducción de alucinaciones y precisión en seguimiento de políticas.',
+    bestFor: 'Gobernanza de sistemas, síntesis de datos y precisión extrema',
+    contextWindow: '128K',
+    maxTokens: 4096,
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'meta/llama-3.3-70b-instruct',
+    name: 'Llama 3.3 70B Instruct',
+    provider: 'Meta / NVIDIA Build',
+    category: 'NVIDIA NIM',
+    domain: 'flagship_reasoning',
+    tier: 'Flagship Full',
+    description: 'El estándar de oro abierto de Meta. Capacidades equiparables a modelos de clase frontier con un equilibrio óptimo de velocidad y razonamiento profundo.',
+    bestFor: 'Tareas empresariales, análisis holístico y redacción de alto impacto',
+    contextWindow: '128K',
+    maxTokens: 4096,
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'meta/llama-3.1-405b-instruct',
+    name: 'Llama 3.1 405B Flagship',
+    provider: 'Meta / NVIDIA Build',
+    category: 'NVIDIA NIM',
+    domain: 'flagship_reasoning',
+    tier: 'Flagship Full',
+    description: 'El modelo abierto más colosal disponible en NVIDIA NIM. Máxima fidelidad en síntesis de conocimiento, destilación y razonamiento sin concesiones.',
+    bestFor: 'Investigación profunda y síntesis de conocimiento enciclopédico',
+    contextWindow: '128K',
+    maxTokens: 4096,
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'mistralai/mistral-large-2-instruct',
+    name: 'Mistral Large 2 123B',
+    provider: 'Mistral AI / NVIDIA Build',
+    category: 'NVIDIA NIM',
+    domain: 'flagship_reasoning',
+    tier: 'Flagship Full',
+    description: 'Razonamiento avanzado de 123B parámetros, fluidez en decenas de idiomas y competencia excepcional en código y razonamiento lógico formal.',
+    bestFor: 'Análisis multilingüe y razonamiento corporativo',
+    contextWindow: '128K',
+    maxTokens: 4096,
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'nvidia/nemotron-3-ultra-550b-a55b',
+    name: 'Nemotron 3 Ultra 550B',
+    provider: 'NVIDIA Build',
+    category: 'NVIDIA NIM',
+    domain: 'flagship_reasoning',
+    tier: 'Flagship Full',
+    description: 'Razonamiento de máxima capacidad de NVIDIA con contexto ultra extendido y planificación de tareas.',
+    bestFor: 'Planificación de agendas complejas y flujos multi-paso',
+    contextWindow: '128K',
+    maxTokens: 4096,
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'nvidia/nemotron-3-super-120b-a12b',
+    name: 'Nemotron 3 Super 120B',
+    provider: 'NVIDIA Build',
+    category: 'NVIDIA NIM',
+    domain: 'agents_tools',
+    tier: 'Flagship Full',
+    description: 'Agentes autónomos, planificación jerárquica y flujos continuos de tareas operativas.',
+    bestFor: 'Automatización de tareas y orquestación de agentes',
+    contextWindow: '64K',
+    maxTokens: 3072,
     isFreeEndpoint: true,
   },
   {
     id: 'nvidia/nemotron-3.5-lightning-30b-a3b',
     name: 'Nemotron 3.5 Lightning 30B',
-    provider: 'NVIDIA',
+    provider: 'NVIDIA Build',
     category: 'NVIDIA NIM',
-    description: 'Agentes especializados, instrucciones técnicas y flujos de trabajo con herramientas.',
-    bestFor: 'Coding & Agentes Autónomos',
+    domain: 'agents_tools',
+    tier: 'Specialist',
+    description: 'Optimizado por NVIDIA para agentes técnicos, ejecución de herramientas y flujos de trabajo autónomos VAOS.',
+    bestFor: 'Coding & Agentes Autónomos (Recomendado para VAOS)',
+    contextWindow: '64K',
+    maxTokens: 2048,
     isFreeEndpoint: true,
   },
+  {
+    id: 'moonshotai/kimi-k3',
+    name: 'Kimi K3',
+    provider: 'Moonshot AI / NVIDIA Build',
+    category: 'NVIDIA NIM',
+    domain: 'flagship_reasoning',
+    tier: 'Specialist',
+    description: 'Tareas de contexto ultra-largo, comprensión exhaustiva de documentos masivos y agentes analíticos.',
+    bestFor: 'Comprensión profunda de documentos y contexto extenso',
+    contextWindow: '200K',
+    maxTokens: 3072,
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'openai/gpt-oss-20b',
+    name: 'GPT-OSS 20B',
+    provider: 'OpenAI / NVIDIA Build',
+    category: 'NVIDIA NIM',
+    domain: 'flagship_reasoning',
+    tier: 'Specialist',
+    description: 'Razonamiento lógico, matemático y deducción en tamaño altamente eficiente.',
+    bestFor: 'Cálculos y tareas numéricas',
+    contextWindow: '32K',
+    maxTokens: 2048,
+    isFreeEndpoint: true,
+  },
+
+  // ==========================================
+  // 4. VOZ RÁPIDA, MULTIMODAL & HERRAMIENTAS
+  // ==========================================
+  {
+    id: 'meta/llama-3.2-11b-vision-instruct',
+    name: 'Llama 3.2 11B Vision Fast',
+    provider: 'Meta / NVIDIA Build',
+    category: 'NVIDIA NIM',
+    domain: 'fast_voice',
+    tier: 'Fast Voice',
+    description: 'Respuesta ultra-rápida (<1 seg) en tiempo real con NVIDIA Build Cloud. Máxima velocidad de voz y comprensión visual.',
+    bestFor: 'Conversación fluida por voz instantánea (Recomendado para Voz)',
+    contextWindow: '128K',
+    maxTokens: 800,
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'deepseek-ai/deepseek-v4.1-flash',
+    name: 'DeepSeek V4.1 Flash',
+    provider: 'DeepSeek / NVIDIA Build',
+    category: 'NVIDIA NIM',
+    domain: 'fast_voice',
+    tier: 'Lite / Flash',
+    description: 'Asistente general de velocidad extrema; consultas técnicas de alta frecuencia con respuesta instantánea.',
+    bestFor: 'Velocidad extrema y respuestas concisas',
+    contextWindow: '64K',
+    maxTokens: 800,
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'meta/muse-glimmer-30b',
+    name: 'Muse Glimmer 30B',
+    provider: 'Meta / NVIDIA Build',
+    category: 'NVIDIA NIM',
+    domain: 'multimodal',
+    tier: 'Specialist',
+    description: 'Razonamiento visual, texto y llamadas a herramientas fluidas.',
+    bestFor: 'Llamadas a funciones y formateo estructurado',
+    contextWindow: '32K',
+    maxTokens: 1200,
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'google/gemma-4-31b-it',
+    name: 'Gemma 4 31B IT',
+    provider: 'Google / NVIDIA Build',
+    category: 'NVIDIA NIM',
+    domain: 'agents_tools',
+    tier: 'Specialist',
+    description: 'Razonamiento general de vanguardia, código y flujos agénticos de alta precisión instruccional.',
+    bestFor: 'Agentes autónomos e instrucciones precisas',
+    contextWindow: '32K',
+    maxTokens: 2048,
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'google/diffusiongemma-26b-a4b-it',
+    name: 'DiffusionGemma 26B A4B IT',
+    provider: 'Google / NVIDIA Build',
+    category: 'NVIDIA NIM',
+    domain: 'multimodal',
+    tier: 'Specialist',
+    description: 'Generación de texto interactiva con decodificación paralela difusiva.',
+    bestFor: 'Chat interactivo y generación fluida',
+    contextWindow: '32K',
+    maxTokens: 1200,
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'mistralai/mistral-nemotron',
+    name: 'Mistral Nemotron',
+    provider: 'Mistral / NVIDIA Build',
+    category: 'NVIDIA NIM',
+    domain: 'agents_tools',
+    tier: 'Specialist',
+    description: 'Seguimiento riguroso de instrucciones y llamadas a funciones para control de dispositivos.',
+    bestFor: 'Control estricto de dispositivos',
+    contextWindow: '32K',
+    maxTokens: 1200,
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning',
+    name: 'Nemotron 3 Nano Omni 30B',
+    provider: 'NVIDIA Build',
+    category: 'NVIDIA NIM',
+    domain: 'multimodal',
+    tier: 'Specialist',
+    description: 'Razonamiento multimodal nativo con texto, audio y habla adaptativa.',
+    bestFor: 'Procesamiento de voz multimodal',
+    contextWindow: '32K',
+    maxTokens: 1200,
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'nvidia/riva-translate-4b-instruct-v2',
+    name: 'Riva Translate 4B Instruct v2',
+    provider: 'NVIDIA Build',
+    category: 'NVIDIA NIM',
+    domain: 'multimodal',
+    tier: 'Specialist',
+    description: 'Traducción simultánea en más de 37 idiomas para operaciones globales.',
+    bestFor: 'Traducción de voz y comandos multilingües',
+    contextWindow: '16K',
+    maxTokens: 800,
+    isFreeEndpoint: true,
+  },
+
+  // ==========================================
+  // 5. MOTORES LOCALES ON-DEVICE RT-LITE (100% OFFLINE)
+  // ==========================================
   {
     id: 'rt-lite-local',
     name: 'RT-Lite Master Omni-Engine',
     provider: 'VVC-ACIA Local',
     category: 'RT-Lite Local',
+    domain: 'offline_device',
+    tier: 'Local On-Device',
     description: 'Motor unificado maestro en el dispositivo. Control integral de todas las funciones sin conexión ni API Key.',
     bestFor: 'Control global del teléfono, privacidad absoluta y cero latencia',
+    contextWindow: 'Local',
+    maxTokens: 1024,
     isFreeEndpoint: true,
   },
   {
@@ -140,8 +560,12 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     name: 'RT-Lite Hardware & Device Control',
     provider: 'VVC-ACIA Local',
     category: 'RT-Lite Local',
+    domain: 'offline_device',
+    tier: 'Local On-Device',
     description: 'Motor dedicado para linterna física y de pantalla, volumen, brillo, Wi-Fi, Bluetooth y batería.',
     bestFor: 'Control físico inmediato de actuadores del teléfono',
+    contextWindow: 'Local',
+    maxTokens: 1024,
     isFreeEndpoint: true,
   },
   {
@@ -149,8 +573,12 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     name: 'RT-Lite Telecom & Communications',
     provider: 'VVC-ACIA Local',
     category: 'RT-Lite Local',
+    domain: 'offline_device',
+    tier: 'Local On-Device',
     description: 'Motor especializado en llamadas celulares, mensajería directa SMS, WhatsApp y libreta de contactos.',
     bestFor: 'Comunicaciones directas por voz y mensajería',
+    contextWindow: 'Local',
+    maxTokens: 1024,
     isFreeEndpoint: true,
   },
   {
@@ -158,8 +586,12 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     name: 'RT-Lite Calendar & Schedule Matrix',
     provider: 'VVC-ACIA Local',
     category: 'RT-Lite Local',
+    domain: 'offline_device',
+    tier: 'Local On-Device',
     description: 'Programación de eventos complejos, detección y resolución de conflictos y sync Google/Outlook/Apple.',
     bestFor: 'Gestión avanzada de calendario, tareas, alarmas y temporizadores',
+    contextWindow: 'Local',
+    maxTokens: 1024,
     isFreeEndpoint: true,
   },
   {
@@ -167,8 +599,12 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     name: 'RT-Lite Document & Spreadsheet Studio',
     provider: 'VVC-ACIA Local',
     category: 'RT-Lite Local',
+    domain: 'offline_device',
+    tier: 'Local On-Device',
     description: 'Generación local de archivos de texto estructurado y hojas de cálculo con exportación a PDF descargable.',
     bestFor: 'Creación de reportes, presupuestos, minutas y exportación a PDF',
+    contextWindow: 'Local',
+    maxTokens: 1024,
     isFreeEndpoint: true,
   },
   {
@@ -176,136 +612,14 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     name: 'RT-Lite Obsidian Vault & Security',
     provider: 'VVC-ACIA Local',
     category: 'RT-Lite Local',
+    domain: 'offline_device',
+    tier: 'Local On-Device',
     description: 'Cifrado E2EE de grado militar AES-GCM-256, service worker y alertas push nativas en segundo plano.',
     bestFor: 'Bóveda de credenciales, notas secretas y notificaciones push persistentes',
+    contextWindow: 'Local',
+    maxTokens: 1024,
     isFreeEndpoint: true,
   },
-  {
-    id: 'deepseek-ai/deepseek-v4.1-flash',
-    name: 'DeepSeek V4.1 Flash',
-    provider: 'DeepSeek / NVIDIA',
-    category: 'NVIDIA NIM',
-    description: 'Asistente general rápido; consultas técnicas de alta velocidad.',
-    bestFor: 'Velocidad extrema y respuestas concisas',
-    isFreeEndpoint: true,
-  },
-  {
-    id: 'z-ai/glm-5-3',
-    name: 'GLM-5.3',
-    provider: 'Zhipu AI / NVIDIA',
-    category: 'NVIDIA NIM',
-    description: 'Razonamiento complejo y uso de herramientas avanzadas.',
-    bestFor: 'Razonamiento multi-paso y funciones del sistema',
-    isFreeEndpoint: true,
-  },
-  {
-    id: 'z-ai/glm-5-3-flash',
-    name: 'GLM-5.3 Flash',
-    provider: 'Zhipu AI / NVIDIA',
-    category: 'NVIDIA NIM',
-    description: 'Razonamiento multimodal con perfil de menor latencia.',
-    bestFor: 'Baja latencia y respuestas rápidas',
-    isFreeEndpoint: true,
-  },
-  {
-    id: 'moonshotai/kimi-k3',
-    name: 'Kimi K3',
-    provider: 'Moonshot AI / NVIDIA',
-    category: 'NVIDIA NIM',
-    description: 'Tareas de razonamiento prolongado, agentes y contexto extenso.',
-    bestFor: 'Comprensión profunda y análisis de tareas',
-    isFreeEndpoint: true,
-  },
-  {
-    id: 'meta/muse-glimmer-30b',
-    name: 'Muse Glimmer 30B',
-    provider: 'Meta / NVIDIA',
-    category: 'NVIDIA NIM',
-    description: 'Razonamiento visual, texto y tool calling fluido.',
-    bestFor: 'Llamadas a funciones y formateo estructurado',
-    isFreeEndpoint: true,
-  },
-  {
-    id: 'poolside/laguna-xs-2.1',
-    name: 'Laguna XS 2.1',
-    provider: 'Poolside / NVIDIA',
-    category: 'NVIDIA NIM',
-    description: 'Codificación agentic y tareas de terminal.',
-    bestFor: 'Comandos técnicos y operaciones de consola',
-    isFreeEndpoint: true,
-  },
-  {
-    id: 'nvidia/nemotron-3-ultra-550b-a55b',
-    name: 'Nemotron 3 Ultra 550B',
-    provider: 'NVIDIA',
-    category: 'NVIDIA NIM',
-    description: 'Razonamiento de máxima capacidad, planificación y contexto ultra largo.',
-    bestFor: 'Planificación de agendas y flujos complejos',
-    isFreeEndpoint: true,
-  },
-  {
-    id: 'google/diffusiongemma-26b-a4b-it',
-    name: 'DiffusionGemma 26B A4B IT',
-    provider: 'Google / NVIDIA',
-    category: 'NVIDIA NIM',
-    description: 'Generación de texto interactiva con decodificación paralela.',
-    bestFor: 'Chat interactivo y generación fluida',
-    isFreeEndpoint: true,
-  },
-  {
-    id: 'google/gemma-4-31b-it',
-    name: 'Gemma 4 31B IT',
-    provider: 'Google / NVIDIA',
-    category: 'NVIDIA NIM',
-    description: 'Razonamiento general de vanguardia, código y flujos agentic.',
-    bestFor: 'Agentes autónomos e instrucciones precisas',
-    isFreeEndpoint: true,
-  },
-  {
-    id: 'nvidia/nemotron-3-super-120b-a12b',
-    name: 'Nemotron 3 Super 120B',
-    provider: 'NVIDIA',
-    category: 'NVIDIA NIM',
-    description: 'Agentes, razonamiento, planificación y contexto extendido.',
-    bestFor: 'Automatización de tareas',
-    isFreeEndpoint: true,
-  },
-  {
-    id: 'openai/gpt-oss-20b',
-    name: 'GPT-OSS 20B',
-    provider: 'OpenAI / NVIDIA',
-    category: 'NVIDIA NIM',
-    description: 'Razonamiento matemático y lógica en tamaño balanceado.',
-    bestFor: 'Cálculos y tareas numéricas',
-    isFreeEndpoint: true,
-  },
-  {
-    id: 'mistralai/mistral-nemotron',
-    name: 'Mistral Nemotron',
-    provider: 'Mistral / NVIDIA',
-    category: 'NVIDIA NIM',
-    description: 'Seguimiento riguroso de instrucciones y llamadas a funciones.',
-    bestFor: 'Control estricto de dispositivos',
-    isFreeEndpoint: true,
-  },
-  {
-    id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning',
-    name: 'Nemotron 3 Nano Omni 30B',
-    provider: 'NVIDIA',
-    category: 'NVIDIA NIM',
-    description: 'Razonamiento con texto, audio y habla adaptativa.',
-    bestFor: 'Procesamiento de voz multimodal',
-    isFreeEndpoint: true,
-  },
-  {
-    id: 'nvidia/riva-translate-4b-instruct-v2',
-    name: 'Riva Translate 4B Instruct v2',
-    provider: 'NVIDIA',
-    category: 'NVIDIA NIM',
-    description: 'Traducción simultánea en más de 37 idiomas.',
-    bestFor: 'Traducción de voz y comandos multilingües',
-    isFreeEndpoint: true,
-  }
 ];
 
 export type KokoroVoiceId =

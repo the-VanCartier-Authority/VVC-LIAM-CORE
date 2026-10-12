@@ -456,24 +456,48 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
       });
     }
 
-    // Determine optimal model
-    let selectedModel = model || 'meta/llama-3.2-11b-vision-instruct';
-    if (selectedModel === 'meta/llama-3.3-70b-instruct') {
-      selectedModel = 'meta/llama-3.2-11b-vision-instruct';
+    // Determine requested model (no forced downgrades)
+    const selectedModel = model || 'meta/llama-3.2-11b-vision-instruct';
+
+    // Adaptive token allocation and timeout based on model architecture
+    const isCodingModel =
+      selectedModel.includes('coder') ||
+      selectedModel.includes('codestral') ||
+      selectedModel.includes('codellama') ||
+      selectedModel.includes('starcoder') ||
+      selectedModel.includes('laguna');
+
+    const isDeepReasoning =
+      selectedModel === 'z-ai/glm-5-3' || // GLM-5.3 Flagship Full Engine
+      selectedModel.includes('deepseek-r1') ||
+      selectedModel.includes('deepseek-v3') ||
+      selectedModel.includes('nemotron-3-ultra') ||
+      selectedModel.includes('405b') ||
+      selectedModel.includes('nemotron-70b') ||
+      selectedModel.includes('mistral-large');
+
+    let dynamicMaxTokens = max_tokens;
+    if (isCodingModel) {
+      dynamicMaxTokens = Math.max(max_tokens, 4096);
+    } else if (isDeepReasoning) {
+      dynamicMaxTokens = Math.max(max_tokens, 3500);
+    } else if (selectedModel.includes('nemotron')) {
+      dynamicMaxTokens = Math.max(max_tokens, 2048);
     }
 
     const payload = {
       model: selectedModel,
       messages,
       temperature,
-      max_tokens: selectedModel.includes('nemotron') ? 1200 : max_tokens,
+      max_tokens: dynamicMaxTokens,
       stream: false,
     };
 
     try {
-      // 30 second timeout to accommodate deep reasoning models
+      // Extended timeout for deep reasoning and massive code generation
+      const timeoutDuration = (isDeepReasoning || isCodingModel) ? 60000 : 30000;
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
 
       const response = await fetch(targetUrl, {
         method: 'POST',
@@ -490,11 +514,20 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
 
       if (response.ok) {
         const data = await response.json();
-        const rawContent = data.choices?.[0]?.message?.content || data.choices?.[0]?.message?.reasoning_content || '';
+        const msg = data.choices?.[0]?.message;
+        let rawContent = msg?.content || '';
+
+        // If content is empty but reasoning_content exists (e.g. DeepSeek R1 or GLM-5.3 CoT)
+        if (!rawContent && msg?.reasoning_content) {
+          rawContent = msg.reasoning_content;
+        }
+
         const cleanedContent = cleanModelResponse(rawContent);
 
         if (cleanedContent && cleanedContent.length > 0) {
-          data.choices[0].message.content = cleanedContent;
+          if (data.choices?.[0]?.message) {
+            data.choices[0].message.content = cleanedContent;
+          }
           return res.json({
             ...data,
             model_used: selectedModel,
@@ -503,10 +536,10 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
         }
       }
 
-      // If the chosen model failed on NVIDIA, immediately try the ultra-fast Llama 3.2 11B
+      // If the chosen model failed on NVIDIA, try fast fallback only on true failure
       if (selectedModel !== 'meta/llama-3.2-11b-vision-instruct') {
         const fastController = new AbortController();
-        const fastTimeout = setTimeout(() => fastController.abort(), 8000);
+        const fastTimeout = setTimeout(() => fastController.abort(), 10000);
         try {
           const fastRes = await fetch(targetUrl, {
             method: 'POST',
@@ -517,7 +550,7 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
             body: JSON.stringify({
               ...payload,
               model: 'meta/llama-3.2-11b-vision-instruct',
-              max_tokens: 600,
+              max_tokens: 800,
             }),
             signal: fastController.signal,
           });
@@ -529,7 +562,7 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
               fastData.choices[0].message.content = fastText;
               return res.json({
                 ...fastData,
-                model_used: `Llama 3.2 11B (NVIDIA Build Cloud)`,
+                model_used: `Llama 3.2 11B (NVIDIA Build Cloud · Respaldo Rápido)`,
                 is_fallback: false,
               });
             }

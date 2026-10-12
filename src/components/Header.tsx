@@ -116,28 +116,148 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             {/* Quick dropdown hover menu */}
-            <div className="absolute left-0 mt-1 w-72 bg-[#090c14] border border-[#1e2638] rounded-md shadow-2xl p-2 hidden group-hover:block z-50">
-              <div className="text-[10px] text-slate-400 font-mono uppercase px-2 py-1 border-b border-[#1e2638] mb-1">
-                Seleccionar Motor Neuronal
+            <div className="absolute left-0 mt-1 w-80 sm:w-96 bg-[#090c14] border border-[#1e2638] rounded-md shadow-2xl p-2 hidden group-hover:block z-50">
+              <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono uppercase px-2 py-1 border-b border-[#1e2638] mb-1">
+                <span>Catálogo de Modelos NVIDIA & RT-Lite</span>
+                <span className="text-[#00FF66] font-bold">{AVAILABLE_MODELS.length} Modelos</span>
               </div>
-              <div className="max-h-64 overflow-y-auto space-y-1">
-                {AVAILABLE_MODELS.map((m) => (
-                  <button
-                    key={m.id}
-                    onClick={() => onSelectModel(m.id)}
-                    className={`w-full text-left px-2.5 py-1.5 rounded text-xs font-mono transition-all flex flex-col ${
-                      currentModel === m.id
-                        ? 'bg-[#b026ff]/20 text-[#00f0ff] border border-[#b026ff]/40'
-                        : 'text-slate-300 hover:bg-[#121724] hover:text-white'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold truncate">{m.name}</span>
-                      <span className="text-[9px] text-slate-400 opacity-80">{m.category}</span>
-                    </div>
-                    <span className="text-[10px] text-slate-400 truncate">{m.bestFor}</span>
-                  </button>
-                ))}
+              <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
+                {/* 1. Codificación */}
+                <div>
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-[#00FF66] px-2 py-0.5 bg-[#00FF66]/10 rounded flex items-center justify-between">
+                    <span>💻 Codificación & Software</span>
+                    <span className="text-[8px] opacity-80">NVIDIA NIM</span>
+                  </div>
+                  <div className="space-y-0.5 mt-1">
+                    {AVAILABLE_MODELS.filter((m) => m.domain === 'coding').map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => onSelectModel(m.id)}
+                        className={`w-full text-left px-2 py-1.5 rounded text-xs font-mono transition-all flex flex-col ${
+                          currentModel === m.id
+                            ? 'bg-[#00FF66]/20 text-[#00FF66] border border-[#00FF66]/40'
+                            : 'text-slate-300 hover:bg-[#121724] hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold truncate text-[11px]">{m.name}</span>
+                          <span className="text-[8px] px-1 rounded bg-[#00FF66]/20 text-[#00FF66] font-bold">CÓDIGO</span>
+                        </div>
+                        <span className="text-[9px] text-slate-400 truncate">{m.bestFor}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 2. Razonamiento Profundo & Flagship */}
+                <div>
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-[#D4AF37] px-2 py-0.5 bg-[#D4AF37]/10 rounded flex items-center justify-between">
+                    <span>🧠 Razonamiento Profundo & Flagship</span>
+                    <span className="text-[8px] opacity-80">Full Engines</span>
+                  </div>
+                  <div className="space-y-0.5 mt-1">
+                    {AVAILABLE_MODELS.filter((m) => m.domain === 'flagship_reasoning').map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => onSelectModel(m.id)}
+                        className={`w-full text-left px-2 py-1.5 rounded text-xs font-mono transition-all flex flex-col ${
+                          currentModel === m.id
+                            ? 'bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40'
+                            : 'text-slate-300 hover:bg-[#121724] hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold truncate text-[11px]">{m.name}</span>
+                          <span className="text-[8px] px-1 rounded bg-[#D4AF37]/20 text-[#D4AF37] font-bold">FLAGSHIP</span>
+                        </div>
+                        <span className="text-[9px] text-slate-400 truncate">{m.bestFor}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 3. Baja Latencia & Voz */}
+                <div>
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-[#00f0ff] px-2 py-0.5 bg-[#00f0ff]/10 rounded flex items-center justify-between">
+                    <span>⚡ Ultra-Baja Latencia & Voz Rápida</span>
+                    <span className="text-[8px] opacity-80">&lt;1s Voice</span>
+                  </div>
+                  <div className="space-y-0.5 mt-1">
+                    {AVAILABLE_MODELS.filter((m) => m.domain === 'fast_voice').map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => onSelectModel(m.id)}
+                        className={`w-full text-left px-2 py-1.5 rounded text-xs font-mono transition-all flex flex-col ${
+                          currentModel === m.id
+                            ? 'bg-[#00f0ff]/20 text-[#00f0ff] border border-[#00f0ff]/40'
+                            : 'text-slate-300 hover:bg-[#121724] hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold truncate text-[11px]">{m.name}</span>
+                          <span className="text-[8px] px-1 rounded bg-[#00f0ff]/20 text-[#00f0ff] font-bold">
+                            {m.id === 'z-ai/glm-5-3-flash' ? 'LITE' : 'FAST'}
+                          </span>
+                        </div>
+                        <span className="text-[9px] text-slate-400 truncate">{m.bestFor}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 4. Multimodal & Agentes */}
+                <div>
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-[#8A2BFF] px-2 py-0.5 bg-[#8A2BFF]/10 rounded flex items-center justify-between">
+                    <span>👁️ Multimodal & Agentes VAOS</span>
+                    <span className="text-[8px] opacity-80">Tools</span>
+                  </div>
+                  <div className="space-y-0.5 mt-1">
+                    {AVAILABLE_MODELS.filter((m) => m.domain === 'agents_tools' || m.domain === 'multimodal').map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => onSelectModel(m.id)}
+                        className={`w-full text-left px-2 py-1.5 rounded text-xs font-mono transition-all flex flex-col ${
+                          currentModel === m.id
+                            ? 'bg-[#8A2BFF]/20 text-[#8A2BFF] border border-[#8A2BFF]/40'
+                            : 'text-slate-300 hover:bg-[#121724] hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold truncate text-[11px]">{m.name}</span>
+                          <span className="text-[8px] px-1 rounded bg-[#8A2BFF]/20 text-[#8A2BFF] font-bold">TOOLS</span>
+                        </div>
+                        <span className="text-[9px] text-slate-400 truncate">{m.bestFor}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 5. Motor Local RT-Lite */}
+                <div>
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-[#C0C0C0] px-2 py-0.5 bg-[#C0C0C0]/10 rounded flex items-center justify-between">
+                    <span>🛡️ RT-Lite On-Device (Local)</span>
+                    <span className="text-[8px] opacity-80">100% Offline</span>
+                  </div>
+                  <div className="space-y-0.5 mt-1">
+                    {AVAILABLE_MODELS.filter((m) => m.domain === 'offline_device').map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => onSelectModel(m.id)}
+                        className={`w-full text-left px-2 py-1.5 rounded text-xs font-mono transition-all flex flex-col ${
+                          currentModel === m.id
+                            ? 'bg-slate-700/40 text-slate-100 border border-slate-500'
+                            : 'text-slate-300 hover:bg-[#121724] hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold truncate text-[11px]">{m.name}</span>
+                          <span className="text-[8px] px-1 rounded bg-slate-800 text-slate-300 font-bold">LOCAL</span>
+                        </div>
+                        <span className="text-[9px] text-slate-400 truncate">{m.bestFor}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

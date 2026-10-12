@@ -290,20 +290,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </optgroup>
 
                 <optgroup label="Modelos Avanzados NVIDIA Build + Integraciones Cloud">
+                  <option value="qwen/qwen2.5-coder-32b-instruct||notion_workspace">
+                    Qwen 2.5 Coder 32B + Notion Workspace (Ingeniería de Software & Arquitectura)
+                  </option>
+                  <option value="mistralai/codestral-22b-instruct-v0.1||slack_webhooks">
+                    Codestral 22B + Slack Dev Alerts (Pruebas Unitarias & FIM)
+                  </option>
+                  <option value="z-ai/glm-5-3||enterprise_hybrid">
+                    GLM-5.3 Flagship (Full Engine) + Suite Empresarial Híbrida (Máximo Razonamiento)
+                  </option>
+                  <option value="z-ai/glm-5-3-flash||slack_webhooks">
+                    GLM-5.3 Flash (Lite Edition) + Slack Webhooks (Baja Latencia & Voz)
+                  </option>
+                  <option value="deepseek-ai/deepseek-r1||notion_workspace">
+                    DeepSeek R1 + Notion Live DB (Cadena de Pensamiento CoT)
+                  </option>
                   <option value="nvidia/nemotron-3.5-lightning-30b-a3b||google_calendar">
-                    Nemotron 3.5 Lightning 30B + Google Calendar & Tasks (Recomendado)
+                    Nemotron 3.5 Lightning 30B + Google Calendar & Tasks (Recomendado VAOS)
                   </option>
-                  <option value="nvidia/nemotron-3.5-lightning-30b-a3b||notion_workspace">
-                    Nemotron 3.5 Lightning 30B + Notion Workspace Live DB
-                  </option>
-                  <option value="nvidia/nemotron-3.5-lightning-30b-a3b||enterprise_hybrid">
-                    Nemotron 3.5 Lightning 30B + Suite Empresarial Híbrida Multi-Cloud
-                  </option>
-                  <option value="deepseek-ai/deepseek-v4.1-flash||todoist_sync">
-                    DeepSeek V4.1 Flash + Todoist Real-Time Task Flow
-                  </option>
-                  <option value="z-ai/glm-5-3||slack_webhooks">
-                    GLM-5.3 + Slack Automated Alerts Webhooks
+                  <option value="meta/llama-3.2-11b-vision-instruct||google_calendar">
+                    Llama 3.2 11B Vision Fast + Google Calendar (Voz Ultrarrápida &lt;1s)
                   </option>
                   <option value="nvidia/nemotron-3-ultra-550b-a55b||enterprise_hybrid">
                     Nemotron 3 Ultra 550B + Multi-Cloud Enterprise Sync
@@ -318,20 +324,43 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             {/* SEPARATE DROPDOWN 1: AI MODEL */}
             <div>
               <label className="text-[11px] text-slate-400 block mb-1">
-                1. Selección Individual de Modelo Neuronal (NVIDIA Build & RT-Lite):
+                1. Selección Individual de Modelo Neuronal ({AVAILABLE_MODELS.length} Modelos Disponibles):
               </label>
               <select
                 value={currentModel}
                 onChange={(e) => onSelectModel(e.target.value as ModelType)}
                 className="w-full bg-[#06080d] border border-[#1e2638] focus:border-[#00f0ff] rounded p-2 text-xs text-slate-100 focus:outline-none"
               >
-                <optgroup label="Motor On-Device">
-                  <option value="rt-lite-local">
-                    RT-Lite On-Device (0ms latencia, 100% Offline, sin API Key)
-                  </option>
+                <optgroup label="💻 Especialistas en Código & Programación (NVIDIA NIM)">
+                  {AVAILABLE_MODELS.filter((m) => m.domain === 'coding').map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} · {m.bestFor}
+                    </option>
+                  ))}
                 </optgroup>
-                <optgroup label="Modelos NVIDIA Build NIM">
-                  {AVAILABLE_MODELS.filter((m) => m.id !== 'rt-lite-local').map((m) => (
+                <optgroup label="🧠 Razonamiento Profundo & Flagship (NVIDIA NIM)">
+                  {AVAILABLE_MODELS.filter((m) => m.domain === 'flagship_reasoning').map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} · {m.bestFor}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="⚡ Ultra-Baja Latencia & Voz Rápida (NVIDIA NIM)">
+                  {AVAILABLE_MODELS.filter((m) => m.domain === 'fast_voice').map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} · {m.bestFor}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="👁️ Multimodal, Visión & Agentes VAOS">
+                  {AVAILABLE_MODELS.filter((m) => m.domain === 'agents_tools' || m.domain === 'multimodal').map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} · {m.bestFor}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="🛡️ Motores Locales RT-Lite (100% Offline / Cero Latencia)">
+                  {AVAILABLE_MODELS.filter((m) => m.domain === 'offline_device').map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.name} · {m.bestFor}
                     </option>
@@ -362,7 +391,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="p-3 rounded-lg bg-[#07090e] border border-[#1e2638] text-[11px] space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="text-[#00f0ff] font-semibold">{currentModelObj.name}</span>
-                <span className="text-slate-400">{currentModelObj.provider}</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#1e2638] text-slate-300 font-mono">
+                  {currentModelObj.tier} · {currentModelObj.contextWindow || '128K'}
+                </span>
               </div>
               <p className="text-slate-300">{currentModelObj.description}</p>
               <div className="flex items-center justify-between pt-1 border-t border-[#1e2638] text-[10px]">
