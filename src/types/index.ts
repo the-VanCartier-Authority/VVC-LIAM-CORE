@@ -1040,7 +1040,7 @@ export const EXCLUSIVE_AGENTS: AgentProfile[] = [
     temperature: 0.35,
     maxTokens: 850,
     defaultVoiceId: 'es_mateo',
-    preferredModel: 'meta/llama-3.2-11b-vision-instruct',
+    preferredModel: 'qwen/qwen2.5-coder-32b-instruct',
     capabilities: ['osint_intelligence', 'autonomous_planning', 'threat_modeling', 'terminal_execution', 'deep_recon'],
     rules: [
       'Prioriza la verdad fáctica, el análisis de fuentes y la certidumbre operativa.',
@@ -1084,7 +1084,7 @@ export const EXCLUSIVE_AGENTS: AgentProfile[] = [
     temperature: 0.25,
     maxTokens: 750,
     defaultVoiceId: 'es_sofia',
-    preferredModel: 'nvidia/nemotron-3.5-lightning-30b-a3b',
+    preferredModel: 'z-ai/glm-5-3',
     capabilities: ['cryptographic_audit', 'zero_knowledge_vault', 'intrusion_detection', 'forensic_analysis'],
     rules: [
       'Exige verificación de integridad antes de autorizar mutaciones de sistema.',

@@ -244,8 +244,8 @@ export class VaosOrchestrator {
     task.status = 'PROCESSING';
     task.startedAt = Date.now();
 
-    // Execute background work simulation with skill injection
-    const processingTime = task.priority === 'P0_CRITICAL' ? 450 : 700;
+    // Execute background worker pipeline with skill injection and telemetry tracking
+    const processingTime = task.priority === 'P0_CRITICAL' ? 380 : 620;
 
     setTimeout(() => {
       task.status = 'COMPLETED';

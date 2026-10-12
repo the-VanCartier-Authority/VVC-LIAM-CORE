@@ -26,11 +26,29 @@ export const MessagingModal: React.FC<MessagingModalProps> = ({
 
   const handleSend = () => {
     setIsSent(true);
+
+    try {
+      if (channel === 'WhatsApp') {
+        const cleanPhone = recipientText.replace(/[^\d+]/g, '').replace(/^\+/, '');
+        const encoded = encodeURIComponent(msgText);
+        const waUrl = cleanPhone.length >= 7
+          ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encoded}`
+          : `https://api.whatsapp.com/send?text=${encoded}`;
+        window.open(waUrl, '_blank');
+      } else {
+        const cleanPhone = recipientText.replace(/[^\d+]/g, '');
+        const encoded = encodeURIComponent(msgText);
+        window.location.href = `sms:${cleanPhone || encodeURIComponent(recipientText)}?body=${encoded}`;
+      }
+    } catch (dispatchErr) {
+      console.warn('Real messenger dispatch error:', dispatchErr);
+    }
+
     setTimeout(() => {
       onSend(recipientText, msgText, channel);
       setIsSent(false);
       onClose();
-    }, 1200);
+    }, 800);
   };
 
   return (

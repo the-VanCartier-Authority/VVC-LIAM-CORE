@@ -6,7 +6,8 @@ import type { DeviceCapabilities, DeviceBatteryInfo, PlatformType } from './type
  */
 export class DeviceAdapter implements DeviceCapabilities {
   private platform: PlatformType;
-  private batterySimulator = {
+  private activeTorchTrack: MediaStreamTrack | null = null;
+  private fallbackBatteryState = {
     level: 0.88,
     charging: false,
     lastUpdate: Date.now(),
@@ -88,17 +89,17 @@ export class DeviceAdapter implements DeviceCapabilities {
     }
 
     // 2. Realistic Fallback for Desktop & Restricted Environments
-    const elapsedMinutes = (Date.now() - this.batterySimulator.lastUpdate) / 60000;
+    const elapsedMinutes = (Date.now() - this.fallbackBatteryState.lastUpdate) / 60000;
     if (elapsedMinutes > 5) {
-      this.batterySimulator.level = Math.max(0.15, this.batterySimulator.level - 0.01);
-      this.batterySimulator.lastUpdate = Date.now();
+      this.fallbackBatteryState.level = Math.max(0.15, this.fallbackBatteryState.level - 0.01);
+      this.fallbackBatteryState.lastUpdate = Date.now();
     }
 
     return {
-      level: this.batterySimulator.level,
-      charging: this.batterySimulator.charging,
-      chargingTime: this.batterySimulator.charging ? 3200 : Infinity,
-      dischargingTime: this.batterySimulator.charging ? Infinity : 14400,
+      level: this.fallbackBatteryState.level,
+      charging: this.fallbackBatteryState.charging,
+      chargingTime: this.fallbackBatteryState.charging ? 3200 : Infinity,
+      dischargingTime: this.fallbackBatteryState.charging ? Infinity : 14400,
       temperatureEstimatedC: 29.2,
       healthProfile: 'OPTIMAL',
     };
@@ -120,19 +121,30 @@ export class DeviceAdapter implements DeviceCapabilities {
       return false;
     }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
-      });
-      const track = stream.getVideoTracks()[0];
-      if (track) {
-        const capabilities = (track.getCapabilities?.() || {}) as any;
-        if (capabilities.torch) {
-          await (track as any).applyConstraints({
-            advanced: [{ torch: enabled }],
-          });
-          if (!enabled) {
-            track.stop();
+      if (enabled) {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' },
+        });
+        const track = stream.getVideoTracks()[0];
+        if (track) {
+          const capabilities = (track.getCapabilities?.() || {}) as any;
+          if (capabilities.torch) {
+            await (track as any).applyConstraints({
+              advanced: [{ torch: true }],
+            });
+            this.activeTorchTrack = track;
+            return true;
           }
+        }
+      } else {
+        if (this.activeTorchTrack) {
+          try {
+            await (this.activeTorchTrack as any).applyConstraints({
+              advanced: [{ torch: false }],
+            });
+          } catch {}
+          this.activeTorchTrack.stop();
+          this.activeTorchTrack = null;
           return true;
         }
       }

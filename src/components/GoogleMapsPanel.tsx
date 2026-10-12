@@ -111,9 +111,12 @@ export const GoogleMapsPanel: React.FC<GoogleMapsPanelProps> = ({
   const [isLocatingUser, setIsLocatingUser] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
+  const [statusNotice, setStatusNotice] = useState<string | null>(null);
+
   if (!isOpen) return null;
 
   const handleQuickJump = (loc: TacticalLocation) => {
+    setStatusNotice(null);
     setSelectedLocation(loc);
     setCameraTarget({ lat: loc.lat, lng: loc.lng, zoom: 14 });
     if (onSelectCoordinates) {
@@ -122,8 +125,9 @@ export const GoogleMapsPanel: React.FC<GoogleMapsPanelProps> = ({
   };
 
   const handleLocateMe = () => {
+    setStatusNotice(null);
     if (!navigator.geolocation) {
-      alert('Geolocalización no soportada en este navegador');
+      setStatusNotice('Geolocalización no soportada en este navegador.');
       return;
     }
     setIsLocatingUser(true);
@@ -133,9 +137,12 @@ export const GoogleMapsPanel: React.FC<GoogleMapsPanelProps> = ({
         setUserLocation(coords);
         setCameraTarget({ lat: coords.lat, lng: coords.lng, zoom: 15 });
         setIsLocatingUser(false);
+        setStatusNotice('Ubicación actual fijada con éxito.');
+        setTimeout(() => setStatusNotice(null), 4000);
       },
       (err) => {
         console.warn('Geolocation error:', err);
+        setStatusNotice('No se pudo acceder a la geolocalización.');
         setIsLocatingUser(false);
       },
       { enableHighAccuracy: true, timeout: 8000 }
@@ -145,6 +152,7 @@ export const GoogleMapsPanel: React.FC<GoogleMapsPanelProps> = ({
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
+    setStatusNotice(null);
 
     // Direct geocoding fetch via Geocoding API
     const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
@@ -167,12 +175,15 @@ export const GoogleMapsPanel: React.FC<GoogleMapsPanelProps> = ({
             color: '#00f0ff',
           };
           setSelectedLocation(newLoc);
+          setStatusNotice(`Encontrado: ${data.results[0].formatted_address}`);
+          setTimeout(() => setStatusNotice(null), 5000);
         } else {
-          alert('Ubicación no encontrada en Google Maps.');
+          setStatusNotice('Ubicación no encontrada en Google Maps.');
         }
       })
       .catch((err) => {
         console.warn('Geocoding error:', err);
+        setStatusNotice('Error al conectar con el servicio de geocodificación.');
       });
   };
 
@@ -254,6 +265,22 @@ export const GoogleMapsPanel: React.FC<GoogleMapsPanelProps> = ({
             <span className="hidden sm:inline">Mi Posición</span>
           </button>
         </div>
+
+        {/* Status Notice Banner */}
+        {statusNotice && (
+          <div className="px-4 py-2 bg-cyan-950/70 border-b border-cyan-500/30 text-cyan-300 text-xs font-mono flex items-center justify-between animate-fade-in">
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+              {statusNotice}
+            </span>
+            <button
+              onClick={() => setStatusNotice(null)}
+              className="text-cyan-400 hover:text-white text-xs ml-2"
+            >
+              ×
+            </button>
+          </div>
+        )}
 
         {/* Tactical Nodes Strip */}
         <div className="px-3 py-2 bg-[#080b10] border-b border-gray-800/40 flex items-center gap-2 overflow-x-auto scrollbar-thin">

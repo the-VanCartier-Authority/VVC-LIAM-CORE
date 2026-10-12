@@ -1442,8 +1442,11 @@ export default function App() {
           setActiveAgentId(id);
           const ag = agents.find((a) => a.id === id);
           if (ag) {
+            if (ag.preferredModel) {
+              setCurrentModel(ag.preferredModel);
+            }
             playCyberTone('confirm');
-            speakKokoro(`Agente "${ag.name}" activado. Directivas y parámetros del LLM actualizados.`, selectedVoiceId);
+            speakKokoro(`Agente "${ag.name}" activado. Directivas y modelo ${ag.preferredModel || currentModel} sincronizados.`, selectedVoiceId);
           }
         }}
         onAddAgent={(newAgent, activate) => {

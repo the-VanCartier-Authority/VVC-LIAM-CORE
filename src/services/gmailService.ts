@@ -157,8 +157,14 @@ export async function sendGmailEmail(to: string, subject: string, bodyText: stri
   const token = await getAccessToken();
   if (!token) throw new Error('AUTH_REQUIRED: Debes iniciar sesión para enviar correos.');
 
-  // Construct RFC 2822 email format
-  const utf8Subject = `=?utf-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`;
+  // Convert UTF-8 string to base64 safely without deprecated unescape
+  const utf8Bytes = new TextEncoder().encode(subject);
+  let subBinary = '';
+  for (let i = 0; i < utf8Bytes.length; i++) {
+    subBinary += String.fromCharCode(utf8Bytes[i]);
+  }
+  const utf8Subject = `=?utf-8?B?${btoa(subBinary)}?=`;
+
   const messageParts = [
     `To: ${to}`,
     'Content-Type: text/plain; charset=utf-8',
@@ -169,8 +175,13 @@ export async function sendGmailEmail(to: string, subject: string, bodyText: stri
   ];
   const emailRaw = messageParts.join('\r\n');
 
-  // Base64URL encode the message
-  const encodedEmail = btoa(unescape(encodeURIComponent(emailRaw)))
+  // Base64URL encode the full raw message
+  const rawBytes = new TextEncoder().encode(emailRaw);
+  let rawBinary = '';
+  for (let i = 0; i < rawBytes.length; i++) {
+    rawBinary += String.fromCharCode(rawBytes[i]);
+  }
+  const encodedEmail = btoa(rawBinary)
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=+$/, '');

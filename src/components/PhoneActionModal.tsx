@@ -94,6 +94,23 @@ export const PhoneActionModal: React.FC<PhoneActionModalProps> = ({
           )}
         </div>
 
+        {/* Real Native Dialer Integration */}
+        <div className="mt-4 w-full">
+          <a
+            href={`tel:${call.phoneNumber.replace(/[^\d+]/g, '')}`}
+            className="w-full py-2 px-3 rounded-lg bg-emerald-500/15 border border-emerald-500/40 hover:bg-emerald-500/25 text-emerald-400 hover:text-emerald-300 text-xs font-mono font-semibold flex items-center justify-center gap-2 transition-all shadow-sm"
+            onClick={(e) => {
+              // Ensure we don't break if phone protocol is blocked
+              try {
+                window.location.href = `tel:${call.phoneNumber.replace(/[^\d+]/g, '')}`;
+              } catch {}
+            }}
+          >
+            <Phone className="w-3.5 h-3.5" />
+            <span>Abrir Marcador Telefónico Real (Llamada Celular)</span>
+          </a>
+        </div>
+
         {/* Keypad if active */}
         {showKeypad && (
           <div className="w-full mt-4 p-3 bg-[#0d121f] rounded-xl border border-[#1e2638] text-center animate-fade-in">
