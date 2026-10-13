@@ -27,7 +27,8 @@ import {
   Compass,
   FileUp,
   Globe,
-  Radio
+  Radio,
+  RefreshCw,
 } from 'lucide-react';
 import type { CalendarEvent, TaskItem, SubtaskItem } from '../types';
 import { downloadICSFile, dispatchTaskWebhook } from '../utils/ical';
@@ -40,6 +41,14 @@ import {
   parseICSFeed,
   type ConflictAnalysis
 } from '../utils/calendarSync';
+import type { User } from 'firebase/auth';
+import { getAccessToken } from '../services/googleAuth';
+import {
+  listGoogleCalendarEvents,
+  createGoogleCalendarEvent,
+  deleteGoogleCalendarEvent,
+  type GoogleCalendarEventItem,
+} from '../services/googleCalendarService';
 
 interface CalendarRemindersModalProps {
   isOpen: boolean;
@@ -56,6 +65,8 @@ interface CalendarRemindersModalProps {
   onConvertTaskToEvent: (task: TaskItem) => void;
   thirdPartyWebhookUrl: string;
   onUpdateWebhookUrl: (url: string) => void;
+  currentUser?: User | null;
+  onSignInGoogle?: () => void;
 }
 
 export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
@@ -73,8 +84,10 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
   onConvertTaskToEvent,
   thirdPartyWebhookUrl,
   onUpdateWebhookUrl,
+  currentUser,
+  onSignInGoogle,
 }) => {
-  const [activeTab, setActiveTab] = useState<'tasks' | 'calendar' | 'integrations'>('tasks');
+  const [activeTab, setActiveTab] = useState<'tasks' | 'calendar' | 'google' | 'integrations'>('tasks');
   const [filterPriority, setFilterPriority] = useState<'all' | 'pending' | 'completed' | 'critica'>('all');
 
   // Task Creation Form
@@ -119,6 +132,85 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
     },
     events
   );
+
+  // Live Google Calendar State
+  const [googleEvents, setGoogleEvents] = useState<GoogleCalendarEventItem[]>([]);
+  const [isLoadingGoogle, setIsLoadingGoogle] = useState(false);
+  const [googleError, setGoogleError] = useState<string | null>(null);
+  const [googleSuccess, setGoogleSuccess] = useState<string | null>(null);
+  const [googleEventToDelete, setGoogleEventToDelete] = useState<GoogleCalendarEventItem | null>(null);
+  const [gDirectTitle, setGDirectTitle] = useState('');
+  const [gDirectDate, setGDirectDate] = useState(new Date().toISOString().split('T')[0]);
+  const [gDirectTime, setGDirectTime] = useState('11:00');
+  const [gDirectEndTime, setGDirectEndTime] = useState('12:00');
+  const [gDirectDesc, setGDirectDesc] = useState('');
+
+  const fetchGoogleEvents = async () => {
+    setIsLoadingGoogle(true);
+    setGoogleError(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        setGoogleError('Inicia sesión con Google para acceder a tu Google Calendar.');
+        return;
+      }
+      const items = await listGoogleCalendarEvents(token);
+      setGoogleEvents(items);
+      setGoogleSuccess(`✓ ${items.length} eventos de Google Calendar sincronizados.`);
+      setTimeout(() => setGoogleSuccess(null), 3500);
+    } catch (err: any) {
+      setGoogleError(err.message || 'Error al conectar con Google Calendar');
+    } finally {
+      setIsLoadingGoogle(false);
+    }
+  };
+
+  const handleCreateGoogleDirectEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!gDirectTitle.trim()) return;
+    setIsLoadingGoogle(true);
+    setGoogleError(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error('Se requiere iniciar sesión con Google');
+      const startDateTime = new Date(`${gDirectDate}T${gDirectTime}:00`).toISOString();
+      const endDateTime = new Date(`${gDirectDate}T${gDirectEndTime || gDirectTime}:00`).toISOString();
+      await createGoogleCalendarEvent(token, {
+        summary: gDirectTitle.trim(),
+        description: gDirectDesc.trim() || undefined,
+        startDateTime,
+        endDateTime,
+      });
+      setGoogleSuccess(`✓ Evento "${gDirectTitle}" agendado exitosamente en Google Calendar.`);
+      setGDirectTitle('');
+      setGDirectDesc('');
+      fetchGoogleEvents();
+      setTimeout(() => setGoogleSuccess(null), 4000);
+    } catch (err: any) {
+      setGoogleError(err.message || 'Error al crear evento en Google Calendar');
+    } finally {
+      setIsLoadingGoogle(false);
+    }
+  };
+
+  const confirmDeleteGoogleEvent = async () => {
+    if (!googleEventToDelete) return;
+    setIsLoadingGoogle(true);
+    setGoogleError(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error('Token no disponible');
+      await deleteGoogleCalendarEvent(token, googleEventToDelete.id);
+      setGoogleEvents((prev) => prev.filter((e) => e.id !== googleEventToDelete.id));
+      setGoogleSuccess(`✓ Evento "${googleEventToDelete.summary}" eliminado de Google Calendar.`);
+      setGoogleEventToDelete(null);
+      setTimeout(() => setGoogleSuccess(null), 3500);
+    } catch (err: any) {
+      setGoogleError(err.message || 'Error al eliminar evento');
+    } finally {
+      setIsLoadingGoogle(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -339,7 +431,24 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
             }`}
           >
             <CalendarIcon className="w-3.5 h-3.5" />
-            <span>Agenda & Calendario ({events.length})</span>
+            <span>Agenda Local ({events.length})</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab('google');
+              if (googleEvents.length === 0 && currentUser) {
+                fetchGoogleEvents();
+              }
+            }}
+            className={`flex-1 py-1.5 px-3 rounded text-xs font-mono font-medium transition-all flex items-center justify-center gap-1.5 ${
+              activeTab === 'google'
+                ? 'bg-emerald-400 text-black shadow-[0_0_10px_rgba(52,211,153,0.4)]'
+                : 'text-slate-300 hover:text-white'
+            }`}
+          >
+            <CalendarIcon className="w-3.5 h-3.5" />
+            <span>Google Calendar (API)</span>
           </button>
 
           <button
@@ -351,7 +460,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
             }`}
           >
             <Share2 className="w-3.5 h-3.5" />
-            <span>Integraciones Cloud & Terceros</span>
+            <span>Exportar & Webhooks</span>
           </button>
         </div>
 
@@ -1084,6 +1193,206 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
             </div>
           )}
 
+          {/* TAB: GOOGLE CALENDAR EN VIVO (API V3) */}
+          {activeTab === 'google' && (
+            <div className="space-y-4">
+              {/* Google Status Header */}
+              <div className="bg-[#0b0e17] border border-[#1e2638] rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <CalendarIcon className="w-4 h-4 text-emerald-400" />
+                    <h4 className="font-bold text-white text-xs">
+                      Google Calendar (API v3 Sincronización en Directo)
+                    </h4>
+                    <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30 font-mono">
+                      {currentUser ? 'CUENTA VINCULADA' : 'REQUIERE INICIO DE SESIÓN'}
+                    </span>
+                  </div>
+                  <p className="text-slate-400 text-xs">
+                    Consulta, agenda y gestiona eventos en tiempo real directamente en tu calendario principal de Google.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {currentUser ? (
+                    <button
+                      type="button"
+                      onClick={fetchGoogleEvents}
+                      disabled={isLoadingGoogle}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isLoadingGoogle ? 'animate-spin' : ''}`} />
+                      <span>Actualizar Eventos</span>
+                    </button>
+                  ) : onSignInGoogle ? (
+                    <button
+                      type="button"
+                      onClick={onSignInGoogle}
+                      className="px-3 py-1.5 rounded-lg bg-[#00f0ff] hover:bg-[#00c8d7] text-black text-xs font-bold transition-all shadow-[0_0_12px_rgba(0,240,255,0.4)]"
+                    >
+                      Acceder con Google
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+
+              {/* Status messages */}
+              {googleError && (
+                <div className="p-2.5 rounded-lg bg-red-950/40 border border-red-500/40 text-red-200 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                  <span>{googleError}</span>
+                </div>
+              )}
+              {googleSuccess && (
+                <div className="p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-500/40 text-emerald-200 text-xs flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{googleSuccess}</span>
+                </div>
+              )}
+
+              {/* Direct Event Creation in Google Calendar */}
+              {currentUser && (
+                <form
+                  onSubmit={handleCreateGoogleDirectEvent}
+                  className="bg-[#0b0e17] border border-emerald-500/30 rounded-xl p-4 space-y-3"
+                >
+                  <div className="flex items-center gap-2">
+                    <Plus className="w-4 h-4 text-emerald-400" />
+                    <h5 className="font-bold text-white text-xs">Agendar Directamente en Google Calendar</h5>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                    <input
+                      type="text"
+                      placeholder="Título del evento en Google..."
+                      value={gDirectTitle}
+                      onChange={(e) => setGDirectTitle(e.target.value)}
+                      required
+                      className="sm:col-span-2 bg-[#06080d] border border-[#1e2638] focus:border-emerald-400 rounded px-3 py-1.5 text-xs text-white focus:outline-none"
+                    />
+                    <input
+                      type="date"
+                      value={gDirectDate}
+                      onChange={(e) => setGDirectDate(e.target.value)}
+                      required
+                      className="bg-[#06080d] border border-[#1e2638] focus:border-emerald-400 rounded px-2 py-1.5 text-xs text-white focus:outline-none"
+                    />
+                    <div className="flex gap-1">
+                      <input
+                        type="time"
+                        value={gDirectTime}
+                        onChange={(e) => setGDirectTime(e.target.value)}
+                        required
+                        className="w-1/2 bg-[#06080d] border border-[#1e2638] focus:border-emerald-400 rounded px-1.5 py-1.5 text-xs text-white focus:outline-none"
+                      />
+                      <input
+                        type="time"
+                        value={gDirectEndTime}
+                        onChange={(e) => setGDirectEndTime(e.target.value)}
+                        required
+                        className="w-1/2 bg-[#06080d] border border-[#1e2638] focus:border-emerald-400 rounded px-1.5 py-1.5 text-xs text-white focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Descripción u orden del día opcional..."
+                      value={gDirectDesc}
+                      onChange={(e) => setGDirectDesc(e.target.value)}
+                      className="flex-1 bg-[#06080d] border border-[#1e2638] focus:border-emerald-400 rounded px-3 py-1.5 text-xs text-white focus:outline-none"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isLoadingGoogle}
+                      className="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs shrink-0 transition-colors shadow-[0_0_10px_rgba(52,211,153,0.3)]"
+                    >
+                      {isLoadingGoogle ? 'Guardando...' : 'Crear en Google'}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* List of Live Google Calendar Events */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-slate-400 text-[11px]">
+                  <span>Eventos próximos en tu Google Calendar ({googleEvents.length})</span>
+                  <span className="text-emerald-400 flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    Sincronización segura v3
+                  </span>
+                </div>
+
+                {googleEvents.length === 0 ? (
+                  <div className="text-center py-8 text-slate-500 border border-dashed border-[#1e2638] rounded-xl">
+                    <CalendarIcon className="w-8 h-8 mx-auto mb-2 opacity-40 text-emerald-400" />
+                    <p>No hay eventos cargados de Google Calendar</p>
+                    <p className="text-[10px] text-slate-600 mt-1">
+                      {currentUser
+                        ? 'Presiona "Actualizar Eventos" para consultar tu agenda en la nube.'
+                        : 'Inicia sesión con Google para acceder a tus eventos.'}
+                    </p>
+                  </div>
+                ) : (
+                  googleEvents.map((gev) => (
+                    <div
+                      key={gev.id}
+                      className="p-3 rounded-xl bg-[#0b0e17] border border-[#1e2638] hover:border-emerald-500/40 flex items-center justify-between gap-3 transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white text-xs truncate">{gev.summary}</span>
+                          <span className="text-[9px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/30">
+                            Google Cloud
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-1">
+                          <span className="text-cyan-400">
+                            {gev.start.dateTime
+                              ? new Date(gev.start.dateTime).toLocaleString([], {
+                                  dateStyle: 'short',
+                                  timeStyle: 'short',
+                                })
+                              : gev.start.date || 'Todo el día'}
+                          </span>
+                          {gev.location && <span className="text-slate-500 truncate">📍 {gev.location}</span>}
+                        </div>
+                        {gev.description && (
+                          <p className="text-[10px] text-slate-500 mt-1 truncate">{gev.description}</p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {gev.htmlLink && (
+                          <a
+                            href={gev.htmlLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 rounded-lg bg-[#141a29] hover:bg-[#1a233b] text-cyan-400 border border-[#1e2638] text-[10px] font-semibold flex items-center gap-1"
+                            title="Ver en Google Calendar"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            <span>Abrir</span>
+                          </a>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => setGoogleEventToDelete(gev)}
+                          className="p-2 rounded-lg text-slate-500 hover:text-red-400 hover:bg-[#141a29] transition-colors"
+                          title="Eliminar evento de Google Calendar"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
           {/* TAB 3: INTEGRACIONES CLOUD & TERCEROS */}
           {activeTab === 'integrations' && (
             <div className="space-y-4">
@@ -1312,6 +1621,40 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                   className="px-4 py-1.5 rounded bg-[#00f0ff] text-black font-semibold text-xs font-mono shadow-[0_0_12px_rgba(0,240,255,0.4)]"
                 >
                   Guardar Modificación
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Explicit confirmation modal for deleting Google Calendar events */}
+        {googleEventToDelete && (
+          <div className="absolute inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-[#0b0e17] border border-red-500/50 rounded-xl p-5 max-w-sm w-full space-y-4 shadow-[0_0_30px_rgba(255,42,95,0.3)]">
+              <div className="flex items-center gap-2 text-red-400">
+                <AlertCircle className="w-5 h-5" />
+                <h4 className="font-bold text-white text-sm">¿Eliminar evento de Google Calendar?</h4>
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                ¿Estás seguro de que deseas eliminar permanentemente el evento{' '}
+                <strong className="text-white">"{googleEventToDelete.summary}"</strong> de tu calendario de Google?
+                Esta acción no se puede deshacer.
+              </p>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setGoogleEventToDelete(null)}
+                  className="px-3 py-1.5 rounded-lg bg-[#141a29] hover:bg-[#1a233b] text-slate-300 text-xs"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeleteGoogleEvent}
+                  disabled={isLoadingGoogle}
+                  className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-xs"
+                >
+                  {isLoadingGoogle ? 'Eliminando...' : 'Eliminar de Google'}
                 </button>
               </div>
             </div>

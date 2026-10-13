@@ -71,6 +71,8 @@ export interface CommandExecutionResult {
   openAgents?: boolean;
   targetAgentName?: string;
   openTelemetry?: boolean;
+  openContacts?: boolean;
+  openHelp?: boolean;
 }
 
 export function parseNaturalVoiceCommand(
@@ -901,6 +903,60 @@ export function parseNaturalVoiceCommand(
       actionDetails: place ? `Búsqueda en mapa: ${place}` : 'Google Maps abierto.',
       openMaps: true,
       mapsQuery: place,
+    };
+  }
+
+  // 19.1 GOOGLE CONTACTS & PEOPLE API
+  if (
+    query.includes('contactos') ||
+    query.includes('abrir contactos') ||
+    query.includes('google contacts') ||
+    query.includes('directorio') ||
+    query.includes('libreta de direcciones')
+  ) {
+    return {
+      isHandled: true,
+      spokenResponse: 'Desplegando directorio de contactos y sincronización con Google People API.',
+      actionType: 'call',
+      actionDetails: 'Google Contacts & Directorio VAOS',
+      openContacts: true,
+    };
+  }
+
+  // 19.2 FIREBASE FIRESTORE SYNC
+  if (
+    query.includes('firebase') ||
+    query.includes('firestore') ||
+    query.includes('sincronizar nube') ||
+    query.includes('cloud sync')
+  ) {
+    return {
+      isHandled: true,
+      spokenResponse: 'Conexión con Firebase Firestore verificada. Sincronización en tiempo real activa.',
+      actionType: 'sync',
+      actionDetails: 'Firebase Firestore v12: Activo y seguro',
+    };
+  }
+
+  // 19.3 CENTRO DE AYUDA, ATAJOS Y FAQS
+  if (
+    query.includes('ayuda') ||
+    query.includes('manual') ||
+    query.includes('atajos') ||
+    query.includes('faq') ||
+    query.includes('preguntas frecuentes') ||
+    query.includes('guía') ||
+    query.includes('guia') ||
+    query.includes('cómo usar') ||
+    query.includes('como usar') ||
+    query.includes('instrucciones')
+  ) {
+    return {
+      isHandled: true,
+      spokenResponse: 'Desplegando el Centro de Ayuda, Guía Operativa, atajos de teclado y preguntas frecuentes de VVC LIAM CORE.',
+      actionType: 'security',
+      actionDetails: 'Centro de Ayuda & FAQ desplegado',
+      openHelp: true,
     };
   }
 

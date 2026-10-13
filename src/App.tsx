@@ -21,10 +21,21 @@ import { GmailModal } from './components/GmailModal';
 import { GoogleDrivePickerModal } from './components/GoogleDrivePickerModal';
 import { GoogleMapsPanel } from './components/GoogleMapsPanel';
 import { DocumentSpreadsheetModal } from './components/DocumentSpreadsheetModal';
+import { GoogleContactsModal } from './components/GoogleContactsModal';
 import { AgentsModal } from './components/AgentsModal';
 import { TelemetryPanel } from './components/TelemetryPanel';
+import { HelpFaqModal } from './components/HelpFaqModal';
 import { platformService } from './core/adapters/PlatformService';
 import { initAuth, googleSignIn } from './services/googleAuth';
+import {
+  syncUserProfileToFirestore,
+  saveTaskToFirestore,
+  deleteTaskFromFirestore,
+  saveEventToFirestore,
+  deleteEventFromFirestore,
+  subscribeToUserTasks,
+  subscribeToUserEvents,
+} from './services/firestoreSyncService';
 import type { User } from 'firebase/auth';
 
 import { 
@@ -252,7 +263,17 @@ export default function App() {
   });
 
   // Advanced Tasks, Reminders & Calendar Collections
-  const [contacts] = useState<PhoneContact[]>(INITIAL_CONTACTS);
+  const [contacts, setContacts] = useState<PhoneContact[]>(() => {
+    const saved = localStorage.getItem('vvc_acia_contacts');
+    if (saved) {
+      try { return JSON.parse(saved); } catch {}
+    }
+    return INITIAL_CONTACTS;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('vvc_acia_contacts', JSON.stringify(contacts));
+  }, [contacts]);
   const [tasks, setTasks] = useState<TaskItem[]>(() => {
     const saved = localStorage.getItem('vvc_acia_tasks');
     if (saved) {
@@ -325,6 +346,8 @@ export default function App() {
   const [docsModalMode, setDocsModalMode] = useState<'document' | 'spreadsheet'>('document');
   const [isAgentsModalOpen, setIsAgentsModalOpen] = useState(false);
   const [isTelemetryOpen, setIsTelemetryOpen] = useState(false);
+  const [isContactsOpen, setIsContactsOpen] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   // Custom Agents Matrix State (with VAOS Bifurcation: Exclusive Private Agents vs Public)
   const [agents, setAgents] = useState<AgentProfile[]>(() => {
@@ -371,6 +394,61 @@ export default function App() {
     );
     return () => unsubscribe();
   }, []);
+
+  const handleGoogleSignInFlow = async () => {
+    try {
+      const res = await googleSignIn();
+      if (res?.user) {
+        setCurrentUser(res.user);
+        playCyberTone('confirm');
+        speakKokoro(
+          `Google Workspace y Firebase sincronizados con éxito para ${res.user.displayName || res.user.email}.`,
+          selectedVoiceId
+        );
+      }
+    } catch (err: any) {
+      console.warn('Google sign-in error:', err);
+    }
+  };
+
+  // Synchronize User Profile, Tasks and Calendar Events to Firestore in real-time
+  useEffect(() => {
+    if (currentUser?.uid) {
+      syncUserProfileToFirestore(currentUser.uid, {
+        email: currentUser.email,
+        displayName: currentUser.displayName,
+        theme: currentTheme,
+        activeAgentId: activeAgentId,
+      });
+
+      const unsubTasks = subscribeToUserTasks(currentUser.uid, (cloudTasks) => {
+        setTasks((prev) => {
+          const ids = new Set(prev.map((t) => t.id));
+          const additions = cloudTasks.filter((t) => !ids.has(t.id));
+          if (additions.length > 0) {
+            return [...prev, ...additions];
+          }
+          return prev;
+        });
+      });
+
+      const unsubEvents = subscribeToUserEvents(currentUser.uid, (cloudEvents) => {
+        setCalendarEvents((prev) => {
+          const ids = new Set(prev.map((e) => e.id));
+          const additions = cloudEvents.filter((e) => !ids.has(e.id));
+          if (additions.length > 0) {
+            return [...prev, ...additions];
+          }
+          return prev;
+        });
+      });
+
+      return () => {
+        unsubTasks();
+        unsubEvents();
+      };
+    }
+  }, [currentUser, currentTheme, activeAgentId]);
 
   // References
   const speechRecognitionRef = useRef<any>(null);
@@ -423,6 +501,88 @@ export default function App() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
+  }, []);
+
+  // Global Keyboard Shortcuts Listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeTag = (document.activeElement?.tagName || '').toLowerCase();
+      const isInput =
+        activeTag === 'input' ||
+        activeTag === 'textarea' ||
+        (document.activeElement as HTMLElement)?.isContentEditable;
+
+      // Escape to close active modals
+      if (e.key === 'Escape') {
+        setIsHelpOpen(false);
+        setIsCalendarOpen(false);
+        setIsDocsModalOpen(false);
+        setIsContactsOpen(false);
+        setIsAgentsModalOpen(false);
+        setIsTelemetryOpen(false);
+        setIsSettingsOpen(false);
+        setIsVaultOpen(false);
+        setIsDeviceControlsOpen(false);
+        setIsGmailOpen(false);
+        setIsPickerOpen(false);
+        setIsMapsOpen(false);
+        setIsInstallModalOpen(false);
+        setIsScreenTorchOpen(false);
+        return;
+      }
+
+      // Help shortcuts: '?' or 'F1' when not inside text fields
+      if ((e.key === '?' && !isInput) || e.key === 'F1') {
+        e.preventDefault();
+        setIsHelpOpen((prev) => !prev);
+        return;
+      }
+
+      // Alt + H for Help & FAQ
+      if (e.altKey && (e.key === 'h' || e.key === 'H')) {
+        e.preventDefault();
+        setIsHelpOpen((prev) => !prev);
+        return;
+      }
+
+      // Alt + C for Calendar
+      if (e.altKey && (e.key === 'c' || e.key === 'C')) {
+        e.preventDefault();
+        setIsCalendarOpen((prev) => !prev);
+        return;
+      }
+
+      // Alt + D for Docs
+      if (e.altKey && (e.key === 'd' || e.key === 'D')) {
+        e.preventDefault();
+        setIsDocsModalOpen((prev) => !prev);
+        return;
+      }
+
+      // Alt + U for Contacts
+      if (e.altKey && (e.key === 'u' || e.key === 'U')) {
+        e.preventDefault();
+        setIsContactsOpen((prev) => !prev);
+        return;
+      }
+
+      // Alt + A for Agents
+      if (e.altKey && (e.key === 'a' || e.key === 'A')) {
+        e.preventDefault();
+        setIsAgentsModalOpen((prev) => !prev);
+        return;
+      }
+
+      // Alt + T for Telemetry
+      if (e.altKey && (e.key === 't' || e.key === 'T')) {
+        e.preventDefault();
+        setIsTelemetryOpen((prev) => !prev);
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   // Service Worker Initialization & Background Notification Click Handler
@@ -795,6 +955,16 @@ export default function App() {
             setIsMapsOpen(true);
           }
 
+          // Handle Google Contacts Intent
+          if (intentResult.openContacts) {
+            setIsContactsOpen(true);
+          }
+
+          // Handle Help & FAQ Intent
+          if (intentResult.openHelp) {
+            setIsHelpOpen(true);
+          }
+
           // Handle Theme Change Intent
           if (intentResult.newTheme) {
             setCurrentTheme(intentResult.newTheme);
@@ -1125,15 +1295,10 @@ export default function App() {
         onOpenGmail={() => setIsGmailOpen(true)}
         onOpenPicker={() => setIsPickerOpen(true)}
         onOpenMaps={() => setIsMapsOpen(true)}
+        onOpenContacts={() => setIsContactsOpen(true)}
+        onOpenHelp={() => setIsHelpOpen(true)}
         currentUser={currentUser}
-        onSignInGoogle={async () => {
-          try {
-            const res = await googleSignIn();
-            if (res?.user) setCurrentUser(res.user);
-          } catch (err: any) {
-            console.warn('Sign-in error:', err);
-          }
-        }}
+        onSignInGoogle={handleGoogleSignInFlow}
         isMuted={deviceState.isMuted}
         onToggleMute={() => setDeviceState((p) => ({ ...p, isMuted: !p.isMuted }))}
         pendingTasksCount={pendingTasksCount}
@@ -1283,20 +1448,38 @@ export default function App() {
       <CalendarRemindersModal
         isOpen={isCalendarOpen}
         onClose={() => setIsCalendarOpen(false)}
+        currentUser={currentUser}
+        onSignInGoogle={handleGoogleSignInFlow}
         events={calendarEvents}
         onAddEvent={(newEvent) => {
-          setCalendarEvents((prev) => [{ ...newEvent, id: `e-${Date.now()}` }, ...prev]);
+          const createdEvent = { ...newEvent, id: `e-${Date.now()}` };
+          setCalendarEvents((prev) => [createdEvent, ...prev]);
+          if (currentUser?.uid) {
+            saveEventToFirestore(currentUser.uid, createdEvent);
+          }
           playCyberTone('confirm');
         }}
-        onDeleteEvent={(id) => setCalendarEvents((prev) => prev.filter((e) => e.id !== id))}
+        onDeleteEvent={(id) => {
+          setCalendarEvents((prev) => prev.filter((e) => e.id !== id));
+          if (currentUser?.uid) {
+            deleteEventFromFirestore(currentUser.uid, id);
+          }
+        }}
         tasks={tasks}
         onToggleTask={(id) => {
           setTasks((prev) =>
-            prev.map((t) =>
-              t.id === id
-                ? { ...t, isCompleted: !t.isCompleted, completedAt: !t.isCompleted ? Date.now() : undefined }
-                : t
-            )
+            prev.map((t) => {
+              if (t.id === id) {
+                const updated = {
+                  ...t,
+                  isCompleted: !t.isCompleted,
+                  completedAt: !t.isCompleted ? Date.now() : undefined,
+                };
+                if (currentUser?.uid) saveTaskToFirestore(currentUser.uid, updated);
+                return updated;
+              }
+              return t;
+            })
           );
           playCyberTone('click');
         }}
@@ -1308,15 +1491,30 @@ export default function App() {
             updatedAt: Date.now(),
           };
           setTasks((prev) => [created, ...prev]);
+          if (currentUser?.uid) {
+            saveTaskToFirestore(currentUser.uid, created);
+          }
           playCyberTone('confirm');
         }}
         onUpdateTask={(id, updates) => {
           setTasks((prev) =>
-            prev.map((t) => (t.id === id ? { ...t, ...updates, updatedAt: Date.now() } : t))
+            prev.map((t) => {
+              if (t.id === id) {
+                const updated = { ...t, ...updates, updatedAt: Date.now() };
+                if (currentUser?.uid) saveTaskToFirestore(currentUser.uid, updated);
+                return updated;
+              }
+              return t;
+            })
           );
           playCyberTone('confirm');
         }}
-        onDeleteTask={(id) => setTasks((prev) => prev.filter((t) => t.id !== id))}
+        onDeleteTask={(id) => {
+          setTasks((prev) => prev.filter((t) => t.id !== id));
+          if (currentUser?.uid) {
+            deleteTaskFromFirestore(currentUser.uid, id);
+          }
+        }}
         onConvertTaskToEvent={handleConvertTaskToEvent}
         thirdPartyWebhookUrl={thirdPartyWebhookUrl}
         onUpdateWebhookUrl={(url) => {
@@ -1421,11 +1619,40 @@ export default function App() {
         onClose={() => setIsMapsOpen(false)}
       />
 
-      {/* Document & Spreadsheet Studio Modal (Native PDF & Text/CSV Export) */}
+      {/* Document & Spreadsheet Studio Modal (Native PDF, Text/CSV Export & Google Docs Cloud) */}
       <DocumentSpreadsheetModal
         isOpen={isDocsModalOpen}
         onClose={() => setIsDocsModalOpen(false)}
         initialMode={docsModalMode}
+        currentUser={currentUser}
+        onSignInGoogle={handleGoogleSignInFlow}
+        onNotify={(msg) => {
+          playCyberTone('confirm');
+          speakKokoro(msg, selectedVoiceId);
+        }}
+      />
+
+      {/* Google Contacts & Directory Modal (People API v1) */}
+      <GoogleContactsModal
+        isOpen={isContactsOpen}
+        onClose={() => setIsContactsOpen(false)}
+        currentUser={currentUser}
+        onSignInGoogle={handleGoogleSignInFlow}
+        contacts={contacts}
+        onUpdateContacts={(updated) => setContacts(updated)}
+        onInitiateCall={(contact) => {
+          setIsContactsOpen(false);
+          handleProcessCommand(`Llamar a ${contact.name}`);
+        }}
+        onInitiateMessage={(contact) => {
+          setIsContactsOpen(false);
+          setMessagingState({
+            isOpen: true,
+            recipient: contact.phone || contact.name,
+            initialMessage: '',
+            channel: 'SMS',
+          });
+        }}
         onNotify={(msg) => {
           playCyberTone('confirm');
           speakKokoro(msg, selectedVoiceId);
@@ -1496,6 +1723,23 @@ export default function App() {
         isOpen={isTelemetryOpen}
         onClose={() => setIsTelemetryOpen(false)}
         activeAgentName={activeAgent.name}
+      />
+
+      {/* Help, Shortcuts & FAQ Interactive Center Modal */}
+      <HelpFaqModal
+        isOpen={isHelpOpen}
+        onClose={() => setIsHelpOpen(false)}
+        onExecuteCommand={(cmd) => handleProcessCommand(cmd)}
+        onOpenAgents={() => setIsAgentsModalOpen(true)}
+        onOpenCalendar={() => setIsCalendarOpen(true)}
+        onOpenDocs={() => {
+          setDocsModalMode('document');
+          setIsDocsModalOpen(true);
+        }}
+        onOpenContacts={() => setIsContactsOpen(true)}
+        onOpenTelemetry={() => setIsTelemetryOpen(true)}
+        onOpenVault={() => setIsVaultOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
     </div>
   );

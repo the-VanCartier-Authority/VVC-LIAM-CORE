@@ -7,34 +7,52 @@ import {
   signOut,
   type User,
 } from 'firebase/auth';
+import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 // Initialize Firebase App singleton
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+export const db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId || undefined);
+
+// Validate Firestore connection on boot
+export async function testFirestoreConnection() {
+  try {
+    await getDocFromServer(doc(db, 'test', 'connection'));
+  } catch (error: any) {
+    if (error?.message?.includes('the client is offline')) {
+      console.warn('Firestore client is currently offline or connecting.');
+    }
+  }
+}
+testFirestoreConnection();
 
 // All Google Workspace scopes configured for the application
 export const WORKSPACE_SCOPES = [
+  // Gmail scopes
   'https://mail.google.com/',
-  'https://www.googleapis.com/auth/gmail.addons.current.action.compose',
-  'https://www.googleapis.com/auth/gmail.addons.current.message.action',
-  'https://www.googleapis.com/auth/gmail.addons.current.message.metadata',
-  'https://www.googleapis.com/auth/gmail.addons.current.message.readonly',
-  'https://www.googleapis.com/auth/gmail.compose',
-  'https://www.googleapis.com/auth/gmail.insert',
-  'https://www.googleapis.com/auth/gmail.labels',
-  'https://www.googleapis.com/auth/gmail.metadata',
   'https://www.googleapis.com/auth/gmail.modify',
   'https://www.googleapis.com/auth/gmail.readonly',
   'https://www.googleapis.com/auth/gmail.send',
-  'https://www.googleapis.com/auth/gmail.settings.basic',
-  'https://www.googleapis.com/auth/gmail.settings.sharing',
+  'https://www.googleapis.com/auth/gmail.compose',
+  // Calendar scopes
+  'https://www.googleapis.com/auth/calendar',
+  'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/calendar.readonly',
+  // Docs & Drive scopes
+  'https://www.googleapis.com/auth/documents',
+  'https://www.googleapis.com/auth/documents.readonly',
+  'https://www.googleapis.com/auth/drive',
   'https://www.googleapis.com/auth/drive.file',
-  'https://www.googleapis.com/auth/drive.metadata.readonly',
+  'https://www.googleapis.com/auth/drive.readonly',
+  // Google Contacts (People API) scopes
+  'https://www.googleapis.com/auth/contacts',
+  'https://www.googleapis.com/auth/contacts.readonly',
+  'https://www.googleapis.com/auth/user.emails.read',
+  'https://www.googleapis.com/auth/user.phonenumbers.read',
 ];
 
 const provider = new GoogleAuthProvider();
-// Add all scopes to provider
 WORKSPACE_SCOPES.forEach((scope) => {
   provider.addScope(scope);
 });
@@ -44,7 +62,7 @@ provider.setCustomParameters({
 
 // Flag to indicate ongoing sign-in flow
 let isSigningIn = false;
-// In-memory access token cache (Strict security mandate: never persisted in localStorage)
+// In-memory access token cache (never stored in localStorage)
 let cachedAccessToken: string | null = null;
 
 /**
@@ -70,7 +88,7 @@ export const initAuth = (
 };
 
 /**
- * Sign in with Google Popup and obtain OAuth token with Gmail & Drive scopes
+ * Sign in with Google Popup and obtain OAuth token with Calendar, Docs, Contacts, Gmail & Drive scopes
  */
 export const googleSignIn = async (): Promise<{ user: User; accessToken: string } | null> => {
   try {

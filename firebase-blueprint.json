@@ -1,0 +1,64 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile and sync preferences",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth user identifier" },
+        "email": { "type": "string", "description": "User email address" },
+        "displayName": { "type": "string", "description": "Display name" },
+        "theme": { "type": "string", "description": "Visual theme identifier" },
+        "activeAgentId": { "type": "string", "description": "Active VAOS agent profile ID" },
+        "updatedAt": { "type": "string", "description": "ISO timestamp of last update" }
+      },
+      "required": ["uid", "updatedAt"]
+    },
+    "UserTask": {
+      "title": "UserTask",
+      "description": "Synchronized task item",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Task unique ID" },
+        "userId": { "type": "string", "description": "Owner UID" },
+        "title": { "type": "string", "description": "Task title" },
+        "category": { "type": "string", "description": "Task category tag" },
+        "priority": { "type": "string", "description": "Task priority level" },
+        "isCompleted": { "type": "boolean", "description": "Task completion status" },
+        "dueDate": { "type": "string", "description": "Due date" },
+        "timeDue": { "type": "string", "description": "Due time" },
+        "updatedAt": { "type": "string", "description": "ISO timestamp" }
+      },
+      "required": ["id", "userId", "title", "isCompleted", "updatedAt"]
+    },
+    "UserEvent": {
+      "title": "UserEvent",
+      "description": "Synchronized calendar event",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Event unique ID" },
+        "userId": { "type": "string", "description": "Owner UID" },
+        "title": { "type": "string", "description": "Event title" },
+        "date": { "type": "string", "description": "Event date (YYYY-MM-DD)" },
+        "time": { "type": "string", "description": "Event time" },
+        "category": { "type": "string", "description": "Event category" },
+        "updatedAt": { "type": "string", "description": "ISO timestamp" }
+      },
+      "required": ["id", "userId", "title", "date", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User preferences and cloud sync settings"
+    },
+    "/users/{userId}/tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/UserTask" },
+      "description": "Collection of tasks owned by the authenticated user"
+    },
+    "/users/{userId}/events/{eventId}": {
+      "schema": { "$ref": "#/entities/UserEvent" },
+      "description": "Collection of calendar events owned by the authenticated user"
+    }
+  }
+}

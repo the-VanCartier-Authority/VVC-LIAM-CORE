@@ -756,6 +756,9 @@ export interface PhoneContact {
   phone: string;
   relation?: string;
   favorite?: boolean;
+  email?: string;
+  avatar?: string;
+  isGoogleContact?: boolean;
 }
 
 export interface AlarmItem {

@@ -18,7 +18,8 @@ import {
   Palette,
   FileText,
   Bot,
-  Activity
+  Activity,
+  HelpCircle
 } from 'lucide-react';
 import type { User } from 'firebase/auth';
 import { 
@@ -49,6 +50,8 @@ interface HeaderProps {
   onOpenGmail: () => void;
   onOpenPicker: () => void;
   onOpenMaps: () => void;
+  onOpenContacts?: () => void;
+  onOpenHelp?: () => void;
   currentUser: User | null;
   onSignInGoogle: () => void;
   isMuted: boolean;
@@ -77,6 +80,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenGmail,
   onOpenPicker,
   onOpenMaps,
+  onOpenContacts,
+  onOpenHelp,
   currentUser,
   onSignInGoogle,
   isMuted,
@@ -374,6 +379,18 @@ export const Header: React.FC<HeaderProps> = ({
             <Smartphone className="w-3.5 h-3.5 text-[#b026ff]" />
             <span>Teléfono</span>
           </button>
+
+          {/* Google Contacts People Link */}
+          {onOpenContacts && (
+            <button
+              onClick={onOpenContacts}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono text-slate-300 hover:text-amber-400 hover:bg-[#0f141f] rounded transition-colors"
+              title="Abrir Google Contacts (People API)"
+            >
+              <UserIcon className="w-3.5 h-3.5 text-amber-400" />
+              <span>Contactos</span>
+            </button>
+          )}
         </nav>
 
         {/* Zone 3: Primary Actions and Hardware Toggles */}
@@ -502,6 +519,19 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Help & FAQ Trigger */}
+          {onOpenHelp && (
+            <button
+              onClick={onOpenHelp}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-mono bg-[#090f1d] border border-[var(--primary-accent)]/40 hover:border-[var(--primary-accent)] text-slate-100 hover:text-[var(--primary-accent)] transition-all shadow-[0_0_10px_rgba(0,240,255,0.15)] cursor-pointer"
+              title="Centro de Ayuda, Atajos y FAQs (? o F1)"
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-[var(--primary-accent)]" />
+              <span className="hidden sm:inline font-semibold">Ayuda & FAQ</span>
+              <kbd className="hidden lg:inline text-[9px] px-1 rounded bg-black/40 text-[var(--primary-accent)] font-bold">?</kbd>
+            </button>
+          )}
 
           {/* Settings Trigger */}
           <button

@@ -11,9 +11,23 @@ import {
   FileDown, 
   Printer, 
   Layers, 
-  RefreshCw 
+  RefreshCw,
+  ExternalLink,
+  ShieldCheck,
+  Upload,
+  AlertCircle,
+  FileCheck
 } from 'lucide-react';
 import type { TextDocumentData, SpreadsheetData } from '../types';
+import type { User } from 'firebase/auth';
+import { getAccessToken } from '../services/googleAuth';
+import {
+  listGoogleDocs,
+  getGoogleDoc,
+  createGoogleDoc,
+  insertTextIntoGoogleDoc,
+  type GoogleDocSummary,
+} from '../services/googleDocsService';
 import { 
   exportTextDocumentToPdf, 
   exportSpreadsheetToPdf, 
@@ -24,8 +38,10 @@ import {
 interface DocumentSpreadsheetModalProps {
   isOpen: boolean;
   onClose: () => void;
-  initialMode?: 'document' | 'spreadsheet';
+  initialMode?: 'document' | 'spreadsheet' | 'googledocs';
   onNotify?: (message: string) => void;
+  currentUser?: User | null;
+  onSignInGoogle?: () => void;
 }
 
 const SAMPLE_DOCS: TextDocumentData[] = [
@@ -99,8 +115,10 @@ export const DocumentSpreadsheetModal: React.FC<DocumentSpreadsheetModalProps> =
   onClose,
   initialMode = 'document',
   onNotify,
+  currentUser,
+  onSignInGoogle,
 }) => {
-  const [activeTab, setActiveTab] = useState<'document' | 'spreadsheet'>(initialMode);
+  const [activeTab, setActiveTab] = useState<'document' | 'spreadsheet' | 'googledocs'>(initialMode);
 
   // Document state
   const [currentDoc, setCurrentDoc] = useState<TextDocumentData>(SAMPLE_DOCS[0]);
@@ -112,6 +130,78 @@ export const DocumentSpreadsheetModal: React.FC<DocumentSpreadsheetModalProps> =
 
   // Temporary column input
   const [newColName, setNewColName] = useState('');
+
+  // Google Docs state
+  const [googleDocsList, setGoogleDocsList] = useState<GoogleDocSummary[]>([]);
+  const [isLoadingDocs, setIsLoadingDocs] = useState(false);
+  const [googleDocsError, setGoogleDocsError] = useState<string | null>(null);
+  const [googleDocsSuccess, setGoogleDocsSuccess] = useState<string | null>(null);
+  const [newDocTitle, setNewDocTitle] = useState('');
+  const [docToConfirmCreate, setDocToConfirmCreate] = useState<{ title: string; content?: string } | null>(null);
+
+  const fetchGoogleDocs = async () => {
+    setIsLoadingDocs(true);
+    setGoogleDocsError(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) {
+        setGoogleDocsError('Inicia sesión con Google para acceder a tus Google Docs.');
+        return;
+      }
+      const files = await listGoogleDocs(token);
+      setGoogleDocsList(files);
+      setGoogleDocsSuccess(`✓ ${files.length} documentos encontrados en Google Drive.`);
+      setTimeout(() => setGoogleDocsSuccess(null), 3500);
+    } catch (err: any) {
+      setGoogleDocsError(err.message || 'Error al conectar con Google Docs');
+    } finally {
+      setIsLoadingDocs(false);
+    }
+  };
+
+  const handleLoadDocContent = async (docSummary: GoogleDocSummary) => {
+    setIsLoadingDocs(true);
+    setGoogleDocsError(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error('Token no disponible');
+      const loaded = await getGoogleDoc(token, docSummary.id);
+      setCurrentDoc({
+        id: `gdoc-${loaded.documentId}`,
+        title: loaded.title,
+        date: new Date().toISOString().split('T')[0],
+        content: loaded.bodyText,
+        category: 'general',
+      });
+      setActiveTab('document');
+      setDocFeedback(`✓ Documento "${loaded.title}" cargado en el editor desde Google Docs.`);
+      setTimeout(() => setDocFeedback(null), 3500);
+    } catch (err: any) {
+      setGoogleDocsError(err.message || 'Error al descargar contenido del documento');
+    } finally {
+      setIsLoadingDocs(false);
+    }
+  };
+
+  const confirmCreateGoogleDoc = async () => {
+    if (!docToConfirmCreate) return;
+    setIsLoadingDocs(true);
+    setGoogleDocsError(null);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error('Inicia sesión con Google');
+      const created = await createGoogleDoc(token, docToConfirmCreate.title, docToConfirmCreate.content);
+      setGoogleDocsSuccess(`✓ Documento "${created.name}" creado exitosamente en tu Google Drive.`);
+      setDocToConfirmCreate(null);
+      setNewDocTitle('');
+      fetchGoogleDocs();
+      setTimeout(() => setGoogleDocsSuccess(null), 4000);
+    } catch (err: any) {
+      setGoogleDocsError(err.message || 'Error al crear documento en Google Docs');
+    } finally {
+      setIsLoadingDocs(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -260,6 +350,23 @@ export const DocumentSpreadsheetModal: React.FC<DocumentSpreadsheetModalProps> =
             <Table className="w-3.5 h-3.5" />
             <span>Hoja de Cálculo (.csv / PDF)</span>
           </button>
+
+          <button
+            onClick={() => {
+              setActiveTab('googledocs');
+              if (googleDocsList.length === 0 && currentUser) {
+                fetchGoogleDocs();
+              }
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-t-lg font-semibold text-xs transition-colors ${
+              activeTab === 'googledocs'
+                ? 'bg-[#0f1422] text-emerald-400 border-t-2 border-emerald-400'
+                : 'text-slate-400 hover:text-white hover:bg-[#0c101a]'
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>Google Docs (Cloud)</span>
+          </button>
         </div>
 
         {/* Modal Body */}
@@ -324,6 +431,25 @@ export const DocumentSpreadsheetModal: React.FC<DocumentSpreadsheetModalProps> =
                   >
                     <Download className="w-3.5 h-3.5 text-slate-400" />
                     <span>.MD</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!currentUser) {
+                        setGoogleDocsError('Inicia sesión con Google para guardar en Google Docs.');
+                        setActiveTab('googledocs');
+                        return;
+                      }
+                      setDocToConfirmCreate({
+                        title: currentDoc.title || 'Documento sin título',
+                        content: currentDoc.content,
+                      });
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition-colors"
+                    title="Exportar documento directamente a Google Docs"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Guardar en Google Docs</span>
                   </button>
                   <button
                     type="button"
@@ -566,7 +692,194 @@ export const DocumentSpreadsheetModal: React.FC<DocumentSpreadsheetModalProps> =
               </div>
             </div>
           )}
+
+          {/* TAB 3: GOOGLE DOCS (CLOUD) */}
+          {activeTab === 'googledocs' && (
+            <div className="space-y-4">
+              {/* Google Docs Status Header */}
+              <div className="bg-[#0b0f19] border border-[#1e2638] rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Layers className="w-4 h-4 text-emerald-400" />
+                    <h3 className="font-bold text-white text-xs">
+                      Google Docs & Google Drive (Documentos en la Nube)
+                    </h3>
+                    <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">
+                      {currentUser ? 'CONECTADO' : 'REQUIERE INICIO DE SESIÓN'}
+                    </span>
+                  </div>
+                  <p className="text-slate-400 text-xs">
+                    Lee, redacta y almacena documentos directamente en tu Google Drive con permisos verificados.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {currentUser ? (
+                    <button
+                      type="button"
+                      onClick={fetchGoogleDocs}
+                      disabled={isLoadingDocs}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isLoadingDocs ? 'animate-spin' : ''}`} />
+                      <span>Actualizar Documentos</span>
+                    </button>
+                  ) : onSignInGoogle ? (
+                    <button
+                      type="button"
+                      onClick={onSignInGoogle}
+                      className="px-3 py-1.5 rounded-lg bg-[#00f0ff] hover:bg-[#00c8d7] text-black text-xs font-bold transition-all shadow-[0_0_12px_rgba(0,240,255,0.4)]"
+                    >
+                      Acceder con Google
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+
+              {/* Status alerts */}
+              {googleDocsError && (
+                <div className="p-2.5 rounded-lg bg-red-950/40 border border-red-500/40 text-red-200 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                  <span>{googleDocsError}</span>
+                </div>
+              )}
+              {googleDocsSuccess && (
+                <div className="p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-500/40 text-emerald-200 text-xs flex items-center gap-2">
+                  <FileCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>{googleDocsSuccess}</span>
+                </div>
+              )}
+
+              {/* Create New Google Doc form */}
+              {currentUser && (
+                <div className="p-3.5 rounded-xl bg-[#0b0f19] border border-emerald-500/30 flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="Título del nuevo Google Doc..."
+                    value={newDocTitle}
+                    onChange={(e) => setNewDocTitle(e.target.value)}
+                    className="flex-1 bg-[#06080d] border border-[#1e2638] focus:border-emerald-400 rounded px-3 py-1.5 text-xs text-white focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!newDocTitle.trim()) return;
+                      setDocToConfirmCreate({
+                        title: newDocTitle.trim(),
+                        content: '',
+                      });
+                    }}
+                    className="px-4 py-1.5 rounded bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs shrink-0 transition-colors shadow-[0_0_10px_rgba(52,211,153,0.3)]"
+                  >
+                    Crear Documento
+                  </button>
+                </div>
+              )}
+
+              {/* Google Docs List */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-slate-400 text-[11px]">
+                  <span>Documentos en tu Google Drive ({googleDocsList.length})</span>
+                  <span className="text-emerald-400 flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    Google Docs API v1
+                  </span>
+                </div>
+
+                {googleDocsList.length === 0 ? (
+                  <div className="text-center py-8 text-slate-500 border border-dashed border-[#1e2638] rounded-xl">
+                    <Layers className="w-8 h-8 mx-auto mb-2 opacity-40 text-emerald-400" />
+                    <p>No se encontraron Google Docs cargados</p>
+                    <p className="text-[10px] text-slate-600 mt-1">
+                      {currentUser
+                        ? 'Presiona "Actualizar Documentos" para listar tus archivos.'
+                        : 'Inicia sesión con Google para acceder a tus documentos de Drive.'}
+                    </p>
+                  </div>
+                ) : (
+                  googleDocsList.map((docItem) => (
+                    <div
+                      key={docItem.id}
+                      className="p-3 rounded-xl bg-[#0b0f19] border border-[#1e2638] hover:border-emerald-500/40 flex items-center justify-between gap-3 transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white text-xs truncate">{docItem.name}</span>
+                          <span className="text-[9px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/30">
+                            Google Doc
+                          </span>
+                        </div>
+                        {docItem.modifiedTime && (
+                          <span className="text-[10px] text-slate-500 block mt-0.5">
+                            Modificado: {new Date(docItem.modifiedTime).toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleLoadDocContent(docItem)}
+                          disabled={isLoadingDocs}
+                          className="px-3 py-1.5 rounded-lg bg-[#141a29] hover:bg-[#1a233b] text-cyan-400 border border-[#1e2638] text-[10px] font-semibold transition-colors"
+                          title="Cargar texto en editor local"
+                        >
+                          Cargar en Editor
+                        </button>
+
+                        {docItem.webViewLink && (
+                          <a
+                            href={docItem.webViewLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-semibold flex items-center gap-1 transition-colors"
+                            title="Abrir en Google Docs oficial"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            <span>Abrir</span>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Confirmation Modal for Google Docs mutations */}
+        {docToConfirmCreate && (
+          <div className="absolute inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-[#0b0f19] border border-emerald-500/50 rounded-xl p-5 max-w-sm w-full space-y-4 shadow-[0_0_30px_rgba(52,211,153,0.3)]">
+              <div className="flex items-center gap-2 text-emerald-400">
+                <AlertCircle className="w-5 h-5" />
+                <h4 className="font-bold text-white text-sm">¿Crear Google Doc en Drive?</h4>
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                ¿Confirmas la creación del documento{' '}
+                <strong className="text-white">"{docToConfirmCreate.title}"</strong> directamente en tu cuenta de Google Drive?
+              </p>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDocToConfirmCreate(null)}
+                  className="px-3 py-1.5 rounded-lg bg-[#141a29] hover:bg-[#1a233b] text-slate-300 text-xs"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmCreateGoogleDoc}
+                  disabled={isLoadingDocs}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs"
+                >
+                  {isLoadingDocs ? 'Creando...' : 'Confirmar Creación'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

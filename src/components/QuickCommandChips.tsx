@@ -15,7 +15,8 @@ import {
   Bell,
   FileText,
   Table,
-  Bot
+  Bot,
+  HelpCircle
 } from 'lucide-react';
 
 interface QuickCommandChipsProps {
@@ -31,6 +32,12 @@ interface ChipItem {
 }
 
 const CHIPS: ChipItem[] = [
+  {
+    label: '❓ Manual & FAQs',
+    command: 'Abrir centro de ayuda y atajos',
+    icon: <HelpCircle className="w-3 h-3 text-[#00f0ff]" />,
+    category: 'sync',
+  },
   {
     label: '⚡ Telemetría D3 (VAOS)',
     command: 'Abrir telemetría y rendimiento VAOS',
@@ -116,10 +123,22 @@ const CHIPS: ChipItem[] = [
     category: 'sync',
   },
   {
-    label: '🗺️ Google Maps',
-    command: 'Abrir Google Maps',
-    icon: <CheckSquare className="w-3 h-3 text-cyan-400" />,
-    category: 'device',
+    label: '👥 Google Contacts',
+    command: 'Abrir contactos',
+    icon: <Bot className="w-3 h-3 text-amber-400" />,
+    category: 'sync',
+  },
+  {
+    label: '📝 Google Docs Cloud',
+    command: 'Abrir Google Docs',
+    icon: <FileText className="w-3 h-3 text-emerald-400" />,
+    category: 'sync',
+  },
+  {
+    label: '🔥 Firebase Firestore',
+    command: 'Verificar sincronización con Firebase',
+    icon: <Share2 className="w-3 h-3 text-orange-400" />,
+    category: 'sync',
   },
   {
     label: 'Nueva Tarea Urgente',
