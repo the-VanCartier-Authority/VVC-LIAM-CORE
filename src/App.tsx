@@ -22,9 +22,9 @@ import { GoogleDrivePickerModal } from './components/GoogleDrivePickerModal';
 import { GoogleMapsPanel } from './components/GoogleMapsPanel';
 import { DocumentSpreadsheetModal } from './components/DocumentSpreadsheetModal';
 import { GoogleContactsModal } from './components/GoogleContactsModal';
+import { HelpCenterModal } from './components/HelpCenterModal';
 import { AgentsModal } from './components/AgentsModal';
 import { TelemetryPanel } from './components/TelemetryPanel';
-import { HelpFaqModal } from './components/HelpFaqModal';
 import { platformService } from './core/adapters/PlatformService';
 import { initAuth, googleSignIn } from './services/googleAuth';
 import {
@@ -503,88 +503,6 @@ export default function App() {
     };
   }, []);
 
-  // Global Keyboard Shortcuts Listener
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const activeTag = (document.activeElement?.tagName || '').toLowerCase();
-      const isInput =
-        activeTag === 'input' ||
-        activeTag === 'textarea' ||
-        (document.activeElement as HTMLElement)?.isContentEditable;
-
-      // Escape to close active modals
-      if (e.key === 'Escape') {
-        setIsHelpOpen(false);
-        setIsCalendarOpen(false);
-        setIsDocsModalOpen(false);
-        setIsContactsOpen(false);
-        setIsAgentsModalOpen(false);
-        setIsTelemetryOpen(false);
-        setIsSettingsOpen(false);
-        setIsVaultOpen(false);
-        setIsDeviceControlsOpen(false);
-        setIsGmailOpen(false);
-        setIsPickerOpen(false);
-        setIsMapsOpen(false);
-        setIsInstallModalOpen(false);
-        setIsScreenTorchOpen(false);
-        return;
-      }
-
-      // Help shortcuts: '?' or 'F1' when not inside text fields
-      if ((e.key === '?' && !isInput) || e.key === 'F1') {
-        e.preventDefault();
-        setIsHelpOpen((prev) => !prev);
-        return;
-      }
-
-      // Alt + H for Help & FAQ
-      if (e.altKey && (e.key === 'h' || e.key === 'H')) {
-        e.preventDefault();
-        setIsHelpOpen((prev) => !prev);
-        return;
-      }
-
-      // Alt + C for Calendar
-      if (e.altKey && (e.key === 'c' || e.key === 'C')) {
-        e.preventDefault();
-        setIsCalendarOpen((prev) => !prev);
-        return;
-      }
-
-      // Alt + D for Docs
-      if (e.altKey && (e.key === 'd' || e.key === 'D')) {
-        e.preventDefault();
-        setIsDocsModalOpen((prev) => !prev);
-        return;
-      }
-
-      // Alt + U for Contacts
-      if (e.altKey && (e.key === 'u' || e.key === 'U')) {
-        e.preventDefault();
-        setIsContactsOpen((prev) => !prev);
-        return;
-      }
-
-      // Alt + A for Agents
-      if (e.altKey && (e.key === 'a' || e.key === 'A')) {
-        e.preventDefault();
-        setIsAgentsModalOpen((prev) => !prev);
-        return;
-      }
-
-      // Alt + T for Telemetry
-      if (e.altKey && (e.key === 't' || e.key === 'T')) {
-        e.preventDefault();
-        setIsTelemetryOpen((prev) => !prev);
-        return;
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
   // Service Worker Initialization & Background Notification Click Handler
   useEffect(() => {
     registerServiceWorker().then((reg) => {
@@ -960,7 +878,7 @@ export default function App() {
             setIsContactsOpen(true);
           }
 
-          // Handle Help & FAQ Intent
+          // Handle Help Center Intent
           if (intentResult.openHelp) {
             setIsHelpOpen(true);
           }
@@ -1296,7 +1214,6 @@ export default function App() {
         onOpenPicker={() => setIsPickerOpen(true)}
         onOpenMaps={() => setIsMapsOpen(true)}
         onOpenContacts={() => setIsContactsOpen(true)}
-        onOpenHelp={() => setIsHelpOpen(true)}
         currentUser={currentUser}
         onSignInGoogle={handleGoogleSignInFlow}
         isMuted={deviceState.isMuted}
@@ -1308,6 +1225,7 @@ export default function App() {
           setCurrentTheme(theme);
           playCyberTone('confirm');
         }}
+        onOpenHelp={() => setIsHelpOpen(true)}
       />
 
       {/* Real-Time Live Notification Alerts Toast */}
@@ -1725,21 +1643,11 @@ export default function App() {
         activeAgentName={activeAgent.name}
       />
 
-      {/* Help, Shortcuts & FAQ Interactive Center Modal */}
-      <HelpFaqModal
+      {/* Interactive Help Center Modal (FAQs, Voice Shortcuts & System Guide) */}
+      <HelpCenterModal
         isOpen={isHelpOpen}
         onClose={() => setIsHelpOpen(false)}
-        onExecuteCommand={(cmd) => handleProcessCommand(cmd)}
-        onOpenAgents={() => setIsAgentsModalOpen(true)}
-        onOpenCalendar={() => setIsCalendarOpen(true)}
-        onOpenDocs={() => {
-          setDocsModalMode('document');
-          setIsDocsModalOpen(true);
-        }}
-        onOpenContacts={() => setIsContactsOpen(true)}
-        onOpenTelemetry={() => setIsTelemetryOpen(true)}
-        onOpenVault={() => setIsVaultOpen(true)}
-        onOpenSettings={() => setIsSettingsOpen(true)}
+        onExecuteVoiceCommand={(cmd) => handleProcessCommand(cmd)}
       />
     </div>
   );

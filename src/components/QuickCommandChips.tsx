@@ -15,8 +15,7 @@ import {
   Bell,
   FileText,
   Table,
-  Bot,
-  HelpCircle
+  Bot
 } from 'lucide-react';
 
 interface QuickCommandChipsProps {
@@ -33,15 +32,15 @@ interface ChipItem {
 
 const CHIPS: ChipItem[] = [
   {
-    label: '❓ Manual & FAQs',
-    command: 'Abrir centro de ayuda y atajos',
-    icon: <HelpCircle className="w-3 h-3 text-[#00f0ff]" />,
-    category: 'sync',
-  },
-  {
     label: '⚡ Telemetría D3 (VAOS)',
     command: 'Abrir telemetría y rendimiento VAOS',
     icon: <Bot className="w-3 h-3 text-[#00FF66]" />,
+    category: 'sync',
+  },
+  {
+    label: '❓ Centro de Ayuda & Atajos',
+    command: 'Abrir centro de ayuda',
+    icon: <Bot className="w-3 h-3 text-amber-400" />,
     category: 'sync',
   },
   {

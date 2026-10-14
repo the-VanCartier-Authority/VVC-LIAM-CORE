@@ -938,24 +938,23 @@ export function parseNaturalVoiceCommand(
     };
   }
 
-  // 19.3 CENTRO DE AYUDA, ATAJOS Y FAQS
+  // 19.3 CENTRO DE AYUDA, FAQS Y GUÍA OPERATIVA
   if (
     query.includes('ayuda') ||
-    query.includes('manual') ||
-    query.includes('atajos') ||
-    query.includes('faq') ||
+    query.includes('centro de ayuda') ||
     query.includes('preguntas frecuentes') ||
+    query.includes('atajos de voz') ||
+    query.includes('manual') ||
     query.includes('guía') ||
     query.includes('guia') ||
-    query.includes('cómo usar') ||
-    query.includes('como usar') ||
-    query.includes('instrucciones')
+    query.includes('cómo funciona') ||
+    query.includes('como funciona')
   ) {
     return {
       isHandled: true,
-      spokenResponse: 'Desplegando el Centro de Ayuda, Guía Operativa, atajos de teclado y preguntas frecuentes de VVC LIAM CORE.',
+      spokenResponse: 'Desplegando el Centro de Ayuda con preguntas frecuentes, atajos de voz y documentación del sistema.',
       actionType: 'security',
-      actionDetails: 'Centro de Ayuda & FAQ desplegado',
+      actionDetails: 'Centro de Ayuda & Guía Operativa desplegado',
       openHelp: true,
     };
   }

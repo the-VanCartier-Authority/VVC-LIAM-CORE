@@ -51,7 +51,6 @@ interface HeaderProps {
   onOpenPicker: () => void;
   onOpenMaps: () => void;
   onOpenContacts?: () => void;
-  onOpenHelp?: () => void;
   currentUser: User | null;
   onSignInGoogle: () => void;
   isMuted: boolean;
@@ -60,6 +59,7 @@ interface HeaderProps {
   onOpenInstallModal: () => void;
   currentTheme: ThemeColorId;
   onSelectTheme: (theme: ThemeColorId) => void;
+  onOpenHelp?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -81,7 +81,6 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenPicker,
   onOpenMaps,
   onOpenContacts,
-  onOpenHelp,
   currentUser,
   onSignInGoogle,
   isMuted,
@@ -90,6 +89,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenInstallModal,
   currentTheme,
   onSelectTheme,
+  onOpenHelp,
 }) => {
   const currentModelInfo = AVAILABLE_MODELS.find((m) => m.id === currentModel) || AVAILABLE_MODELS[0];
   const currentCloudInfo = CLOUD_INTEGRATIONS.find((c) => c.id === currentCloudIntegration) || CLOUD_INTEGRATIONS[0];
@@ -520,16 +520,15 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          {/* Help & FAQ Trigger */}
+          {/* Help Center Trigger */}
           {onOpenHelp && (
             <button
               onClick={onOpenHelp}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-mono bg-[#090f1d] border border-[var(--primary-accent)]/40 hover:border-[var(--primary-accent)] text-slate-100 hover:text-[var(--primary-accent)] transition-all shadow-[0_0_10px_rgba(0,240,255,0.15)] cursor-pointer"
-              title="Centro de Ayuda, Atajos y FAQs (? o F1)"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-amber-400 text-slate-100 hover:text-amber-400 transition-all shadow-sm cursor-pointer"
+              title="Centro de Ayuda, Preguntas Frecuentes y Atajos de Voz"
             >
-              <HelpCircle className="w-3.5 h-3.5 text-[var(--primary-accent)]" />
-              <span className="hidden sm:inline font-semibold">Ayuda & FAQ</span>
-              <kbd className="hidden lg:inline text-[9px] px-1 rounded bg-black/40 text-[var(--primary-accent)] font-bold">?</kbd>
+              <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline">Ayuda</span>
             </button>
           )}
 
