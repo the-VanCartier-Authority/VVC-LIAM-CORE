@@ -77,6 +77,20 @@
         }, true);
       })();
     </script>
+    <script>
+      // Immediate Service Worker registration for rapid PWA compliance & audit detection
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js', { scope: '/' })
+            .then(function(reg) {
+              console.log('[PWA] Service Worker registrado exitosamente en scope:', reg.scope);
+            })
+            .catch(function(err) {
+              console.warn('[PWA] Error registrando Service Worker:', err);
+            });
+        });
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

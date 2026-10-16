@@ -72,7 +72,28 @@ interface PushSubRecord {
 }
 const pushSubscriptions = new Map<string, PushSubRecord>();
 
-// Service Worker Direct Routes with proper MIME type and scope headers
+// Service Worker & PWA Direct Routes with proper MIME type and scope headers
+app.get('/manifest.json', (_req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.sendFile(path.resolve(__dirname, 'public', 'manifest.json'));
+});
+
+app.get('/manifest.webmanifest', (_req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.sendFile(path.resolve(__dirname, 'public', 'manifest.json'));
+});
+
+app.get('/offline.html', (_req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.sendFile(path.resolve(__dirname, 'public', 'offline.html'));
+});
+
+app.get('/favicon.ico', (_req: Request, res: Response) => {
+  res.sendFile(path.resolve(__dirname, 'public', 'favicon.ico'));
+});
+
 app.get('/sw.js', (_req: Request, res: Response) => {
   res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
   res.setHeader('Service-Worker-Allowed', '/');

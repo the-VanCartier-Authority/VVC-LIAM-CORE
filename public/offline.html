@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VVC LIAM CORE // Modo Desconectado</title>
+  <meta name="theme-color" content="#0A060D" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background-color: #0A060D;
+      color: #E2E8F0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .grid-bg {
+      position: absolute;
+      inset: 0;
+      background-image: 
+        linear-gradient(to right, rgba(0, 255, 102, 0.04) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0, 255, 102, 0.04) 1px, transparent 1px);
+      background-size: 32px 32px;
+      pointer-events: none;
+    }
+    .card {
+      position: relative;
+      background: #120C18;
+      border: 1px solid #261833;
+      border-radius: 1rem;
+      padding: 2.5rem 2rem;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8), 0 0 40px rgba(0, 255, 102, 0.08);
+    }
+    .logo-container {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 1.5rem;
+      border-radius: 1rem;
+      background: #0A060D;
+      border: 1px solid rgba(0, 255, 102, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 20px rgba(0, 255, 102, 0.2);
+    }
+    .logo-container img {
+      width: 44px;
+      height: 44px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #F87171;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      border-radius: 9999px;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #FFFFFF;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.02em;
+    }
+    p {
+      color: #94A3B8;
+      font-size: 0.925rem;
+      line-height: 1.5;
+      margin-bottom: 1.75rem;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      width: 100%;
+      padding: 0.85rem 1.25rem;
+      background: #00FF66;
+      color: #0A060D;
+      font-weight: 700;
+      font-size: 0.9rem;
+      border-radius: 0.5rem;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 0 15px rgba(0, 255, 102, 0.3);
+    }
+    .btn:hover {
+      background: #00E65C;
+      transform: translateY(-1px);
+      box-shadow: 0 0 25px rgba(0, 255, 102, 0.5);
+    }
+    .features {
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 0.8rem;
+      color: #64748B;
+      text-align: left;
+    }
+    .features li {
+      list-style: none;
+      margin-bottom: 0.4rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .features li::before {
+      content: "✓";
+      color: #00FF66;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="grid-bg"></div>
+  <div class="card">
+    <div class="logo-container">
+      <img src="/icon.svg" alt="VVC LIAM CORE" />
+    </div>
+    <span class="badge">📡 Modo Local Sin Conexión</span>
+    <h1>VVC LIAM CORE</h1>
+    <p>
+      El núcleo operativo está en modo autónomo local. Tus datos locales, bóveda cifrada AES-GCM y tareas en caché permanecen seguros y disponibles en este dispositivo.
+    </p>
+    <button class="btn" onclick="window.location.reload()">
+      ⚡ Reintentar Conexión
+    </button>
+    <ul class="features">
+      <li>Bóveda cifrada disponible en memoria local</li>
+      <li>Orquestador RT-Lite activo en sandbox</li>
+      <li>Sincronización diferida al restablecer red</li>
+    </ul>
+  </div>
+</body>
+</html>

@@ -1,15 +1,18 @@
 // VVC LIAM CORE // Native Service Worker for Background Push Notifications & Offline Caching
-const CACHE_NAME = 'vvc-liam-core-cache-v1';
+const CACHE_NAME = 'vvc-liam-core-cache-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
+  '/offline.html',
   '/manifest.json',
   '/favicon.ico',
   '/apple-touch-icon.png',
   '/icon.svg',
   '/pwa-192x192.png',
   '/pwa-512x512.png',
-  '/pwa-maskable-512x512.png'
+  '/pwa-maskable-512x512.png',
+  '/screenshot-desktop.png',
+  '/screenshot-mobile.png'
 ];
 
 // Install: Cache core assets and activate immediately
@@ -39,7 +42,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch: Network first with cache fallback for static assets
+// Fetch: Network first with cache fallback for static assets and offline page
 self.addEventListener('fetch', (event) => {
   // Ignore API requests, non-GET requests, and dev bundling endpoints
   if (
@@ -65,16 +68,20 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       })
-      .catch(() => {
+      .catch(async () => {
         // Fallback to cache if offline
-        return caches.match(event.request).then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
+        const cachedResponse = await caches.match(event.request);
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        if (event.request.mode === 'navigate') {
+          const offlinePage = await caches.match('/offline.html');
+          if (offlinePage) {
+            return offlinePage;
           }
-          if (event.request.mode === 'navigate') {
-            return caches.match('/');
-          }
-        });
+          return caches.match('/');
+        }
+        return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
       })
   );
 });

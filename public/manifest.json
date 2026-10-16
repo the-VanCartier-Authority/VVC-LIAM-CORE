@@ -3,12 +3,25 @@
   "name": "VVC LIAM CORE",
   "short_name": "LIAM CORE",
   "description": "Control // Analyze // Execute. Orquestador de agentes autónomos, telemetría y arquitectura multiplataforma.",
-  "theme_color": "#0A060D",
-  "background_color": "#0A060D",
-  "display": "standalone",
-  "orientation": "portrait",
+  "lang": "es",
+  "dir": "ltr",
   "start_url": "/",
   "scope": "/",
+  "display": "standalone",
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "portrait",
+  "theme_color": "#0A060D",
+  "background_color": "#0A060D",
+  "categories": [
+    "productivity",
+    "utilities",
+    "business"
+  ],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/pwa-192x192.png",
@@ -27,6 +40,84 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-desktop.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "VVC LIAM CORE - Consola Principal"
+    },
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "VVC LIAM CORE - Interfaz Móvil"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Consola de Comandos",
+      "short_name": "Consola",
+      "description": "Abrir la consola interactiva de voz y texto",
+      "url": "/?mode=console",
+      "icons": [
+        {
+          "src": "/pwa-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Agentes Especializados",
+      "short_name": "Agentes",
+      "description": "Bifurcación de agentes Vladimir, Valentina y Victoria",
+      "url": "/?mode=agents",
+      "icons": [
+        {
+          "src": "/pwa-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Telemetría VAOS",
+      "short_name": "Telemetría",
+      "description": "Monitor de rendimiento y métricas operativas",
+      "url": "/?mode=telemetry",
+      "icons": [
+        {
+          "src": "/pwa-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Centro de Ayuda",
+      "short_name": "Ayuda",
+      "description": "Manual operativo, atajos de voz y preguntas frecuentes",
+      "url": "/?mode=help",
+      "icons": [
+        {
+          "src": "/pwa-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }
