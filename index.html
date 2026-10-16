@@ -20,6 +20,63 @@
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
+    <script>
+      // Graceful handling of Vite HMR WebSocket in Cloud Run / iframe environment
+      (function() {
+        if (typeof window !== 'undefined' && window.WebSocket) {
+          const OrigWebSocket = window.WebSocket;
+          class ViteHmrMockSocket extends EventTarget {
+            constructor(url, protocols) {
+              super();
+              this.url = url;
+              this.protocols = protocols;
+              this.readyState = 0;
+              this.OPEN = 1;
+              this.CLOSED = 3;
+              setTimeout(() => {
+                this.readyState = 1;
+                this.dispatchEvent(new Event('open'));
+              }, 10);
+            }
+            send(_data) {}
+            close() {
+              this.readyState = 3;
+              this.dispatchEvent(new Event('close'));
+            }
+          }
+          ViteHmrMockSocket.CONNECTING = 0;
+          ViteHmrMockSocket.OPEN = 1;
+          ViteHmrMockSocket.CLOSING = 2;
+          ViteHmrMockSocket.CLOSED = 3;
+
+          const PatchedWebSocket = function(url, protocols) {
+            const isViteHmr =
+              (typeof protocols === 'string' && protocols === 'vite-hmr') ||
+              (Array.isArray(protocols) && protocols.includes('vite-hmr')) ||
+              (typeof url === 'string' && url.includes('token=') && url.includes('vite'));
+            if (isViteHmr) {
+              return new ViteHmrMockSocket(url, protocols);
+            }
+            return new OrigWebSocket(url, protocols);
+          };
+          PatchedWebSocket.CONNECTING = 0;
+          PatchedWebSocket.OPEN = 1;
+          PatchedWebSocket.CLOSING = 2;
+          PatchedWebSocket.CLOSED = 3;
+          PatchedWebSocket.prototype = OrigWebSocket.prototype;
+          window.WebSocket = PatchedWebSocket;
+        }
+
+        window.addEventListener('unhandledrejection', function(event) {
+          const reason = event && event.reason;
+          const msg = (reason && (reason.message || reason.stack || String(reason))) || '';
+          if (msg.includes('WebSocket') || msg.includes('createWebSocketModuleRunnerTransport')) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+          }
+        }, true);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

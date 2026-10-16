@@ -1,26 +1,26 @@
-// VVC-ACIA Obsidian Core // Native Push Notification & Background Alert Service Worker Listener
-console.log('[VVC-ACIA SW] Push & Background Worker Loaded');
+// VVC LIAM CORE // Native Push Notification & Background Alert Service Worker Listener
+console.log('[VVC LIAM SW] Push & Background Worker Loaded');
 
 // Native Push Event: Handles incoming Web Push notifications from server
 self.addEventListener('push', (event) => {
-  console.log('[VVC-ACIA SW] Push notification event received:', event);
+  console.log('[VVC LIAM SW] Push notification event received:', event);
 
   let data = {};
   if (event.data) {
     try {
       data = event.data.json();
     } catch {
-      data = { title: 'VVC-ACIA // Alerta', body: event.data.text() };
+      data = { title: 'VVC LIAM CORE // Alerta', body: event.data.text() };
     }
   }
 
-  const title = data.title || 'VVC-ACIA // Alerta en Segundo Plano';
+  const title = data.title || 'VVC LIAM CORE // Alerta en Segundo Plano';
   const options = {
     body: data.body || 'Alerta o recordatorio programado en segundo plano.',
     icon: data.icon || '/pwa-192x192.png',
     badge: data.badge || '/pwa-192x192.png',
     vibrate: [200, 100, 200, 100, 300],
-    tag: data.tag || `vvc-acia-${Date.now()}`,
+    tag: data.tag || `vvc-liam-${Date.now()}`,
     renotify: true,
     requireInteraction: data.requireInteraction !== false,
     data: {
@@ -96,13 +96,13 @@ self.addEventListener('message', (event) => {
       ...options,
     };
 
-    self.registration.showNotification(title || 'VVC-ACIA // Alerta', notificationOptions);
+    self.registration.showNotification(title || 'VVC LIAM CORE // Alerta', notificationOptions);
   }
 
   if (event.data.type === 'SCHEDULE_BACKGROUND_NOTIFICATION') {
     const { title, options, delayMs = 5000 } = event.data;
     setTimeout(() => {
-      self.registration.showNotification(title || 'VVC-ACIA // Alerta Programada', {
+      self.registration.showNotification(title || 'VVC LIAM CORE // Alerta Programada', {
         body: options?.body || 'Recordatorio en segundo plano.',
         icon: '/pwa-192x192.png',
         badge: '/pwa-192x192.png',

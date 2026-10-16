@@ -1,128 +1,148 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { 
   Phone, 
   PhoneOff, 
-  Mic, 
-  MicOff, 
-  Volume2, 
-  VolumeX, 
-  ShieldCheck, 
-  User, 
-  Grid 
+  Smartphone, 
+  MessageSquare,
+  Copy,
+  Check,
+  Grid,
+  ExternalLink,
+  ShieldCheck
 } from 'lucide-react';
 import type { ActiveCall } from '../types';
 
 interface PhoneActionModalProps {
   call: ActiveCall;
   onEndCall: () => void;
-  onToggleMute: () => void;
-  onToggleSpeaker: () => void;
+  onToggleMute?: () => void;
+  onToggleSpeaker?: () => void;
 }
 
 export const PhoneActionModal: React.FC<PhoneActionModalProps> = ({
   call,
   onEndCall,
-  onToggleMute,
-  onToggleSpeaker,
 }) => {
-  const [duration, setDuration] = useState(0);
   const [showKeypad, setShowKeypad] = useState(false);
   const [enteredDigits, setEnteredDigits] = useState('');
-
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (call.inCall && call.state === 'connected') {
-      timer = setInterval(() => {
-        setDuration((prev) => prev + 1);
-      }, 1000);
-    } else {
-      setDuration(0);
-    }
-    return () => clearInterval(timer);
-  }, [call.inCall, call.state]);
+  const [copied, setCopied] = useState(false);
 
   if (!call.inCall) return null;
 
-  const formatDuration = (secs: number) => {
-    const mins = Math.floor(secs / 60);
-    const remainder = secs % 60;
-    return `${mins.toString().padStart(2, '0')}:${remainder.toString().padStart(2, '0')}`;
-  };
+  const rawPhone = call.phoneNumber || '';
+  const cleanPhone = rawPhone.replace(/[^\d+]/g, '');
+  const dialerUri = enteredDigits ? `tel:${cleanPhone},${enteredDigits}` : `tel:${cleanPhone}`;
+  const whatsappUri = `https://api.whatsapp.com/send?phone=${cleanPhone.replace(/^\+/, '')}`;
 
   const handleDigit = (digit: string) => {
     setEnteredDigits((prev) => prev + digit);
   };
 
+  const handleCopyPhone = () => {
+    navigator.clipboard.writeText(cleanPhone || rawPhone);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDirectDial = () => {
+    try {
+      window.location.href = dialerUri;
+    } catch (e) {
+      console.warn('Direct dial dispatch notice:', e);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in font-mono">
       <div className="w-full max-w-sm bg-[#080b12] border border-[#1e2638] rounded-2xl p-6 shadow-[0_0_50px_rgba(0,240,255,0.2)] flex flex-col items-center relative overflow-hidden">
         {/* Glow ambient background */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-[#00f0ff]/10 rounded-full blur-3xl pointer-events-none" />
 
-        {/* E2EE Call Security Badge */}
-        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono mb-6">
-          <ShieldCheck className="w-3.5 h-3.5" />
-          <span>Llamada Cifrada E2EE (TLS-SRTP)</span>
+        {/* Real Phone Protocol Badge */}
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs mb-5">
+          <Smartphone className="w-3.5 h-3.5" />
+          <span>Marcador Móvil Directo (Protocolo tel:)</span>
         </div>
 
         {/* Caller Avatar */}
-        <div className="relative mb-4">
-          <div className="w-24 h-24 rounded-full bg-[#0e1424] border-2 border-[#00f0ff] flex items-center justify-center shadow-[0_0_20px_rgba(0,240,255,0.4)]">
-            <User className="w-12 h-12 text-[#00f0ff]" />
+        <div className="relative mb-3">
+          <div className="w-20 h-20 rounded-full bg-[#0e1424] border-2 border-[#00f0ff] flex items-center justify-center shadow-[0_0_20px_rgba(0,240,255,0.4)]">
+            <Phone className="w-9 h-9 text-[#00f0ff] animate-pulse" />
           </div>
-          {call.state === 'connected' && (
-            <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-emerald-500 border-2 border-[#080b12] flex items-center justify-center">
-              <span className="w-2 h-2 rounded-full bg-white animate-ping" />
-            </span>
-          )}
         </div>
 
         {/* Contact Name & Phone */}
-        <h3 className="text-xl font-bold font-mono text-white tracking-wide text-center">
+        <h3 className="text-lg font-bold text-white tracking-wide text-center">
           {call.contactName}
         </h3>
-        <p className="text-xs font-mono text-slate-400 mt-1">
-          {call.phoneNumber}
-        </p>
-
-        {/* Call State / Duration */}
-        <div className="mt-3 text-sm font-mono text-[#00f0ff] tracking-widest tabular-nums">
-          {call.state === 'calling' ? (
-            <span className="animate-pulse">LLAMANDO...</span>
-          ) : (
-            <span>{formatDuration(duration)}</span>
-          )}
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-xs text-slate-300">{rawPhone}</span>
+          <button
+            onClick={handleCopyPhone}
+            className="p-1 text-slate-400 hover:text-white rounded"
+            title="Copiar número"
+          >
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+          </button>
         </div>
 
-        {/* Real Native Dialer Integration */}
-        <div className="mt-4 w-full">
+        {/* Primary Action: Direct Device Phone Call */}
+        <div className="mt-5 w-full space-y-2.5">
           <a
-            href={`tel:${call.phoneNumber.replace(/[^\d+]/g, '')}`}
-            className="w-full py-2 px-3 rounded-lg bg-emerald-500/15 border border-emerald-500/40 hover:bg-emerald-500/25 text-emerald-400 hover:text-emerald-300 text-xs font-mono font-semibold flex items-center justify-center gap-2 transition-all shadow-sm"
-            onClick={(e) => {
-              // Ensure we don't break if phone protocol is blocked
-              try {
-                window.location.href = `tel:${call.phoneNumber.replace(/[^\d+]/g, '')}`;
-              } catch {}
-            }}
+            href={dialerUri}
+            onClick={handleDirectDial}
+            className="w-full py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(16,185,129,0.4)]"
           >
-            <Phone className="w-3.5 h-3.5" />
-            <span>Abrir Marcador Telefónico Real (Llamada Celular)</span>
+            <Phone className="w-4 h-4 fill-current" />
+            <span>Llamar Ahora con Marcador del Teléfono</span>
+          </a>
+
+          {/* Secondary Action: WhatsApp */}
+          <a
+            href={whatsappUri}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full py-2 px-3 rounded-xl bg-[#0f1523] border border-[#1e2638] hover:border-emerald-500/40 text-slate-200 hover:text-white text-xs flex items-center justify-center gap-2 transition-all"
+          >
+            <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Contactar vía WhatsApp</span>
           </a>
         </div>
 
-        {/* Keypad if active */}
+        {/* Keypad Toggle Button */}
+        <div className="w-full mt-3 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setShowKeypad(!showKeypad)}
+            className="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1.5 py-1 px-2.5 rounded bg-cyan-950/40 border border-cyan-800/40"
+          >
+            <Grid className="w-3 h-3" />
+            <span>{showKeypad ? 'Ocultar teclado DTMF' : 'Abrir teclado / extensión'}</span>
+          </button>
+        </div>
+
+        {/* DTMF Keypad */}
         {showKeypad && (
-          <div className="w-full mt-4 p-3 bg-[#0d121f] rounded-xl border border-[#1e2638] text-center animate-fade-in">
-            <div className="text-sm font-mono text-white mb-2 h-6 tracking-widest">
-              {enteredDigits || 'Pulsa un dígito'}
+          <div className="w-full mt-3 p-3 bg-[#0d121f] rounded-xl border border-[#1e2638] text-center animate-fade-in">
+            <div className="text-xs text-white mb-2 h-5 tracking-widest font-mono flex items-center justify-between px-2">
+              <span>Extensión: {enteredDigits || '—'}</span>
+              {enteredDigits && (
+                <button
+                  type="button"
+                  onClick={() => setEnteredDigits('')}
+                  className="text-[10px] text-slate-400 hover:text-white"
+                >
+                  Limpiar
+                </button>
+              )}
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-1.5">
               {['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'].map((d) => (
                 <button
                   key={d}
+                  type="button"
                   onClick={() => handleDigit(d)}
-                  className="py-2 rounded bg-[#141b2e] hover:bg-[#1a233b] text-slate-200 font-mono text-sm border border-[#1e2638] transition-colors"
+                  className="py-1.5 rounded bg-[#141b2e] hover:bg-[#1a233b] text-slate-200 text-xs border border-[#1e2638] transition-colors"
                 >
                   {d}
                 </button>
@@ -131,56 +151,18 @@ export const PhoneActionModal: React.FC<PhoneActionModalProps> = ({
           </div>
         )}
 
-        {/* In-Call Actions */}
-        <div className="grid grid-cols-3 gap-4 w-full mt-6 mb-6">
-          {/* Mute */}
+        {/* Close Button */}
+        <div className="mt-5 w-full pt-3 border-t border-[#1e2638] flex items-center justify-center">
           <button
-            onClick={onToggleMute}
-            className={`flex flex-col items-center justify-center py-3 rounded-xl border transition-all ${
-              call.isMuted
-                ? 'bg-[#ff2a5f]/20 border-[#ff2a5f] text-[#ff2a5f]'
-                : 'bg-[#0f1422] border-[#1e2638] text-slate-300 hover:text-white'
-            }`}
+            type="button"
+            onClick={onEndCall}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#ff2a5f]/20 hover:bg-[#ff2a5f]/30 border border-[#ff2a5f]/50 text-[#ff2a5f] text-xs font-semibold transition-all"
+            title="Cerrar marcador"
           >
-            {call.isMuted ? <MicOff className="w-5 h-5 mb-1" /> : <Mic className="w-5 h-5 mb-1" />}
-            <span className="text-[10px] font-mono">{call.isMuted ? 'Silenciado' : 'Silenciar'}</span>
-          </button>
-
-          {/* Keypad */}
-          <button
-            onClick={() => setShowKeypad(!showKeypad)}
-            className={`flex flex-col items-center justify-center py-3 rounded-xl border transition-all ${
-              showKeypad
-                ? 'bg-[#00f0ff]/20 border-[#00f0ff] text-[#00f0ff]'
-                : 'bg-[#0f1422] border-[#1e2638] text-slate-300 hover:text-white'
-            }`}
-          >
-            <Grid className="w-5 h-5 mb-1" />
-            <span className="text-[10px] font-mono">Teclado</span>
-          </button>
-
-          {/* Speaker */}
-          <button
-            onClick={onToggleSpeaker}
-            className={`flex flex-col items-center justify-center py-3 rounded-xl border transition-all ${
-              call.isSpeaker
-                ? 'bg-[#b026ff]/20 border-[#b026ff] text-[#b026ff]'
-                : 'bg-[#0f1422] border-[#1e2638] text-slate-300 hover:text-white'
-            }`}
-          >
-            {call.isSpeaker ? <Volume2 className="w-5 h-5 mb-1" /> : <VolumeX className="w-5 h-5 mb-1" />}
-            <span className="text-[10px] font-mono">{call.isSpeaker ? 'Altavoz ON' : 'Altavoz'}</span>
+            <PhoneOff className="w-4 h-4" />
+            <span>Cerrar Marcador</span>
           </button>
         </div>
-
-        {/* End Call Button */}
-        <button
-          onClick={onEndCall}
-          className="w-16 h-16 rounded-full bg-[#ff2a5f] hover:bg-[#ff154d] text-white flex items-center justify-center shadow-[0_0_25px_rgba(255,42,95,0.6)] hover:scale-105 transition-all cursor-pointer"
-          title="Finalizar llamada"
-        >
-          <PhoneOff className="w-7 h-7" />
-        </button>
       </div>
     </div>
   );

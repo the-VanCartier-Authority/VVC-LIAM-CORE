@@ -108,7 +108,7 @@ export async function openGooglePicker(callbacks: {
         }
       })
       .setOrigin(pickerOrigin)
-      .setTitle('VVC-ACIA // Explorador de Google Drive')
+      .setTitle('VVC LIAM CORE // Explorador de Google Drive')
       .build();
 
     picker.setVisible(true);

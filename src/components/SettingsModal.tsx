@@ -203,7 +203,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setPushFeedbackMessage('⏱️ Alerta programada en 5 segundos. Minimiza o cambia de pestaña ahora para verificar...');
     try {
       await scheduleBackgroundAlert(
-        'VVC-ACIA // Alerta en Segundo Plano',
+        'VVC LIAM CORE // Alerta en Segundo Plano',
         {
           body: '¡Alerta recibida! La aplicación está en segundo plano y el Service Worker entregó la notificación nativa.',
           tag: `scheduled-bg-${Date.now()}`,
@@ -494,7 +494,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
 
             <p className="text-slate-400 text-xs leading-relaxed">
-              Permite a VVC-ACIA ejecutar un <strong className="text-slate-200">Service Worker en segundo plano</strong> para recibir alertas críticas, avisos de tareas programadas y temporizadores directamente a través del sistema de notificaciones nativo de tu navegador y sistema operativo, incluso cuando la ventana esté minimizada.
+              Permite a VVC LIAM CORE ejecutar un <strong className="text-slate-200">Service Worker en segundo plano</strong> para recibir alertas críticas, avisos de tareas programadas y temporizadores directamente a través del sistema de notificaciones nativo de tu navegador y sistema operativo, incluso cuando la ventana esté minimizada.
             </p>
 
             {/* Status Grid */}

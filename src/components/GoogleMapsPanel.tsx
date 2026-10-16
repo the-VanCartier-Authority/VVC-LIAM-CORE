@@ -36,7 +36,7 @@ interface TacticalLocation {
 const TACTICAL_LOCATIONS: TacticalLocation[] = [
   {
     id: 'loc-1',
-    name: 'Búnker Principal VVC-ACIA',
+    name: 'Búnker Principal VVC LIAM CORE',
     category: 'Comando Central',
     lat: 19.4326,
     lng: -99.1332,
@@ -205,7 +205,7 @@ export const GoogleMapsPanel: React.FC<GoogleMapsPanelProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-mono text-xs font-bold tracking-wider text-cyan-400 uppercase">
-                  VVC-ACIA // Google Maps Radar
+                  VVC LIAM CORE // Google Maps Radar
                 </span>
                 <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-cyan-950/80 text-cyan-300 border border-cyan-800/60">
                   ONLINE

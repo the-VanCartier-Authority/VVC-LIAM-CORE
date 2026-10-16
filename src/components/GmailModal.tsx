@@ -207,7 +207,7 @@ export const GmailModal: React.FC<GmailModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-mono text-sm font-bold tracking-wider text-gray-200">
-                  VVC-ACIA // GMAIL WORKSPACE
+                  VVC LIAM CORE // GMAIL WORKSPACE
                 </h3>
                 <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-red-950/80 text-red-300 border border-red-800/60">
                   OAUTH E2EE

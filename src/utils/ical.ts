@@ -30,10 +30,10 @@ export function generateICSContent(events: CalendarEvent[], tasks: TaskItem[]): 
   const lines: string[] = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//VVC-ACIA//Obsidian Voice Assistant//ES',
+    'PRODID:-//VVC-LIAM-CORE//Voice Assistant//ES',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
-    'X-WR-CALNAME:VVC-ACIA Agenda & Tareas',
+    'X-WR-CALNAME:VVC LIAM CORE Agenda & Tareas',
     'X-WR-TIMEZONE:UTC',
   ];
 
@@ -41,7 +41,7 @@ export function generateICSContent(events: CalendarEvent[], tasks: TaskItem[]): 
   events.forEach((event) => {
     const startStr = formatICalDateTime(event.date, event.time);
     const endStr = formatICalDateTime(event.date, event.endTime || event.time);
-    const uid = event.iCalUID || `event-${event.id}-${Date.now()}@vvc-acia.internal`;
+    const uid = event.iCalUID || `event-${event.id}-${Date.now()}@vvc-liam.internal`;
 
     lines.push('BEGIN:VEVENT');
     lines.push(`UID:${uid}`);
@@ -59,7 +59,7 @@ export function generateICSContent(events: CalendarEvent[], tasks: TaskItem[]): 
     lines.push('BEGIN:VALARM');
     lines.push('TRIGGER:-PT15M');
     lines.push('ACTION:DISPLAY');
-    lines.push(`DESCRIPTION:Recordatorio VVC-ACIA: ${event.title}`);
+    lines.push(`DESCRIPTION:Recordatorio VVC LIAM CORE: ${event.title}`);
     lines.push('END:VALARM');
     lines.push('END:VEVENT');
   });
@@ -68,7 +68,7 @@ export function generateICSContent(events: CalendarEvent[], tasks: TaskItem[]): 
   tasks.forEach((task) => {
     const taskDate = task.dueDate || new Date().toISOString().split('T')[0];
     const taskStart = formatICalDateTime(taskDate, task.timeDue);
-    const uid = `task-${task.id}@vvc-acia.internal`;
+    const uid = `task-${task.id}@vvc-liam.internal`;
 
     lines.push('BEGIN:VTODO');
     lines.push(`UID:${uid}`);
@@ -121,9 +121,9 @@ export async function dispatchTaskWebhook(
   }
 
   const payload = {
-    event: `vvc_acia.task.${event}`,
+    event: `vvc_liam.task.${event}`,
     timestamp: new Date().toISOString(),
-    source: 'VVC-ACIA Voice Assistant',
+    source: 'VVC LIAM CORE Voice Assistant',
     task: {
       id: task.id,
       title: task.title,

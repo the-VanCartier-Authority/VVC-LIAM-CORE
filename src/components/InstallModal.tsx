@@ -147,7 +147,7 @@ npx cap open android
                   {isInstalled ? (
                     <div className="flex items-center gap-2 text-emerald-400 font-bold">
                       <Check className="w-4 h-4" />
-                      <span>¡VVC-ACIA ya está instalada en tu dispositivo!</span>
+                      <span>¡VVC LIAM CORE ya está instalada en tu dispositivo!</span>
                     </div>
                   ) : isInstallable ? (
                     <button

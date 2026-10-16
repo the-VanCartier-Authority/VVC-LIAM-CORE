@@ -137,7 +137,7 @@ const INITIAL_TASKS: TaskItem[] = [
   },
   {
     id: 't-3',
-    title: 'Sincronizar agenda semanal con VVC-ACIA',
+    title: 'Sincronizar agenda semanal con VVC LIAM CORE',
     dueDate: new Date().toISOString().split('T')[0],
     timeDue: '20:00',
     priority: 'media',
@@ -159,7 +159,7 @@ const INITIAL_EVENTS: CalendarEvent[] = [
     date: new Date().toISOString().split('T')[0],
     time: '11:00',
     endTime: '12:00',
-    location: 'Virtual Terminal VVC-ACIA',
+    location: 'Virtual Terminal VVC LIAM CORE',
     description: 'Revisión de integración con Google Calendar y sincronización de tareas.',
     isAutomated: true,
     category: 'reunion',
@@ -636,8 +636,8 @@ export default function App() {
       title: task.title,
       date: task.dueDate || new Date().toISOString().split('T')[0],
       time: task.timeDue || '10:00',
-      description: `Tarea vinculada de VVC-ACIA [Prioridad: ${task.priority.toUpperCase()}]`,
-      location: 'Virtual Hub VVC-ACIA',
+      description: `Tarea vinculada de VVC LIAM CORE [Prioridad: ${task.priority.toUpperCase()}]`,
+      location: 'Virtual Hub VVC LIAM CORE',
       category: 'tarea',
       isAutomated: true,
       linkedTaskId: task.id,
@@ -688,8 +688,12 @@ export default function App() {
             });
           }
 
-          // Trigger phone call modal
+          // Trigger phone call modal with real device dialer integration
           if (intentResult.callContact) {
+            const clean = intentResult.callContact.number.replace(/[^\d+]/g, '');
+            try {
+              window.location.href = `tel:${clean}`;
+            } catch {}
             setActiveCall({
               inCall: true,
               contactName: intentResult.callContact.name,
@@ -699,9 +703,6 @@ export default function App() {
               isSpeaker: false,
               state: 'calling',
             });
-            setTimeout(() => {
-              setActiveCall((prev) => (prev.inCall ? { ...prev, state: 'connected' } : prev));
-            }, 1800);
           }
 
           // Trigger messaging modal

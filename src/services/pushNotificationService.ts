@@ -1,4 +1,4 @@
-// VVC-ACIA Obsidian Core // Native Push Notification & Service Worker Service
+// VVC LIAM CORE // Native Push Notification & Service Worker Service
 // Enables native background notifications and Web Push even when app is minimized or closed
 
 export interface PushSubscriptionStatus {
@@ -72,7 +72,7 @@ export function getNotificationPermission(): NotificationPermission {
  */
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (!isServiceWorkerSupported()) {
-    console.warn('[VVC-ACIA SW] Service Worker no es soportado en este navegador.');
+    console.warn('[VVC LIAM CORE SW] Service Worker no es soportado en este navegador.');
     return null;
   }
 
@@ -92,7 +92,7 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
     });
 
     swRegistration = reg;
-    console.log('[VVC-ACIA SW] Service Worker registrado exitosamente con scope:', reg.scope);
+    console.log('[VVC LIAM CORE SW] Service Worker registrado exitosamente con scope:', reg.scope);
 
     // Listen for updates
     reg.addEventListener('updatefound', () => {
@@ -100,7 +100,7 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
       if (installingWorker) {
         installingWorker.addEventListener('statechange', () => {
           if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            console.log('[VVC-ACIA SW] Nueva versión disponible y activada.');
+            console.log('[VVC LIAM CORE SW] Nueva versión disponible y activada.');
           }
         });
       }
@@ -108,7 +108,7 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
 
     return reg;
   } catch (error) {
-    console.error('[VVC-ACIA SW] Error registrando Service Worker:', error);
+    console.error('[VVC LIAM CORE SW] Error registrando Service Worker:', error);
     return null;
   } finally {
     isRegistering = false;
@@ -149,7 +149,7 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
     }
     return perm;
   } catch (error) {
-    console.warn('[VVC-ACIA SW] Error solicitando permisos de notificación:', error);
+    console.warn('[VVC LIAM CORE SW] Error solicitando permisos de notificación:', error);
     return Notification.permission;
   }
 }
@@ -164,7 +164,7 @@ export async function fetchVapidPublicKey(): Promise<string | null> {
     const data = await response.json();
     return data.publicKey || null;
   } catch (err) {
-    console.warn('[VVC-ACIA SW] No se pudo obtener la clave pública VAPID:', err);
+    console.warn('[VVC LIAM CORE SW] No se pudo obtener la clave pública VAPID:', err);
     return null;
   }
 }
@@ -216,13 +216,13 @@ export async function subscribeToPushNotifications(): Promise<{
         body: JSON.stringify(subscription.toJSON()),
       });
       localStorage.setItem('vvc_acia_push_active', 'true');
-      console.log('[VVC-ACIA SW] Suscripción Push nativa sincronizada con el servidor.');
+      console.log('[VVC LIAM CORE SW] Suscripción Push nativa sincronizada con el servidor.');
       return { success: true, subscription };
     }
 
     return { success: false, error: 'No se pudo generar la suscripción push.' };
   } catch (error: any) {
-    console.error('[VVC-ACIA SW] Error suscribiendo a notificaciones Push:', error);
+    console.error('[VVC LIAM CORE SW] Error suscribiendo a notificaciones Push:', error);
     return { success: false, error: error?.message || 'Fallo de suscripción Push.' };
   }
 }
@@ -249,7 +249,7 @@ export async function unsubscribeFromPushNotifications(): Promise<boolean> {
     }
     return true;
   } catch (err) {
-    console.warn('[VVC-ACIA SW] Error al desuscribir:', err);
+    console.warn('[VVC LIAM CORE SW] Error al desuscribir:', err);
     return false;
   }
 }
@@ -300,7 +300,7 @@ export async function sendBackgroundAlert(
 ): Promise<void> {
   const perm = getNotificationPermission();
   if (perm !== 'granted') {
-    console.warn('[VVC-ACIA SW] Notificación bloqueada por permisos de navegador.');
+    console.warn('[VVC LIAM CORE SW] Notificación bloqueada por permisos de navegador.');
     return;
   }
 
@@ -331,7 +331,7 @@ export async function sendBackgroundAlert(
       return;
     }
   } catch (swErr) {
-    console.warn('[VVC-ACIA SW] Falló showNotification en SW:', swErr);
+    console.warn('[VVC LIAM CORE SW] Falló showNotification en SW:', swErr);
   }
 
   // 2. Post message to active SW controller
@@ -359,7 +359,7 @@ export async function sendBackgroundAlert(
       }),
     });
   } catch (serverErr) {
-    console.warn('[VVC-ACIA SW] Falló envío push desde el servidor:', serverErr);
+    console.warn('[VVC LIAM CORE SW] Falló envío push desde el servidor:', serverErr);
   }
 
   // 4. Fallback to standard window Notification if still in foreground
@@ -409,7 +409,7 @@ export async function scheduleBackgroundAlert(
       }),
     });
   } catch (err) {
-    console.warn('[VVC-ACIA SW] Falló programación en servidor:', err);
+    console.warn('[VVC LIAM CORE SW] Falló programación en servidor:', err);
   }
 }
 
@@ -428,7 +428,7 @@ export async function testNativePushNotification(): Promise<{ success: boolean; 
   await registerServiceWorker();
   await subscribeToPushNotifications();
 
-  await sendBackgroundAlert('VVC-ACIA // Alerta en Segundo Plano Activa', {
+  await sendBackgroundAlert('VVC LIAM CORE // Alerta en Segundo Plano Activa', {
     body: 'El Service Worker está monitoreando tareas y alertas nativas en segundo plano.',
     icon: '/pwa-192x192.png',
     badge: '/pwa-192x192.png',
@@ -452,7 +452,7 @@ export function initNotificationClickListener(
 
   const handleMessage = (event: MessageEvent) => {
     if (event.data?.type === 'NOTIFICATION_CLICKED') {
-      console.log('[VVC-ACIA SW] Notificación clickeada recibida en la app:', event.data);
+      console.log('[VVC LIAM CORE SW] Notificación clickeada recibida en la app:', event.data);
       onNotificationClick({ taskId: event.data.taskId });
     }
   };

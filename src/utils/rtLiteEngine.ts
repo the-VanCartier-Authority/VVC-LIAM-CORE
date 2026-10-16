@@ -386,7 +386,7 @@ export function parseNaturalVoiceCommand(
       actionDetails: `Nueva alarma guardada: ${timeFormatted}`,
       newAlarm: {
         time: timeFormatted,
-        label: 'Alarma de voz VVC-ACIA',
+        label: 'Alarma de voz VVC LIAM CORE',
         enabled: true,
         days: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'],
       },
@@ -636,7 +636,7 @@ export function parseNaturalVoiceCommand(
   if (query.includes('abrir calendario') || query.includes('abre el calendario') || query.includes('ver calendario') || query.includes('mostrar agenda') || query.includes('mi agenda')) {
     return {
       isHandled: true,
-      spokenResponse: 'Desplegando la matriz de calendario, tareas y sincronización de VVC-ACIA.',
+      spokenResponse: 'Desplegando la matriz de calendario, tareas y sincronización de VVC LIAM CORE.',
       actionType: 'calendar',
       actionDetails: 'Matriz de Calendario & Agenda desplegada.',
       openCalendar: true,
@@ -723,7 +723,7 @@ export function parseNaturalVoiceCommand(
     }
 
     // 4. Detect Location
-    let location = 'Virtual / VVC-ACIA Hub';
+    let location = 'Virtual / VVC LIAM CORE Hub';
     const locMatch = body.match(/(?:en|lugar|ubicación|ubicacion)\s+([a-záéíóúñ0-9\s]{3,30}?)(?:\s+(?:con|a las|para|asistentes)|$)/i);
     if (locMatch && !locMatch[1].includes('punto') && !locMatch[1].includes('calendario') && !locMatch[1].includes('reunión')) {
       location = locMatch[1].trim();
@@ -762,11 +762,11 @@ export function parseNaturalVoiceCommand(
       time: startTime,
       endTime: endTime,
       location,
-      description: attendees.length > 0 ? `Participantes: ${attendees.join(', ')}` : 'Programado por voz con VVC-ACIA',
+      description: attendees.length > 0 ? `Participantes: ${attendees.join(', ')}` : 'Programado por voz con VVC LIAM CORE',
       category: 'reunion',
       attendees: attendees.length > 0 ? attendees : undefined,
       isAutomated: true,
-      source: 'vvc-acia',
+      source: 'vvc_liam',
       syncStatus: 'synced',
     };
 
@@ -816,7 +816,7 @@ export function parseNaturalVoiceCommand(
         attendees: finalEvent.attendees,
         syncStatus: finalEvent.syncStatus,
         conflictNote: finalEvent.conflictNote,
-        source: 'vvc-acia',
+        source: 'vvc_liam',
         isAutomated: true,
       },
       openCalendar: true,
@@ -869,7 +869,7 @@ export function parseNaturalVoiceCommand(
   const gmailSendMatch = query.match(/(?:enviar|redactar|mandar)(?: un)? correo a (.+?)(?:\s+(?:con asunto|asunto)\s+(.+?))?(?:\s+(?:con mensaje|mensaje|diciendo)\s+(.+))?$/i);
   if (gmailSendMatch) {
     const to = gmailSendMatch[1].trim();
-    const subj = gmailSendMatch[2] ? gmailSendMatch[2].trim() : 'Mensaje desde VVC-ACIA';
+    const subj = gmailSendMatch[2] ? gmailSendMatch[2].trim() : 'Mensaje desde VVC LIAM CORE';
     const body = gmailSendMatch[3] ? gmailSendMatch[3].trim() : '';
     return {
       isHandled: true,
@@ -1111,14 +1111,14 @@ export function parseNaturalVoiceCommand(
       } else if (isInventory) {
         columns = ['Código Item', 'Descripción', 'Ubicación', 'Cantidad', 'Estado'];
         rows = [
-          { 'Código Item': 'DEV-001', 'Descripción': 'Terminal Móvil VVC-ACIA', 'Ubicación': 'Almacén Central', 'Cantidad': 12, 'Estado': 'Disponible' },
+          { 'Código Item': 'DEV-001', 'Descripción': 'Terminal Móvil VVC LIAM CORE', 'Ubicación': 'Almacén Central', 'Cantidad': 12, 'Estado': 'Disponible' },
           { 'Código Item': 'DEV-002', 'Descripción': 'Módulo de Cifrado Hardware', 'Ubicación': 'Bóveda Segura', 'Cantidad': 5, 'Estado': 'Activo' },
           { 'Código Item': 'DEV-003', 'Descripción': 'Adaptador de Antena GPS / SDR', 'Ubicación': 'Laboratorio', 'Cantidad': 8, 'Estado': 'Calibrado' },
         ];
       } else {
         columns = ['Hito / Tarea', 'Responsable', 'Fecha Límite', 'Horas Estimadas', 'Estado'];
         rows = [
-          { 'Hito / Tarea': 'Sincronización Bidireccional de Calendario', 'Responsable': 'VVC-ACIA Core', 'Fecha Límite': '2026-10-15', 'Horas Estimadas': 8, 'Estado': 'Completada' },
+          { 'Hito / Tarea': 'Sincronización Bidireccional de Calendario', 'Responsable': 'VVC LIAM CORE', 'Fecha Límite': '2026-10-15', 'Horas Estimadas': 8, 'Estado': 'Completada' },
           { 'Hito / Tarea': 'Detección Inteligente de Conflictos', 'Responsable': 'Algoritmo RT-Lite', 'Fecha Límite': '2026-10-16', 'Horas Estimadas': 6, 'Estado': 'Completada' },
           { 'Hito / Tarea': 'Exportación Documental a PDF y CSV', 'Responsable': 'Estudio PDF', 'Fecha Límite': '2026-10-17', 'Horas Estimadas': 5, 'Estado': 'Activa' },
         ];
@@ -1144,8 +1144,8 @@ export function parseNaturalVoiceCommand(
       };
     }
 
-    // 22.2 DOCUMENTO DE TEXTO ESTRUCUTRADO
-    let docTitle = 'Documento de Trabajo VVC-ACIA';
+    // 22.2 DOCUMENTO DE TEXTO ESTRUCTURADO
+    let docTitle = 'Documento de Trabajo VVC LIAM CORE';
     const docTitleMatch = query.match(/(?:documento(?: de texto)?|informe|reporte|minuta)(?:\s+de|\s+sobre|\s+para)?\s*(.+)/i);
     if (docTitleMatch && docTitleMatch[1].trim()) {
       const raw = docTitleMatch[1].replace(/exportar a pdf|descargar|generar|crear/gi, '').trim();
@@ -1161,7 +1161,7 @@ export function parseNaturalVoiceCommand(
     const generatedDoc: TextDocumentData = {
       id: `doc-${Date.now()}`,
       title: docTitle,
-      author: 'VVC-ACIA Obsidian Engine',
+      author: 'VVC LIAM CORE Obsidian Engine',
       date: todayStr,
       category,
       content: `1. OBJETIVO DEL DOCUMENTO
@@ -1174,7 +1174,7 @@ El presente informe documenta el estado operativo y los parámetros clave de "${
 • Control de hardware del teléfono: Motores RT-Lite disponibles para linterna, volumen, brillo y telecomunicaciones.
 
 3. RESOLUCIONES Y CONCLUSIONES
-Se valida la exportación formal en formato PDF de alta fidelidad para distribución y resguardo seguro. Registro auditado por VVC-ACIA OS.`,
+Se valida la exportación formal en formato PDF de alta fidelidad para distribución y resguardo seguro. Registro auditado por VVC LIAM CORE OS.`,
     };
 
     return {
@@ -1255,8 +1255,8 @@ export function generateRTLiteResponse(prompt: string, activeEngine: ModelType =
     activeEngine === 'rt-lite-security' ? '[RT-Lite Obsidian Vault & Security]' :
     '[RT-Lite Master Omni-Engine]';
 
-  if (p.includes('quién eres') || p.includes('quien eres') || p.includes('tu nombre') || p.includes('que es vvc-acia')) {
-    return `${enginePrefix} Soy VVC-ACIA, tu asistente personal de voz obsidian de vanguardia. Opero con todos los motores RT-Lite integrados: control físico de actuadores del teléfono, telecomunicaciones y llamadas directas, matriz de calendario con detección y resolución de conflictos, sincronización con Google, Outlook y Apple Calendar, y estudio de documentos y hojas de cálculo exportables a PDF.`;
+  if (p.includes('quién eres') || p.includes('quien eres') || p.includes('tu nombre') || p.includes('vvc liam') || p.includes('liam core') || p.includes('vvc-acia')) {
+    return `${enginePrefix} Soy VVC LIAM CORE, tu estación de inteligencia artificial autónoma de vanguardia con arquitectura VAOS. Opero con todos los motores integrados: control físico de actuadores del teléfono, telecomunicaciones y llamadas directas, matriz de calendario con detección y resolución de conflictos, sincronización con Google, Outlook y Apple Calendar, y estudio de documentos y hojas de cálculo exportables a PDF.`;
   }
 
   if (p.includes('hora') || p.includes('qué hora es')) {

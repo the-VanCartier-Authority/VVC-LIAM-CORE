@@ -110,7 +110,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
   const [newEventDate, setNewEventDate] = useState(new Date().toISOString().split('T')[0]);
   const [newEventTime, setNewEventTime] = useState('10:00');
   const [newEventEndTime, setNewEventEndTime] = useState('11:00');
-  const [newEventLocation, setNewEventLocation] = useState('Enlace Seguro VVC-ACIA');
+  const [newEventLocation, setNewEventLocation] = useState('Enlace Seguro VVC LIAM CORE');
   const [newEventCategory, setNewEventCategory] = useState<'reunion' | 'tarea' | 'llamada' | 'personal' | 'sistema'>('reunion');
   const [newEventAttendees, setNewEventAttendees] = useState('');
   const [newEventDescription, setNewEventDescription] = useState('');
@@ -279,12 +279,12 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
       date: eventDate,
       time: eventTime,
       endTime: eventEndTime,
-      location: newEventLocation.trim() || 'Virtual / VVC-ACIA Hub',
+      location: newEventLocation.trim() || 'Virtual / VVC LIAM CORE Hub',
       description: newEventDescription.trim() || undefined,
       category: newEventCategory,
       recurrence: newEventRecurrence,
       attendees: attendeesList.length > 0 ? attendeesList : undefined,
-      source: 'vvc-acia',
+      source: 'vvc_liam',
       syncStatus,
       conflictNote,
       isAutomated: true,
@@ -344,7 +344,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
     setTestWebhookStatus('Enviando...');
     const sampleTask = tasks[0] || {
       id: 'demo-task',
-      title: 'Prueba de Integración VVC-ACIA Webhook',
+      title: 'Prueba de Integración VVC LIAM CORE Webhook',
       dueDate: new Date().toISOString().split('T')[0],
       timeDue: '12:00',
       priority: 'alta',
@@ -1095,7 +1095,9 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                                     : 'bg-[#b026ff]/20 text-[#b026ff] border border-[#b026ff]/40'
                                 }`}
                               >
-                                {event.source ? event.source.toUpperCase() : 'VVC-ACIA'}
+                                {event.source === 'vvc_liam' || event.source === 'vvc-acia' || !event.source
+                                  ? 'VVC LIAM CORE'
+                                  : event.source.toUpperCase()}
                               </span>
 
                               {/* Conflict Resolved Note */}
@@ -1404,7 +1406,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                   </h4>
                 </div>
                 <p className="text-slate-400 text-xs leading-relaxed">
-                  VVC-ACIA permite enviar eventos en tiempo real hacia Google Calendar, Notion, Todoist, Slack, Discord o cualquier servidor mediante Webhook HTTPS con cifrado seguro.
+                  VVC LIAM CORE permite enviar eventos en tiempo real hacia Google Calendar, Notion, Todoist, Slack, Discord o cualquier servidor mediante Webhook HTTPS con cifrado seguro.
                 </p>
               </div>
 
@@ -1452,7 +1454,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                     </p>
                   </div>
                   <div className="text-[10px] font-mono text-slate-500 bg-[#07090e] p-2 rounded border border-[#1e2638]">
-                    Base de Datos: [VVC-ACIA Primary Tasks Hub]
+                    Base de Datos: [VVC LIAM CORE Primary Tasks Hub]
                   </div>
                 </div>
 

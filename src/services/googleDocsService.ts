@@ -108,7 +108,7 @@ export async function createGoogleDoc(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      title: title || 'Nuevo Documento VVC-ACIA',
+      title: title || 'Nuevo Documento VVC LIAM CORE',
     }),
   });
 

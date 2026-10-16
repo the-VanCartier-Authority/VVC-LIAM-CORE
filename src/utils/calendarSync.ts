@@ -182,8 +182,8 @@ export function generateGoogleCalendarUrl(event: CalendarEvent): string {
     action: 'TEMPLATE',
     text: event.title,
     dates: `${startClean}/${endClean}`,
-    details: event.description || `Evento programado por VVC-ACIA Assistant. Categoría: ${event.category || 'General'}`,
-    location: event.location || 'VVC-ACIA Core',
+    details: event.description || `Evento programado por VVC LIAM CORE Assistant. Categoría: ${event.category || 'General'}`,
+    location: event.location || 'VVC LIAM CORE',
   });
 
   if (event.attendees && event.attendees.length > 0) {
@@ -204,8 +204,8 @@ export function generateOutlookCalendarUrl(event: CalendarEvent): string {
     subject: event.title,
     startdt: startIso,
     enddt: endIso,
-    body: event.description || `Evento VVC-ACIA. Asistentes: ${event.attendees?.join(', ') || 'N/A'}`,
-    location: event.location || 'VVC-ACIA Core',
+    body: event.description || `Evento VVC LIAM CORE. Asistentes: ${event.attendees?.join(', ') || 'N/A'}`,
+    location: event.location || 'VVC LIAM CORE',
   });
 
   return `https://outlook.live.com/calendar/0/action/compose?${params.toString()}`;
@@ -217,7 +217,7 @@ export function generateOutlookCalendarUrl(event: CalendarEvent): string {
 export function generateAppleCalendarICS(event: CalendarEvent): string {
   const startStr = event.date.replace(/-/g, '') + 'T' + event.time.replace(/:/g, '') + '00Z';
   const endStr = event.date.replace(/-/g, '') + 'T' + (event.endTime || event.time).replace(/:/g, '') + '00Z';
-  const uid = event.iCalUID || `apple-${event.id}-${Date.now()}@vvc-acia.apple`;
+  const uid = event.iCalUID || `apple-${event.id}-${Date.now()}@vvc-liam.apple`;
 
   const lines = [
     'BEGIN:VCALENDAR',
@@ -225,7 +225,7 @@ export function generateAppleCalendarICS(event: CalendarEvent): string {
     'PRODID:-//Apple Inc.//macOS Calendar//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
-    'X-WR-CALNAME:VVC-ACIA Apple Sync',
+    'X-WR-CALNAME:VVC LIAM CORE Apple Sync',
     'BEGIN:VEVENT',
     `UID:${uid}`,
     `DTSTAMP:${startStr}`,

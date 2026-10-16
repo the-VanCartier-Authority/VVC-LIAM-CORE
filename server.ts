@@ -48,17 +48,17 @@ if (!vapidPublicKey || !vapidPrivateKey) {
   const generatedKeys = webpush.generateVAPIDKeys();
   vapidPublicKey = generatedKeys.publicKey;
   vapidPrivateKey = generatedKeys.privateKey;
-  console.log('[VVC-ACIA Push] VAPID keys inicializadas para Web Push en segundo plano.');
+  console.log('[VVC LIAM Push] VAPID keys inicializadas para Web Push en segundo plano.');
 }
 
 try {
   webpush.setVapidDetails(
-    'mailto:vvc-acia@obsidian.local',
+    'mailto:vvc-liam@obsidian.local',
     vapidPublicKey,
     vapidPrivateKey
   );
 } catch (vapidErr) {
-  console.warn('[VVC-ACIA Push] Error configurando VAPID details:', vapidErr);
+  console.warn('[VVC LIAM Push] Error configurando VAPID details:', vapidErr);
 }
 
 // In-memory Push Subscriptions registry
@@ -98,7 +98,7 @@ app.post('/api/push/subscribe', (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Suscripción Web Push no válida.' });
   }
   pushSubscriptions.set(sub.endpoint, sub);
-  console.log(`[VVC-ACIA Push] Nueva suscripción registrada. Total activas: ${pushSubscriptions.size}`);
+  console.log(`[VVC LIAM Push] Nueva suscripción registrada. Total activas: ${pushSubscriptions.size}`);
   return res.json({ success: true, count: pushSubscriptions.size });
 });
 
@@ -106,7 +106,7 @@ app.post('/api/push/unsubscribe', (req: Request, res: Response) => {
   const { endpoint } = req.body;
   if (endpoint) {
     pushSubscriptions.delete(endpoint);
-    console.log(`[VVC-ACIA Push] Suscripción eliminada. Restantes: ${pushSubscriptions.size}`);
+    console.log(`[VVC LIAM Push] Suscripción eliminada. Restantes: ${pushSubscriptions.size}`);
   }
   return res.json({ success: true, count: pushSubscriptions.size });
 });
@@ -115,7 +115,7 @@ app.post('/api/push/send', async (req: Request, res: Response) => {
   try {
     const { title, body, icon, badge, url, taskId, delayMs, tag } = req.body;
     const payload = JSON.stringify({
-      title: title || 'VVC-ACIA // Alerta en Segundo Plano',
+      title: title || 'VVC LIAM CORE // Alerta en Segundo Plano',
       body: body || 'Alerta o recordatorio programado en segundo plano.',
       icon: icon || '/pwa-192x192.png',
       badge: badge || '/pwa-192x192.png',
@@ -134,7 +134,7 @@ app.post('/api/push/send', async (req: Request, res: Response) => {
           await webpush.sendNotification(sub as any, payload);
           sentCount++;
         } catch (err: any) {
-          console.warn('[VVC-ACIA Push] Envío fallido para endpoint:', endpoint, err?.statusCode);
+          console.warn('[VVC LIAM CORE Push] Envío fallido para endpoint:', endpoint, err?.statusCode);
           if (err?.statusCode === 404 || err?.statusCode === 410) {
             expired.push(endpoint);
           }
@@ -156,7 +156,7 @@ app.post('/api/push/send', async (req: Request, res: Response) => {
     const result = await dispatch();
     return res.json({ success: true, ...result });
   } catch (error: any) {
-    console.error('[VVC-ACIA Push] Error en /api/push/send:', error);
+    console.error('[VVC LIAM CORE Push] Error en /api/push/send:', error);
     return res.status(500).json({ error: error?.message || 'Error al emitir notificación push.' });
   }
 });
@@ -395,7 +395,7 @@ async function generateGeminiReply(systemMsg: string, userMsg: string, apiKey: s
     return response.text || 'Orden procesada por el núcleo de inteligencia.';
   } catch (err: any) {
     console.warn('Gemini fallback notice:', err?.message);
-    return `[VVC-ACIA Core] ${userMsg.length > 0 ? `Comando procesado: "${userMsg}".` : 'Listo para asistirte.'} Todos los sistemas están sincronizados y operativos.`;
+    return `[VVC LIAM CORE] ${userMsg.length > 0 ? `Comando procesado: "${userMsg}".` : 'Listo para asistirte.'} Todos los sistemas están sincronizados y operativos.`;
   }
 }
 
@@ -588,8 +588,8 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
 
     return res.json({
       id: `local-${Date.now()}`,
-      choices: [{ message: { role: 'assistant', content: `Comando recibido y procesado por el núcleo VVC-ACIA. Todos los módulos operativos.` } }],
-      model_used: `VVC-ACIA Core (Local)`,
+      choices: [{ message: { role: 'assistant', content: `Comando recibido y procesado por el núcleo VVC LIAM CORE. Todos los módulos operativos.` } }],
+      model_used: `VVC LIAM CORE (Local)`,
       is_fallback: true,
     });
   } catch (error: any) {
@@ -641,7 +641,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[VVC-ACIA OS] Obsidian Server running on http://0.0.0.0:${PORT}`);
+    console.log(`[VVC LIAM CORE] Obsidian Server running on http://0.0.0.0:${PORT}`);
   });
 }
 

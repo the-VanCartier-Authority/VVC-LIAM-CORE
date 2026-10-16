@@ -62,7 +62,7 @@ export const CLOUD_INTEGRATIONS: CloudIntegrationInfo[] = [
   {
     id: 'local_only',
     name: 'Modo Local Autónomo (Zero-Knowledge)',
-    provider: 'VVC-ACIA Sandbox',
+    provider: 'VVC LIAM CORE Sandbox',
     description: 'Sin sincronización externa. Privacidad absoluta y cifrado en el navegador.',
     badge: 'MÁXIMA PRIVACIDAD',
     iconName: 'ShieldCheck',
@@ -545,7 +545,7 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
   {
     id: 'rt-lite-local',
     name: 'RT-Lite Master Omni-Engine',
-    provider: 'VVC-ACIA Local',
+    provider: 'VVC LIAM CORE Local',
     category: 'RT-Lite Local',
     domain: 'offline_device',
     tier: 'Local On-Device',
@@ -558,7 +558,7 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
   {
     id: 'rt-lite-hardware',
     name: 'RT-Lite Hardware & Device Control',
-    provider: 'VVC-ACIA Local',
+    provider: 'VVC LIAM CORE Local',
     category: 'RT-Lite Local',
     domain: 'offline_device',
     tier: 'Local On-Device',
@@ -571,7 +571,7 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
   {
     id: 'rt-lite-telephony',
     name: 'RT-Lite Telecom & Communications',
-    provider: 'VVC-ACIA Local',
+    provider: 'VVC LIAM CORE Local',
     category: 'RT-Lite Local',
     domain: 'offline_device',
     tier: 'Local On-Device',
@@ -584,7 +584,7 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
   {
     id: 'rt-lite-agenda',
     name: 'RT-Lite Calendar & Schedule Matrix',
-    provider: 'VVC-ACIA Local',
+    provider: 'VVC LIAM CORE Local',
     category: 'RT-Lite Local',
     domain: 'offline_device',
     tier: 'Local On-Device',
@@ -597,7 +597,7 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
   {
     id: 'rt-lite-docs',
     name: 'RT-Lite Document & Spreadsheet Studio',
-    provider: 'VVC-ACIA Local',
+    provider: 'VVC LIAM CORE Local',
     category: 'RT-Lite Local',
     domain: 'offline_device',
     tier: 'Local On-Device',
@@ -610,7 +610,7 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
   {
     id: 'rt-lite-security',
     name: 'RT-Lite Obsidian Vault & Security',
-    provider: 'VVC-ACIA Local',
+    provider: 'VVC LIAM CORE Local',
     category: 'RT-Lite Local',
     domain: 'offline_device',
     tier: 'Local On-Device',
@@ -650,7 +650,7 @@ export const KOKORO_VOICES: KokoroVoice[] = [
     gender: 'Masculina',
     language: 'Español',
     style: 'Neural Studio HD: Profunda, ejecutiva y sobria',
-    samplePhrase: 'Hola, soy VVC-ACIA. Todos los sistemas están sincronizados y listos.',
+    samplePhrase: 'Hola, soy VVC LIAM CORE. Todos los sistemas están sincronizados y listos.',
     pitch: 0.95,
     rate: 1.05,
   },
@@ -670,7 +670,7 @@ export const KOKORO_VOICES: KokoroVoice[] = [
     gender: 'Femenina',
     language: 'English',
     style: 'Neural Studio HD: Tecnológica, suave y precisa',
-    samplePhrase: 'VVC-ACIA neural core active. How can I assist your workflow today?',
+    samplePhrase: 'VVC LIAM CORE active. How can I assist your workflow today?',
     pitch: 1.0,
     rate: 1.0,
   },
@@ -825,7 +825,7 @@ export interface CalendarEvent {
   attendees?: string[];
   iCalUID?: string;
   recurrence?: 'none' | 'daily' | 'weekly' | 'weekdays' | 'monthly';
-  source?: 'vvc-acia' | 'google' | 'outlook' | 'apple';
+  source?: 'vvc_liam' | 'vvc-acia' | 'google' | 'outlook' | 'apple';
   syncStatus?: 'synced' | 'local' | 'conflict_resolved';
   conflictNote?: string;
 }
@@ -1129,7 +1129,7 @@ export const DEFAULT_AGENTS: AgentProfile[] = [
     name: 'Ingeniero Ciberseguridad & Hardware',
     role: 'Arquitecto de Seguridad E2EE & Control Físico',
     description: 'Especialista en protocolos criptográficos AES-GCM, bóveda blindada, telemetría de batería y sensores de hardware.',
-    systemPrompt: 'Eres el Oficial de Seguridad Criptográfica y Control de Hardware de VVC-ACIA. Te enfocas en la privacidad de datos (Zero-Knowledge), auditoría de claves, gestión segura de la bóveda y control de actuadores del teléfono (linterna, volumen, brillo, redes).',
+    systemPrompt: 'Eres el Oficial de Seguridad Criptográfica y Control de Hardware de VVC LIAM CORE. Te enfocas en la privacidad de datos (Zero-Knowledge), auditoría de claves, gestión segura de la bóveda y control de actuadores del teléfono (linterna, volumen, brillo, redes).',
     temperature: 0.3,
     maxTokens: 500,
     defaultVoiceId: 'es_mateo',
@@ -1149,7 +1149,7 @@ export const DEFAULT_AGENTS: AgentProfile[] = [
     name: 'Analista Financiero & Documental',
     role: 'Controller de Datos & Generador PDF',
     description: 'Experto en generación de hojas de cálculo operativas, balances, presupuestos y documentos oficiales descargables en PDF.',
-    systemPrompt: 'Eres el Analista Financiero y Documental de VVC-ACIA. Tu especialidad es estructurar información en tablas, calcular balances, presupuestos, inventarios y redactar informes formales listos para exportar a PDF.',
+    systemPrompt: 'Eres el Analista Financiero y Documental de VVC LIAM CORE. Tu especialidad es estructurar información en tablas, calcular balances, presupuestos, inventarios y redactar informes formales listos para exportar a PDF.',
     temperature: 0.4,
     maxTokens: 750,
     defaultVoiceId: 'es_sofia',
@@ -1169,7 +1169,7 @@ export const DEFAULT_AGENTS: AgentProfile[] = [
     name: 'Asesor de Comunicaciones & Mensajería',
     role: 'Especialista en Diplomacia, Gmail & WhatsApp',
     description: 'Diseñado para redacción de correos electrónicos profesionales en Gmail Workspace, mensajes de WhatsApp y llamadas efectivas.',
-    systemPrompt: 'Eres el Especialista en Comunicaciones y Diplomacia de VVC-ACIA. Redactas borradores de correos para Gmail, mensajes de texto y WhatsApp con el tono exacto (formal, persuasivo o cercano) y asistes en la gestión de contactos.',
+    systemPrompt: 'Eres el Especialista en Comunicaciones y Diplomacia de VVC LIAM CORE. Redactas borradores de correos para Gmail, mensajes de texto y WhatsApp con el tono exacto (formal, persuasivo o cercano) y asistes en la gestión de contactos.',
     temperature: 0.7,
     maxTokens: 600,
     defaultVoiceId: 'es_sofia',
@@ -1189,7 +1189,7 @@ export const DEFAULT_AGENTS: AgentProfile[] = [
     name: 'Operador Táctico RT-Lite',
     role: 'Automatizador de Cero Latencia & Modo Offline',
     description: 'Respuestas telegráficas inmediatas (<20ms), control rápido de temporizadores, alarmas y modo supervivencia sin internet.',
-    systemPrompt: 'Eres la Unidad Táctica Local RT-Lite de VVC-ACIA. Tu misión es la velocidad pura: cero explicaciones innecesarias, confirmaciones concisas de órdenes y ejecución instantánea sin conexión.',
+    systemPrompt: 'Eres la Unidad Táctica Local RT-Lite de VVC LIAM CORE. Tu misión es la velocidad pura: cero explicaciones innecesarias, confirmaciones concisas de órdenes y ejecución instantánea sin conexión.',
     temperature: 0.2,
     maxTokens: 300,
     defaultVoiceId: 'es_mateo',

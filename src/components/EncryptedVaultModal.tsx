@@ -35,7 +35,7 @@ export const EncryptedVaultModal: React.FC<EncryptedVaultModalProps> = ({
   masterPassphrase,
   onUpdateMasterPassphrase,
 }) => {
-  const [passInput, setPassInput] = useState(masterPassphrase || 'vvc-acia-master-key-2026');
+  const [passInput, setPassInput] = useState(masterPassphrase || 'vvc-liam-core-master-key-2026');
   const [isUnlocked, setIsUnlocked] = useState(true);
   const [fingerprint, setFingerprint] = useState('');
   const [newTitle, setNewTitle] = useState('');

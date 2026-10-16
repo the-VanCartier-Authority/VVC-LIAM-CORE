@@ -418,22 +418,32 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({
       if (asyncResult.asyncTask) {
         setBenchmarkLog(`✓ Tarea Async P0 encolada (ID: ${asyncResult.asyncTask.taskId.slice(-8)}). Procesando en segundo plano...`);
         
-        // Wait 600ms and poll result
-        setTimeout(async () => {
+        // Poll until real AI execution completes
+        const taskId = asyncResult.asyncTask.taskId;
+        let attempts = 0;
+        const pollInterval = setInterval(async () => {
+          attempts++;
           try {
-            const detail = await platformService.api.getVaosTask(asyncResult.asyncTask!.taskId);
-            setBenchmarkLog(`✓ Benchmark completado: Fast Path ${realFastMs}ms | Async P0 procesado (${detail.status}). Telemetría actualizada.`);
-            
-            // Refresh telemetry
-            const telem = await platformService.api.getVaosTelemetry();
-            setTelemetryPoints(telem.points);
-            setStats(telem.stats);
+            const detail = await platformService.api.getVaosTask(taskId);
+            if (detail.status === 'COMPLETED' || detail.status === 'FAILED' || attempts > 15) {
+              clearInterval(pollInterval);
+              const duration = detail.durationMs ? `${detail.durationMs}ms` : 'tiempo real';
+              const tokensSec = detail.result?.tokensPerSec ? ` (${detail.result.tokensPerSec} tokens/s)` : '';
+              setBenchmarkLog(
+                `✓ Benchmark completado: Fast Path ${realFastMs}ms | Async P0 procesado en ${duration}${tokensSec}. Telemetría real actualizada.`
+              );
+
+              // Refresh telemetry with real points
+              const telem = await platformService.api.getVaosTelemetry();
+              setTelemetryPoints(telem.points);
+              setStats(telem.stats);
+              setIsBenchmarking(false);
+            }
           } catch {
-            // Ignored
-          } finally {
+            clearInterval(pollInterval);
             setIsBenchmarking(false);
           }
-        }, 700);
+        }, 300);
       } else {
         setIsBenchmarking(false);
       }

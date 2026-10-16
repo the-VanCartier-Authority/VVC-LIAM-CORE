@@ -61,9 +61,15 @@ export const MessagingModal: React.FC<MessagingModalProps> = ({
             <span className="font-mono text-xs font-semibold text-white">
               {channel === 'WhatsApp' ? 'Transmisión WhatsApp' : 'Mensaje SMS / Móvil'}
             </span>
-            <span className="flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/30">
+            <span
+              className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border ${
+                channel === 'WhatsApp'
+                  ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
+                  : 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30'
+              }`}
+            >
               <ShieldCheck className="w-3 h-3" />
-              E2EE
+              {channel === 'WhatsApp' ? 'WhatsApp E2EE' : 'SMS Red Móvil (sms:)'}
             </span>
           </div>
 

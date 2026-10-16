@@ -28,6 +28,7 @@ export const GoogleDrivePickerModal: React.FC<GoogleDrivePickerModalProps> = ({
 }) => {
   const [pickedFiles, setPickedFiles] = useState<PickedGoogleDriveFile[]>([]);
   const [isOpeningPicker, setIsOpeningPicker] = useState(false);
+  const [pickerError, setPickerError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -37,6 +38,7 @@ export const GoogleDrivePickerModal: React.FC<GoogleDrivePickerModalProps> = ({
       return;
     }
 
+    setPickerError(null);
     setIsOpeningPicker(true);
     try {
       await openGooglePicker({
@@ -49,12 +51,12 @@ export const GoogleDrivePickerModal: React.FC<GoogleDrivePickerModalProps> = ({
         },
         onError: (err) => {
           setIsOpeningPicker(false);
-          alert(`Error al abrir Google Picker: ${err.message}`);
+          setPickerError(`Error al abrir Google Picker: ${err.message}`);
         },
       });
     } catch (err: any) {
       setIsOpeningPicker(false);
-      alert(`Google Picker: ${err.message}`);
+      setPickerError(`Google Picker: ${err.message}`);
     }
   };
 
@@ -70,7 +72,7 @@ export const GoogleDrivePickerModal: React.FC<GoogleDrivePickerModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-mono text-sm font-bold tracking-wider text-gray-200">
-                  VVC-ACIA // GOOGLE PICKER & DRIVE
+                  VVC LIAM CORE // GOOGLE PICKER & DRIVE
                 </h3>
                 <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-950/80 text-blue-300 border border-blue-800/60">
                   DRIVE API
@@ -92,6 +94,18 @@ export const GoogleDrivePickerModal: React.FC<GoogleDrivePickerModalProps> = ({
 
         {/* Content */}
         <div className="p-5 flex-1 overflow-y-auto space-y-4">
+          {pickerError && (
+            <div className="p-3 bg-red-500/10 border border-red-500/40 rounded-xl text-red-300 text-xs font-mono flex items-center justify-between gap-2">
+              <span>{pickerError}</span>
+              <button
+                onClick={() => setPickerError(null)}
+                className="text-red-400 hover:text-white text-xs underline"
+              >
+                Cerrar
+              </button>
+            </div>
+          )}
+
           <div className="p-4 bg-[#0d111a] border border-blue-500/20 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="space-y-1 text-center sm:text-left">
               <h4 className="text-xs font-mono font-bold text-blue-300 flex items-center justify-center sm:justify-start gap-1.5">

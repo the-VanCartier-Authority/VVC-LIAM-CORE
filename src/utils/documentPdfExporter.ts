@@ -34,13 +34,13 @@ export function exportTextDocumentToPdf(doc: TextDocumentData): void {
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(14);
   pdf.setTextColor(0, 240, 255);
-  pdf.text('VVC-ACIA // OBSIDIAN CORE', margin, 12);
+  pdf.text('VVC LIAM CORE // OBSIDIAN CORE', margin, 12);
 
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(9);
   pdf.setTextColor(150, 160, 180);
   pdf.text(`DOCUMENTO OFICIAL · CATEGORÍA: ${(doc.category || 'GENERAL').toUpperCase()}`, margin, 18);
-  pdf.text(`FECHA: ${doc.date} · AUTOR: ${doc.author || 'VVC-ACIA Core'}`, margin, 23);
+  pdf.text(`FECHA: ${doc.date} · AUTOR: ${doc.author || 'VVC LIAM CORE'}`, margin, 23);
 
   // Document Title
   let currentY = 40;
@@ -92,7 +92,7 @@ export function exportTextDocumentToPdf(doc: TextDocumentData): void {
     pdf.setTextColor(130, 140, 155);
     pdf.setDrawColor(220, 225, 235);
     pdf.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
-    pdf.text('Generado por VVC-ACIA Obsidian Engine · Sistema Cifrado y Verificado', margin, pageHeight - 10);
+    pdf.text('Generado por VVC LIAM CORE · Sistema Cifrado y Verificado', margin, pageHeight - 10);
     pdf.text(`Página ${i} de ${totalPages}`, pageWidth - margin - 20, pageHeight - 10);
   }
 
@@ -106,13 +106,13 @@ export function exportTextDocumentToPdf(doc: TextDocumentData): void {
 export function downloadTextFile(doc: TextDocumentData, extension: 'txt' | 'md' = 'txt'): void {
   const content = `# ${doc.title}
 Fecha: ${doc.date}
-Autor: ${doc.author || 'VVC-ACIA Core'}
+Autor: ${doc.author || 'VVC LIAM CORE'}
 Categoría: ${doc.category}
 
 ${doc.content}
 
 ---------------------------------------------------------
-Generado automáticamente por VVC-ACIA Obsidian Voice Assistant
+Generado automáticamente por VVC LIAM CORE Voice Assistant
 `;
 
   const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
@@ -156,7 +156,7 @@ export function exportSpreadsheetToPdf(sheet: SpreadsheetData): void {
   pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(13);
   pdf.setTextColor(0, 240, 255);
-  pdf.text('VVC-ACIA // HOJA DE CÁLCULO & DATOS', margin, 11);
+  pdf.text('VVC LIAM CORE // HOJA DE CÁLCULO & DATOS', margin, 11);
 
   pdf.setFont('helvetica', 'normal');
   pdf.setFontSize(8.5);
@@ -274,7 +274,7 @@ export function exportSpreadsheetToPdf(sheet: SpreadsheetData): void {
     pdf.setTextColor(130, 140, 155);
     pdf.setDrawColor(210, 215, 225);
     pdf.line(margin, pageHeight - 12, pageWidth - margin, pageHeight - 12);
-    pdf.text('VVC-ACIA Obsidian Core · Hoja de Cálculo Exportada a PDF', margin, pageHeight - 7);
+    pdf.text('VVC LIAM CORE · Hoja de Cálculo Exportada a PDF', margin, pageHeight - 7);
     pdf.text(`Página ${i} de ${totalPages}`, pageWidth - margin - 20, pageHeight - 7);
   }
 

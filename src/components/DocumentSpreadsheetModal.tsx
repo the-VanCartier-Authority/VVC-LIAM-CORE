@@ -47,12 +47,12 @@ interface DocumentSpreadsheetModalProps {
 const SAMPLE_DOCS: TextDocumentData[] = [
   {
     id: 'doc-1',
-    title: 'Informe de Telemetría y Rendimiento VVC-ACIA',
-    author: 'VVC-ACIA Executive Core',
+    title: 'Informe de Telemetría y Rendimiento VVC LIAM CORE',
+    author: 'VVC LIAM CORE Executive Core',
     date: new Date().toISOString().split('T')[0],
     category: 'informe',
     content: `1. RESUMEN EJECUTIVO
-El sistema de asistencia de voz VVC-ACIA ha operado con un índice de disponibilidad del 99.98% durante el presente ciclo. Los motores de inferencia NVIDIA NIM y los algoritmos RT-Lite han mantenido una latencia media de respuesta inferior a 45ms en operaciones locales.
+El sistema de asistencia de voz VVC LIAM CORE ha operado con un índice de disponibilidad del 99.98% durante el presente ciclo. Los motores de inferencia NVIDIA NIM y los algoritmos RT-Lite han mantenido una latencia media de respuesta inferior a 45ms en operaciones locales.
 
 2. DIAGNÓSTICO DE CONTROL DE HARDWARE
 • Linterna y módulos ópticos: 100% calibrados.
@@ -69,7 +69,7 @@ Se recomienda mantener activadas las alertas en segundo plano mediante Service W
     author: 'Coordinación de Proyecto',
     date: new Date().toISOString().split('T')[0],
     category: 'minuta',
-    content: `ASISTENTES: Carlos Méndez, María García, Alex Rivera, VVC-ACIA OS
+    content: `ASISTENTES: Carlos Méndez, María García, Alex Rivera, VVC LIAM CORE OS
 OBJETIVO: Revisión de hitos trimestrales y resolución de conflictos de calendario.
 
 ACUERDOS ALCANZADOS:
