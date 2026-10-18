@@ -21,7 +21,8 @@ import {
   Sliders, 
   RefreshCw,
   Terminal,
-  AlertCircle
+  AlertCircle,
+  ShieldCheck
 } from 'lucide-react';
 import type { AgentProfile, KokoroVoiceId, ModelType } from '../types';
 import { DEFAULT_AGENTS, AVAILABLE_MODELS, KOKORO_VOICES } from '../types';
@@ -120,7 +121,7 @@ export const AgentsModal: React.FC<AgentsModalProps> = ({
 
   if (!isOpen) return null;
 
-  const activeAgent = agents.find((a) => a.id === activeAgentId) || agents[0];
+  const activeAgent = agents.find((a) => a.id === activeAgentId);
 
   // Helper to render icon
   const renderAgentIcon = (iconName?: string, color = '#00f0ff') => {
@@ -386,7 +387,12 @@ export const AgentsModal: React.FC<AgentsModalProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-400 font-mono">
-                Agente Activo: <span className="text-[#00f0ff] font-semibold">{activeAgent?.name}</span> ({activeAgent?.role})
+                Agente Activo:{' '}
+                {activeAgent ? (
+                  <span className="text-[#00f0ff] font-semibold">{activeAgent.name} ({activeAgent.role})</span>
+                ) : (
+                  <span className="text-emerald-400 font-semibold">Ninguno (Modo Neutro Directo)</span>
+                )}
               </p>
             </div>
           </div>
@@ -492,6 +498,51 @@ export const AgentsModal: React.FC<AgentsModalProps> = ({
                   title="Restaurar agentes predeterminados de fábrica"
                 >
                   Restaurar Originales
+                </button>
+              </div>
+
+              {/* Modo Neutro / Sin Agente (Por Defecto o Desactivado) */}
+              <div
+                className={`rounded-xl border p-4 transition-all mb-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                  !activeAgentId || activeAgentId === 'none'
+                    ? 'bg-[#061814] border-emerald-500/80 shadow-[0_0_20px_rgba(16,185,129,0.25)] ring-1 ring-emerald-500/50'
+                    : 'bg-[#0a0d16] border-[#1e2638] hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center shrink-0">
+                    <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-bold text-sm text-white font-mono">Modo Neutro (Sin Agente)</h3>
+                      {(!activeAgentId || activeAgentId === 'none') ? (
+                        <span className="text-[9px] px-2 py-0.5 rounded bg-emerald-500 text-black font-extrabold uppercase tracking-wide">
+                          ACTIVO EN EL SISTEMA
+                        </span>
+                      ) : (
+                        <span className="text-[9px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-mono">
+                          DISPONIBLE
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] font-mono text-slate-400 mt-0.5">
+                      Ejecución directa determinista sin directivas de personalidad ni sesgos de rol. Máximo control neutral.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => onSelectAgent('')}
+                  disabled={!activeAgentId || activeAgentId === 'none'}
+                  className={`px-4 py-2 rounded-lg text-xs font-mono font-bold transition-all shrink-0 self-end sm:self-auto cursor-pointer ${
+                    !activeAgentId || activeAgentId === 'none'
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 cursor-default'
+                      : 'bg-[#121929] hover:bg-emerald-500/20 text-slate-200 hover:text-emerald-400 border border-[#1e2638]'
+                  }`}
+                >
+                  {!activeAgentId || activeAgentId === 'none' ? '✓ Modo Neutro Activo' : 'Desactivar Agente (Modo Neutro)'}
                 </button>
               </div>
 
@@ -625,18 +676,18 @@ export const AgentsModal: React.FC<AgentsModalProps> = ({
 
                       {/* Activation Button */}
                       <button
-                        onClick={() => onSelectAgent(agent.id)}
-                        disabled={isActive}
+                        onClick={() => onSelectAgent(isActive ? '' : agent.id)}
                         className={`w-full py-2 rounded-lg text-xs font-mono font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                           isActive
-                            ? 'bg-[#00f0ff]/20 text-[#00f0ff] border border-[#00f0ff]/50 cursor-default'
+                            ? 'bg-[#00f0ff]/20 hover:bg-red-500/20 text-[#00f0ff] hover:text-red-400 border border-[#00f0ff]/50 hover:border-red-500/50'
                             : 'bg-[#121929] hover:bg-[#00f0ff]/20 text-slate-200 hover:text-[#00f0ff] border border-[#1e2638] hover:border-[#00f0ff]/40'
                         }`}
+                        title={isActive ? 'Clic para desactivar agente y volver a Modo Neutro' : 'Activar este agente para consultas de LLM'}
                       >
                         {isActive ? (
                           <>
                             <Check className="w-3.5 h-3.5 text-[#00f0ff]" />
-                            <span>Agente Activo en el LLM</span>
+                            <span>Agente Activo (Clic para Desactivar)</span>
                           </>
                         ) : (
                           <>

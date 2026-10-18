@@ -76,6 +76,9 @@ interface SettingsModalProps {
   onToggleOffline: () => void;
   currentTheme: ThemeColorId;
   onSelectTheme: (theme: ThemeColorId) => void;
+  geminiApiKey?: string;
+  onUpdateGeminiApiKey?: (key: string) => void;
+  onOpenSecrets?: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -105,8 +108,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onToggleOffline,
   currentTheme,
   onSelectTheme,
+  geminiApiKey,
+  onUpdateGeminiApiKey,
+  onOpenSecrets,
 }) => {
   const [apiKeyInput, setApiKeyInput] = useState(nvidiaApiKey);
+  const [geminiKeyInput, setGeminiKeyInput] = useState(() => geminiApiKey || (typeof localStorage !== 'undefined' ? localStorage.getItem('vvc_secret_gemini_api_key') || '' : ''));
   const [endpointInput, setEndpointInput] = useState(customEndpoint || 'https://integrate.api.nvidia.com/v1/chat/completions');
   const [webhookInput, setWebhookInput] = useState(thirdPartyWebhookUrl);
   const [isKeySaved, setIsKeySaved] = useState(false);
@@ -145,6 +152,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const handleSaveKeys = () => {
     onUpdateNvidiaApiKey(apiKeyInput.trim());
+    if (onUpdateGeminiApiKey) {
+      onUpdateGeminiApiKey(geminiKeyInput.trim());
+    } else {
+      localStorage.setItem('vvc_secret_gemini_api_key', geminiKeyInput.trim());
+    }
     onUpdateCustomEndpoint(endpointInput.trim());
     onUpdateThirdPartyWebhookUrl(webhookInput.trim());
     setIsKeySaved(true);
@@ -671,28 +683,64 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
-          {/* SECTION 4: CREDENCIALES & ENDPOINTS NVIDIA BUILD */}
+          {/* SECTION 4: CREDENCIALES & CLAVES SECRETAS DE APIS */}
           <div className="bg-[#0b0e17] border border-[#1e2638] rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-white flex items-center gap-1.5">
                 <Key className="w-4 h-4 text-[#ff2a5f]" />
-                Credenciales NVIDIA Build & Webhooks de Terceros
+                Credenciales de Modelos & Secretos de APIs
               </span>
-              <a
-                href="https://build.nvidia.com"
-                target="_blank"
-                rel="noreferrer"
-                className="text-[10px] text-[#00f0ff] hover:underline flex items-center gap-1"
-              >
-                <span>Obtener API Key</span>
-                <ExternalLink className="w-3 h-3" />
-              </a>
+              {onOpenSecrets && (
+                <button
+                  type="button"
+                  onClick={onOpenSecrets}
+                  className="text-[10px] text-amber-400 hover:text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded font-semibold flex items-center gap-1"
+                >
+                  <Key className="w-2.5 h-2.5" />
+                  <span>Bóveda Completa de Secretos</span>
+                </button>
+              )}
             </div>
 
             <div>
-              <label className="text-[11px] text-slate-400 block mb-1">
-                NVIDIA API Key:
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] text-slate-400">
+                  Google Gemini API Key:
+                </label>
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[10px] text-[#00f0ff] hover:underline flex items-center gap-1"
+                >
+                  <span>Obtener Gemini Key</span>
+                  <ExternalLink className="w-2.5 h-2.5" />
+                </a>
+              </div>
+              <input
+                type="password"
+                value={geminiKeyInput}
+                onChange={(e) => setGeminiKeyInput(e.target.value)}
+                placeholder="AIzaSy..."
+                className="w-full bg-[#06080d] border border-[#1e2638] focus:border-[#38bdf8] rounded px-3 py-1.5 text-xs text-slate-100 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[11px] text-slate-400">
+                  NVIDIA NIM API Key:
+                </label>
+                <a
+                  href="https://build.nvidia.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[10px] text-[#00f0ff] hover:underline flex items-center gap-1"
+                >
+                  <span>Obtener NVIDIA Key</span>
+                  <ExternalLink className="w-2.5 h-2.5" />
+                </a>
+              </div>
               <input
                 type="password"
                 value={apiKeyInput}
@@ -704,7 +752,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
             <div>
               <label className="text-[11px] text-slate-400 block mb-1">
-                Endpoint Base URL:
+                Endpoint Base URL (NVIDIA / Custom LLM):
               </label>
               <input
                 type="text"

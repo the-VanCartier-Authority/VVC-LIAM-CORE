@@ -32,13 +32,20 @@ export type ModelType =
   | 'mistralai/mistral-nemotron'
   | 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning'
   | 'nvidia/riva-translate-4b-instruct-v2'
+  // --- Familia Google Gemini (Cloud LLM) ---
+  | 'google/gemini-2.5-flash'
+  | 'google/gemini-2.5-pro'
   // --- Motores Locales RT-Lite (On-Device) ---
   | 'rt-lite-local'
   | 'rt-lite-hardware'
   | 'rt-lite-telephony'
   | 'rt-lite-agenda'
   | 'rt-lite-docs'
-  | 'rt-lite-security';
+  | 'rt-lite-security'
+  // --- LLM Personalizado / OpenAI Compatible ---
+  | 'custom-llm'
+  // --- Modo Directo Sin IA (Determinista) ---
+  | 'direct-no-ai';
 
 export type CloudServiceIntegrationType =
   | 'local_only'
@@ -135,7 +142,7 @@ export interface ModelInfo {
   id: ModelType;
   name: string;
   provider: string;
-  category: 'NVIDIA NIM' | 'RT-Lite Local';
+  category: 'NVIDIA NIM' | 'Google Gemini' | 'RT-Lite Local' | 'Custom LLM' | 'Direct Execution';
   domain: ModelDomain;
   tier: ModelTier;
   description: string;
@@ -540,7 +547,37 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
   },
 
   // ==========================================
-  // 5. MOTORES LOCALES ON-DEVICE RT-LITE (100% OFFLINE)
+  // 5. FAMILIA GOOGLE GEMINI (CLOUD LLM)
+  // ==========================================
+  {
+    id: 'google/gemini-2.5-flash',
+    name: 'Gemini 2.5 Flash',
+    provider: 'Google AI',
+    category: 'Google Gemini',
+    domain: 'fast_voice',
+    tier: 'Lite / Flash',
+    description: 'Motor de alta velocidad de Google optimizado para voz natural, análisis multimodal y latencia ultrabaja.',
+    bestFor: 'Respuestas ágiles, multimodalidad y comandos conversacionales (<1s)',
+    contextWindow: '1M',
+    maxTokens: 4096,
+    isFreeEndpoint: false,
+  },
+  {
+    id: 'google/gemini-2.5-pro',
+    name: 'Gemini 2.5 Pro (Frontier)',
+    provider: 'Google AI',
+    category: 'Google Gemini',
+    domain: 'flagship_reasoning',
+    tier: 'Flagship Full',
+    description: 'El modelo insignia de Google para razonamiento complejo, análisis lógico exhaustivo y código avanzado.',
+    bestFor: 'Razonamiento profundo, síntesis ejecutiva y resolución de problemas complejos',
+    contextWindow: '2M',
+    maxTokens: 8192,
+    isFreeEndpoint: false,
+  },
+
+  // ==========================================
+  // 6. MOTORES LOCALES ON-DEVICE RT-LITE (100% OFFLINE)
   // ==========================================
   {
     id: 'rt-lite-local',
@@ -618,6 +655,32 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Bóveda de credenciales, notas secretas y notificaciones push persistentes',
     contextWindow: 'Local',
     maxTokens: 1024,
+    isFreeEndpoint: true,
+  },
+  {
+    id: 'custom-llm',
+    name: 'Custom LLM (OpenAI / Groq / Ollama)',
+    provider: 'Custom Endpoint',
+    category: 'Custom LLM',
+    domain: 'agents_tools',
+    tier: 'Specialist',
+    description: 'Conecta cualquier endpoint de inferencia compatible con OpenAI (Groq, OpenRouter, Together AI, vLLM, Ollama) con tu API Key secreta.',
+    bestFor: 'Tu propia infraestructura, llaves API privadas y modelos personalizados',
+    contextWindow: 'Variable',
+    maxTokens: 4096,
+    isFreeEndpoint: false,
+  },
+  {
+    id: 'direct-no-ai',
+    name: 'Modo Directo (Sin IA / Determinista)',
+    provider: 'VVC LIAM CORE Direct',
+    category: 'Direct Execution',
+    domain: 'offline_device',
+    tier: 'Local On-Device',
+    description: 'Ejecución directa determinista de comandos, control de hardware, llamadas y calendario sin intervención de modelos de lenguaje ni síntesis.',
+    bestFor: 'Control puro, cero procesamiento neural, máxima privacidad y rapidez instantánea',
+    contextWindow: 'N/A',
+    maxTokens: 0,
     isFreeEndpoint: true,
   },
 ];

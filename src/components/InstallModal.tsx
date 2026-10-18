@@ -21,9 +21,22 @@ interface InstallModalProps {
 export const InstallModal: React.FC<InstallModalProps> = ({ isOpen, onClose }) => {
   const { isInstallable, isInstalled, isAndroid, isIOS, install } = usePWAInstall();
   const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedManifest, setCopiedManifest] = useState(false);
   const [activeTab, setActiveTab] = useState<'pwa' | 'apk' | 'ios'>('pwa');
 
   if (!isOpen) return null;
+
+  const handleCopyManifest = async () => {
+    try {
+      const res = await fetch('/manifest.json');
+      const data = await res.json();
+      await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+      setCopiedManifest(true);
+      setTimeout(() => setCopiedManifest(false), 2500);
+    } catch {
+      // Fallback
+    }
+  };
 
   const capacitorCommands = `# 1. Instalar Capacitor para Android / Desktop en el proyecto
 npm install @capacitor/core @capacitor/android
@@ -189,24 +202,68 @@ npx cap open android
                   Si requieres un archivo binario <code>.apk</code> para distribuirlo manualmente o publicarlo en Google Play Store, puedes empaquetarlo con <strong>Capacitor</strong> o con <strong>PWABuilder</strong> (herramienta oficial de Microsoft):
                 </p>
 
-                {/* Option A: PWABuilder 1-click */}
-                <div className="p-3 rounded bg-[#07090e] border border-[#1e2638] space-y-2">
+                {/* Option A: Direct WebAPK Install vs PWABuilder */}
+                <div className="p-3.5 rounded-xl bg-[#07090e] border border-[#1e2638] space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-white text-xs">Opción A: Generador Online PWABuilder (Sin configurar SDK)</span>
-                    <a
-                      href="https://www.pwabuilder.com"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[#00f0ff] hover:underline flex items-center gap-1 text-[11px]"
-                    >
-                      <span>Abrir PWABuilder</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </a>
+                    <span className="font-bold text-white text-xs flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-[#00FF66] animate-pulse"></span>
+                      Opción A: Instalación Directa (Sin PWABuilder ni pasos complejos)
+                    </span>
+                    <span className="text-[10px] text-[#00FF66] bg-[#00FF66]/10 px-2 py-0.5 rounded border border-[#00FF66]/30 font-bold">
+                      RECOMENDADO
+                    </span>
                   </div>
+                  <p className="text-slate-300 text-[11px] leading-relaxed">
+                    No necesitas usar herramientas externas como PWABuilder. Puedes instalar la aplicación directamente en cualquier teléfono:
+                  </p>
+                  <div className="p-2.5 rounded bg-[#101524] border border-[#1e2638] space-y-1.5 text-[11px] text-slate-300">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[#00FF66] font-bold">1.</span>
+                      <span>Abre la app en <strong>Google Chrome</strong> en tu celular Android.</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[#00FF66] font-bold">2.</span>
+                      <span>Toca los <strong>tres puntos ⋮</strong> de Chrome (arriba a la derecha).</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[#00FF66] font-bold">3.</span>
+                      <span>Selecciona <strong>"Instalar aplicación"</strong> o <strong>"Añadir a pantalla de inicio"</strong>.</span>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-slate-400">
+                    ✓ Se instalará como una app nativa con su icono oficial, pantalla completa y acceso a la memoria local sin requerir compilación.
+                  </p>
+                </div>
+
+                {/* Option B: PWABuilder Manifest Helper */}
+                <div className="p-3.5 rounded-xl bg-[#07090e] border border-[#1e2638] space-y-2.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <span className="font-bold text-white text-xs">
+                      ¿Por qué PWABuilder pide tantos campos?
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleCopyManifest}
+                        className="text-[#00FF66] hover:bg-[#00FF66]/10 px-2 py-1 rounded border border-[#00FF66]/30 flex items-center gap-1 text-[11px] font-bold transition-all"
+                      >
+                        {copiedManifest ? <Check className="w-3 h-3 text-[#00FF66]" /> : <Copy className="w-3 h-3" />}
+                        <span>{copiedManifest ? '¡JSON Copiado!' : 'Copiar JSON Listo (27 campos)'}</span>
+                      </button>
+                      <a
+                        href="/manifest.json"
+                        download="manifest.json"
+                        className="text-[#00f0ff] hover:bg-[#00f0ff]/10 px-2 py-1 rounded border border-[#00f0ff]/30 flex items-center gap-1 text-[11px] font-bold transition-all"
+                      >
+                        <span>Descargar</span>
+                        <Download className="w-3 h-3" />
+                      </a>
+                    </div>
+                  </div>
+                  <p className="text-slate-400 text-[11px] leading-relaxed">
+                    PWABuilder te muestra esa pantalla porque el robot de Microsoft no puede saltar la verificación de seguridad de Google Cloud Run (<code>cookie_check</code>) y agota su tiempo de espera.
+                  </p>
                   <p className="text-slate-400 text-[11px]">
-                    1. Entra a <strong>pwabuilder.com</strong> e ingresa la URL de esta aplicación.<br />
-                    2. Pulsa en <strong>"Package for Android"</strong>.<br />
-                    3. Descarga directamente el archivo <code>.apk</code> y el paquete de Google Play Store.
+                    <strong>No necesitas llenar nada manualmente:</strong> Pulsa <strong>"Copiar JSON Listo"</strong> y pégalo directamente en PWABuilder (en <em>"Edit Your Manifest"</em>), o aún más fácil: <strong>usa la Opción A para instalar la app directamente desde Chrome en tu celular sin usar PWABuilder</strong>.
                   </p>
                 </div>
 

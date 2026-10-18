@@ -24,6 +24,8 @@ import { DocumentSpreadsheetModal } from './components/DocumentSpreadsheetModal'
 import { GoogleContactsModal } from './components/GoogleContactsModal';
 import { HelpCenterModal } from './components/HelpCenterModal';
 import { AgentsModal } from './components/AgentsModal';
+import { ApiSecretsModal } from './components/ApiSecretsModal';
+import { SecretsService, type SecretKeyId } from './services/secretsService';
 import { TelemetryPanel } from './components/TelemetryPanel';
 import { platformService } from './core/adapters/PlatformService';
 import { initAuth, googleSignIn } from './services/googleAuth';
@@ -196,9 +198,44 @@ export default function App() {
     return (localStorage.getItem('vvc_acia_cloud_integration') as CloudServiceIntegrationType) || 'google_calendar';
   });
 
-  const [nvidiaApiKey, setNvidiaApiKey] = useState(() => localStorage.getItem('vvc_acia_nvidia_key') || '');
-  const [customEndpoint, setCustomEndpoint] = useState(() => localStorage.getItem('vvc_acia_endpoint') || 'https://integrate.api.nvidia.com/v1/chat/completions');
-  const [thirdPartyWebhookUrl, setThirdPartyWebhookUrl] = useState(() => localStorage.getItem('vvc_acia_webhook') || '');
+  const [nvidiaApiKey, setNvidiaApiKey] = useState(() => SecretsService.getSecret('nvidia_api_key'));
+  const [geminiApiKey, setGeminiApiKey] = useState(() => SecretsService.getSecret('gemini_api_key'));
+  const [customApiKey, setCustomApiKey] = useState(() => SecretsService.getSecret('custom_api_key'));
+  const [customEndpoint, setCustomEndpoint] = useState(() => SecretsService.getSecret('custom_endpoint') || 'https://integrate.api.nvidia.com/v1/chat/completions');
+  const [customModel, setCustomModel] = useState(() => SecretsService.getSecret('custom_model') || 'llama-3.3-70b-versatile');
+  const [thirdPartyWebhookUrl, setThirdPartyWebhookUrl] = useState(() => SecretsService.getSecret('webhook_url'));
+
+  // API Secrets Vault Modal State
+  const [isSecretsModalOpen, setIsSecretsModalOpen] = useState(false);
+  const [targetSecretId, setTargetSecretId] = useState<SecretKeyId | null>(null);
+
+  const promptSecret = (secretId: SecretKeyId, message?: string) => {
+    setTargetSecretId(secretId);
+    setIsSecretsModalOpen(true);
+    if (message) {
+      setActiveAlerts((prev) => [
+        {
+          id: `sec-${Date.now()}`,
+          taskId: 'secrets-vault',
+          title: 'Clave Secreta Requerida',
+          timeDue: 'Inmediata',
+          priority: 'alta',
+          category: 'sistema',
+          timestamp: Date.now(),
+        },
+        ...prev,
+      ]);
+    }
+  };
+
+  const handleSecretsUpdated = () => {
+    setNvidiaApiKey(SecretsService.getSecret('nvidia_api_key'));
+    setGeminiApiKey(SecretsService.getSecret('gemini_api_key'));
+    setCustomApiKey(SecretsService.getSecret('custom_api_key'));
+    setCustomEndpoint(SecretsService.getSecret('custom_endpoint') || 'https://integrate.api.nvidia.com/v1/chat/completions');
+    setCustomModel(SecretsService.getSecret('custom_model') || 'llama-3.3-70b-versatile');
+    setThirdPartyWebhookUrl(SecretsService.getSecret('webhook_url'));
+  };
 
   // Kokoro TTS State
   const [selectedVoiceId, setSelectedVoiceId] = useState<KokoroVoiceId>(() => {
@@ -368,8 +405,9 @@ export default function App() {
     return DEFAULT_AGENTS;
   });
 
+  // Active Agent ID: empty string '' means NO agent selected (Modo Neutro Directo por defecto)
   const [activeAgentId, setActiveAgentId] = useState<string>(() => {
-    return localStorage.getItem('vvc_acia_active_agent_id') || 'exclusive-vladimir';
+    return localStorage.getItem('vvc_acia_active_agent_id') || '';
   });
 
   // Save agents and active ID to localStorage
@@ -381,7 +419,7 @@ export default function App() {
     localStorage.setItem('vvc_acia_active_agent_id', activeAgentId);
   }, [activeAgentId]);
 
-  const activeAgent = agents.find((a) => a.id === activeAgentId) || agents[0] || DEFAULT_AGENTS[0];
+  const activeAgent = agents.find((a) => a.id === activeAgentId) || null;
   const mapsApiKey = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string) || 'AIzaSyCzVPjGhif2S8wKYBjkk5TuoqAeuCEatUo';
 
   // Google Auth User State
@@ -922,7 +960,7 @@ export default function App() {
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
             actionType: intentResult.actionType,
             actionDetails: intentResult.actionDetails,
-            modelUsed: `${activeAgent.name.split(' ')[0]} (RT-Lite)`,
+            modelUsed: `${activeAgent ? activeAgent.name.split(' ')[0] : 'VVC LIAM'} (RT-Lite)`,
             isE2EE: true,
           };
           setMessages((prev) => [...prev, assistantMsg]);
@@ -931,7 +969,39 @@ export default function App() {
           return;
         }
 
-        // Step 2: If not an immediate hardware command, run through active model (NVIDIA or any RT-Lite Engine)
+        // --- NIVEL 1: MODO DIRECTO (SIN IA / DETERMINISTA) ---
+        if (currentModel === 'direct-no-ai') {
+          const directText = `[Modo Directo // Sin IA]: Comando "${commandText}" procesado directamente. Sin intervención de modelos generativos. Estado operativo nominal.`;
+          if (!deviceState.isMuted) {
+            setIsSpeaking(true);
+            speakKokoro(directText, selectedVoiceId, {
+              pitchModifier,
+              rateModifier,
+              volume: deviceState.volume,
+              onEnd: () => {
+                setIsSpeaking(false);
+                setStatusLabel('LISTO');
+              },
+            });
+          }
+
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `a-${Date.now()}`,
+              sender: 'assistant',
+              text: directText,
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+              modelUsed: 'Modo Directo (Sin IA)',
+              isE2EE: true,
+            },
+          ]);
+          setIsProcessing(false);
+          setStatusLabel('LISTO');
+          return;
+        }
+
+        // --- NIVEL 2: MOTORES LOCALES ON-DEVICE RT-LITE (100% OFFLINE) ---
         if (isOffline || currentModel.startsWith('rt-lite')) {
           const localAnswer = generateRTLiteResponse(commandText, currentModel);
           if (!deviceState.isMuted) {
@@ -955,7 +1025,7 @@ export default function App() {
               sender: 'assistant',
               text: localAnswer,
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-              modelUsed: `${currentModelMeta?.name || 'RT-Lite On-Device'} · ${activeAgent.name.split(' ')[0]}`,
+              modelUsed: `${currentModelMeta?.name || 'RT-Lite On-Device'}${activeAgent ? ` · ${activeAgent.name.split(' ')[0]}` : ' · Modo Neutro'}`,
               isE2EE: true,
             },
           ]);
@@ -964,58 +1034,144 @@ export default function App() {
           return;
         }
 
-        // Online NVIDIA Model Inference with Active Agent Profile & Cloud Context
+        // --- NIVEL 3: MODELOS EN LA NUBE (GEMINI, NVIDIA NIM, CUSTOM LLM) ---
         const cloudInfo = CLOUD_INTEGRATIONS.find((c) => c.id === currentCloudIntegration) || CLOUD_INTEGRATIONS[0];
 
         // Dispatch to VAOS Policy Engine & Telemetry Gateway in background
         platformService.api.dispatchVaos({
           command: commandText,
-          agentId: activeAgent.id,
-          isExclusiveAgent: activeAgent.isExclusivePrivate,
-          injectedSkills: activeAgent.injectedSkills || [],
+          agentId: activeAgent ? activeAgent.id : 'neutral-core',
+          isExclusiveAgent: activeAgent ? Boolean(activeAgent.isExclusivePrivate) : false,
+          injectedSkills: activeAgent ? (activeAgent.injectedSkills || []) : [],
         }).catch((err) => console.warn('[VAOS Gateway]', err));
 
-        const agentRulesSection = activeAgent.rules && activeAgent.rules.length > 0
-          ? `\n\nREGLAS DE ACTUACIÓN:\n${activeAgent.rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}`
-          : '';
+        // Construct System Prompt according to whether an Agent is selected or No Agent (Neutral Mode)
+        let systemPrompt = '';
+        if (activeAgent) {
+          const agentRulesSection = activeAgent.rules && activeAgent.rules.length > 0
+            ? `\n\nREGLAS DE ACTUACIÓN:\n${activeAgent.rules.map((r, i) => `${i + 1}. ${r}`).join('\n')}`
+            : '';
 
-        const agentCapabilitiesSection = activeAgent.capabilities && activeAgent.capabilities.length > 0
-          ? `\nCAPACIDADES ESPECIALIZADAS: ${activeAgent.capabilities.join(', ')}`
-          : '';
+          const agentCapabilitiesSection = activeAgent.capabilities && activeAgent.capabilities.length > 0
+            ? `\nCAPACIDADES ESPECIALIZADAS: ${activeAgent.capabilities.join(', ')}`
+            : '';
 
-        const agentSkillsSection = activeAgent.injectedSkills && activeAgent.injectedSkills.length > 0
-          ? `\nSKILLS INYECTADOS DINÁMICAMENTE (VAOS): ${activeAgent.injectedSkills.join(', ')}`
-          : '';
+          const agentSkillsSection = activeAgent.injectedSkills && activeAgent.injectedSkills.length > 0
+            ? `\nSKILLS INYECTADOS DINÁMICAMENTE (VAOS): ${activeAgent.injectedSkills.join(', ')}`
+            : '';
 
-        const systemPrompt = `[IDENTIDAD DE AGENTE ACTIVO: ${activeAgent.name.toUpperCase()} // ${activeAgent.role.toUpperCase()}]\n${activeAgent.systemPrompt}${agentRulesSection}${agentCapabilitiesSection}${agentSkillsSection}\n\n[CONTEXTO OPERATIVO]:\nVVC LIAM CORE (Control // Analyze // Execute). Orquestador VAOS de alta velocidad con Policy Engine. Integración activa con ${cloudInfo.name}. Control de calendario, tareas y funciones del teléfono. Responde de forma concisa, clara y ejecutiva en español (máximo 3 oraciones) sin fricción ("Más control. Menos ruido.").`;
-
-        const agentTemperature = activeAgent.temperature !== undefined ? activeAgent.temperature : 0.6;
-        const agentMaxTokens = activeAgent.maxTokens !== undefined ? activeAgent.maxTokens : 800;
-
-        const res = await fetch('/api/chat/nvidia', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: currentModel,
-            apiKey: nvidiaApiKey,
-            endpoint: customEndpoint,
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: commandText },
-            ],
-            temperature: agentTemperature,
-            max_tokens: agentMaxTokens,
-          }),
-        });
-
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || `Error servidor (${res.status})`);
+          systemPrompt = `[IDENTIDAD DE AGENTE ACTIVO: ${activeAgent.name.toUpperCase()} // ${activeAgent.role.toUpperCase()}]\n${activeAgent.systemPrompt}${agentRulesSection}${agentCapabilitiesSection}${agentSkillsSection}\n\n[CONTEXTO OPERATIVO]:\nVVC LIAM CORE (Control // Analyze // Execute). Orquestador VAOS de alta velocidad con Policy Engine. Integración activa con ${cloudInfo.name}. Control de calendario, tareas y funciones del teléfono. Responde de forma concisa, clara y ejecutiva en español (máximo 3 oraciones) sin fricción ("Más control. Menos ruido.").`;
+        } else {
+          systemPrompt = `[MODO NEUTRO DIRECTO // SIN AGENTE ACTIVO]:\nEres el asistente operativo central de VVC LIAM CORE actuando en Modo Neutro Directo sin sesgos de personalidad ni roles predeterminados. Responde con neutralidad, concisión, rigor técnico y claridad ejecutiva en español (máximo 3 oraciones) sin fricción ("Más control. Menos ruido.").`;
         }
 
-        const data = await res.json();
-        const responseText = data.choices?.[0]?.message?.content || data.text || 'Comando procesado.';
-        const modelTag = data.model_used || currentModel;
+        const agentTemperature = activeAgent?.temperature !== undefined ? activeAgent.temperature : 0.6;
+        const agentMaxTokens = activeAgent?.maxTokens !== undefined ? activeAgent.maxTokens : 800;
+
+        let responseText = '';
+        let modelTag = currentModel as string;
+
+        // Route A: Google Gemini Cloud
+        if (currentModel.startsWith('google/')) {
+          const gemKey = SecretsService.getSecret('gemini_api_key');
+          if (!gemKey) {
+            promptSecret('gemini_api_key', 'Configura tu Google Gemini API Key secreta para utilizar este modelo.');
+            throw new Error('Se requiere tu API Key de Google Gemini guardada como secreto para continuar.');
+          }
+
+          const res = await fetch('/api/chat/gemini', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: currentModel,
+              apiKey: gemKey,
+              prompt: commandText,
+              systemInstruction: systemPrompt,
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: commandText },
+              ],
+            }),
+          });
+
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || `Error servidor Gemini (${res.status})`);
+          }
+
+          const data = await res.json();
+          responseText = data.choices?.[0]?.message?.content || data.text || 'Comando procesado por Gemini.';
+          modelTag = data.model_used || currentModel;
+        } 
+        // Route B: Custom LLM (OpenAI-compatible / Groq / Ollama)
+        else if (currentModel === 'custom-llm') {
+          const custEndpoint = SecretsService.getSecret('custom_endpoint');
+          const custKey = SecretsService.getSecret('custom_api_key');
+          const custModel = SecretsService.getSecret('custom_model') || 'llama-3.3-70b-versatile';
+
+          if (!custEndpoint) {
+            promptSecret('custom_endpoint', 'Configura la URL de Endpoint y API Key para el LLM Personalizado.');
+            throw new Error('Se requiere configurar el Endpoint URL del LLM en la Bóveda de Secretos.');
+          }
+
+          const res = await fetch('/api/chat/custom', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              endpoint: custEndpoint,
+              apiKey: custKey,
+              model: custModel,
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: commandText },
+              ],
+              temperature: agentTemperature,
+              max_tokens: agentMaxTokens,
+            }),
+          });
+
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || `Error en Custom LLM (${res.status})`);
+          }
+
+          const data = await res.json();
+          responseText = data.choices?.[0]?.message?.content || data.text || 'Comando procesado por Custom LLM.';
+          modelTag = data.model_used || `${custModel} (Custom)`;
+        }
+        // Route C: NVIDIA NIM Catalog
+        else {
+          const nKey = SecretsService.getSecret('nvidia_api_key');
+          if (!nKey) {
+            promptSecret('nvidia_api_key', 'Configura tu NVIDIA NIM API Key secreta para utilizar este modelo.');
+            throw new Error('Se requiere tu API Key de NVIDIA NIM guardada como secreto para continuar.');
+          }
+
+          const res = await fetch('/api/chat/nvidia', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model: currentModel,
+              apiKey: nKey,
+              endpoint: customEndpoint,
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: commandText },
+              ],
+              temperature: agentTemperature,
+              max_tokens: agentMaxTokens,
+            }),
+          });
+
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || `Error servidor NVIDIA (${res.status})`);
+          }
+
+          const data = await res.json();
+          responseText = data.choices?.[0]?.message?.content || data.text || 'Comando procesado.';
+          modelTag = data.model_used || currentModel;
+        }
 
         if (!deviceState.isMuted) {
           setIsSpeaking(true);
@@ -1037,7 +1193,7 @@ export default function App() {
             sender: 'assistant',
             text: responseText,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-            modelUsed: modelTag,
+            modelUsed: `${modelTag}${activeAgent ? ` · ${activeAgent.name.split(' ')[0]}` : ' · Modo Neutro'}`,
             isE2EE: true,
           },
         ]);
@@ -1059,7 +1215,7 @@ export default function App() {
           {
             id: `a-${Date.now()}`,
             sender: 'assistant',
-            text: `${fallbackText}\n\n[Nota: Servidor NVIDIA en modo espera (${err.message}). Ejecutado con RT-Lite On-Device].`,
+            text: `${fallbackText}\n\n[Nota: Servicio Cloud (${err.message}). Ejecutado con RT-Lite On-Device].`,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
             modelUsed: 'RT-Lite Local (Fallback)',
             isE2EE: true,
@@ -1078,8 +1234,12 @@ export default function App() {
       isOffline,
       currentModel,
       currentCloudIntegration,
+      activeAgent,
       nvidiaApiKey,
+      geminiApiKey,
+      customApiKey,
       customEndpoint,
+      customModel,
       thirdPartyWebhookUrl,
       selectedVoiceId,
       pitchModifier,
@@ -1166,6 +1326,37 @@ export default function App() {
   const activeModelObj = AVAILABLE_MODELS.find((m) => m.id === currentModel) || AVAILABLE_MODELS[0];
   const pendingTasksCount = tasks.filter((t) => !t.isCompleted).length;
 
+  const handleSelectModel = (model: ModelType) => {
+    setCurrentModel(model);
+    localStorage.setItem('vvc_acia_model', model);
+    playCyberTone('confirm');
+
+    // Prompt for secret API key if required and not set
+    if (model.startsWith('google/') && !SecretsService.hasSecret('gemini_api_key')) {
+      promptSecret('gemini_api_key', 'Configura tu Google Gemini API Key secreta para utilizar este modelo.');
+    } else if (model === 'custom-llm' && (!SecretsService.hasSecret('custom_endpoint') || !SecretsService.hasSecret('custom_api_key'))) {
+      promptSecret('custom_endpoint', 'Configura tu Endpoint URL y API Key para el LLM Personalizado.');
+    } else if (!model.startsWith('rt-lite') && model !== 'direct-no-ai' && !model.startsWith('google/') && model !== 'custom-llm') {
+      if (!SecretsService.hasSecret('nvidia_api_key')) {
+        promptSecret('nvidia_api_key', 'Ingresa tu NVIDIA NIM API Key secreta para utilizar este modelo en la nube.');
+      }
+    }
+  };
+
+  const handleSelectCloudIntegration = (ci: CloudServiceIntegrationType) => {
+    setCurrentCloudIntegration(ci);
+    localStorage.setItem('vvc_acia_cloud_integration', ci);
+    playCyberTone('confirm');
+
+    if (ci === 'notion_workspace' && !SecretsService.hasSecret('notion_api_key')) {
+      promptSecret('notion_api_key', 'Ingresa tu Integration Secret de Notion para sincronizar tareas.');
+    } else if (ci === 'todoist_sync' && !SecretsService.hasSecret('todoist_api_key')) {
+      promptSecret('todoist_api_key', 'Ingresa tu API Token de Todoist para sincronización en tiempo real.');
+    } else if (ci === 'slack_webhooks' && !SecretsService.hasSecret('webhook_url')) {
+      promptSecret('webhook_url', 'Configura la URL de Webhook para emitir alertas en Slack / Discord.');
+    }
+  };
+
   return (
     <div
       className="min-h-screen bg-[var(--bg-obsidian)] text-[var(--text-primary)] flex flex-col relative selection:bg-[var(--primary-accent)]/30 selection:text-white transition-colors duration-300"
@@ -1187,20 +1378,16 @@ export default function App() {
       {/* Top Bar Header */}
       <Header
         currentModel={currentModel}
-        onSelectModel={(model) => {
-          setCurrentModel(model);
-          localStorage.setItem('vvc_acia_model', model);
-          playCyberTone('confirm');
-        }}
+        onSelectModel={handleSelectModel}
         currentCloudIntegration={currentCloudIntegration}
-        onSelectCloudIntegration={(ci) => {
-          setCurrentCloudIntegration(ci);
-          localStorage.setItem('vvc_acia_cloud_integration', ci);
-          playCyberTone('confirm');
-        }}
+        onSelectCloudIntegration={handleSelectCloudIntegration}
         isOffline={isOffline}
         onToggleOffline={() => setIsOffline(!isOffline)}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenSecrets={() => {
+          setTargetSecretId(null);
+          setIsSecretsModalOpen(true);
+        }}
         onOpenCalendar={() => setIsCalendarOpen(true)}
         onOpenDocs={() => {
           setDocsModalMode('document');
@@ -1208,7 +1395,7 @@ export default function App() {
         }}
         onOpenAgents={() => setIsAgentsModalOpen(true)}
         onOpenTelemetry={() => setIsTelemetryOpen(true)}
-        activeAgentName={activeAgent.name}
+        activeAgentName={activeAgent ? activeAgent.name : undefined}
         onOpenVault={() => setIsVaultOpen(true)}
         onOpenDeviceControls={() => setIsDeviceControlsOpen(true)}
         onOpenGmail={() => setIsGmailOpen(true)}
@@ -1287,7 +1474,7 @@ export default function App() {
           onToggleListening={toggleListening}
           isProcessing={isProcessing}
           activeModelName={activeModelObj.name}
-          activeAgentName={activeAgent.name}
+          activeAgentName={activeAgent ? activeAgent.name : undefined}
           onOpenAgents={() => setIsAgentsModalOpen(true)}
         />
       </main>
@@ -1458,29 +1645,32 @@ export default function App() {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         currentModel={currentModel}
-        onSelectModel={(m) => {
-          setCurrentModel(m);
-          localStorage.setItem('vvc_acia_model', m);
-        }}
+        onSelectModel={handleSelectModel}
         currentCloudIntegration={currentCloudIntegration}
-        onSelectCloudIntegration={(ci) => {
-          setCurrentCloudIntegration(ci);
-          localStorage.setItem('vvc_acia_cloud_integration', ci);
-        }}
+        onSelectCloudIntegration={handleSelectCloudIntegration}
         nvidiaApiKey={nvidiaApiKey}
         onUpdateNvidiaApiKey={(k) => {
           setNvidiaApiKey(k);
-          localStorage.setItem('vvc_acia_nvidia_key', k);
+          SecretsService.setSecret('nvidia_api_key', k);
+        }}
+        geminiApiKey={geminiApiKey}
+        onUpdateGeminiApiKey={(k) => {
+          setGeminiApiKey(k);
+          SecretsService.setSecret('gemini_api_key', k);
+        }}
+        onOpenSecrets={() => {
+          setTargetSecretId(null);
+          setIsSecretsModalOpen(true);
         }}
         customEndpoint={customEndpoint}
         onUpdateCustomEndpoint={(ep) => {
           setCustomEndpoint(ep);
-          localStorage.setItem('vvc_acia_endpoint', ep);
+          SecretsService.setSecret('custom_endpoint', ep);
         }}
         thirdPartyWebhookUrl={thirdPartyWebhookUrl}
         onUpdateThirdPartyWebhookUrl={(url) => {
           setThirdPartyWebhookUrl(url);
-          localStorage.setItem('vvc_acia_webhook', url);
+          SecretsService.setSecret('webhook_url', url);
         }}
         selectedVoiceId={selectedVoiceId}
         onSelectVoiceId={(v) => {
@@ -1499,6 +1689,17 @@ export default function App() {
         onToggleOffline={() => setIsOffline(!isOffline)}
         currentTheme={currentTheme}
         onSelectTheme={(theme) => setCurrentTheme(theme)}
+      />
+
+      {/* API Keys & Secrets Vault Modal */}
+      <ApiSecretsModal
+        isOpen={isSecretsModalOpen}
+        onClose={() => {
+          setIsSecretsModalOpen(false);
+          setTargetSecretId(null);
+        }}
+        targetSecretId={targetSecretId}
+        onSecretsUpdated={handleSecretsUpdated}
       />
 
       {/* App / APK Installation Guide Modal */}
@@ -1641,7 +1842,7 @@ export default function App() {
       <TelemetryPanel
         isOpen={isTelemetryOpen}
         onClose={() => setIsTelemetryOpen(false)}
-        activeAgentName={activeAgent.name}
+        activeAgentName={activeAgent ? activeAgent.name : 'Modo Neutro'}
       />
 
       {/* Interactive Help Center Modal (FAQs, Voice Shortcuts & System Guide) */}

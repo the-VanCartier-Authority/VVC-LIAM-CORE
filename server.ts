@@ -406,16 +406,16 @@ app.post('/api/tts', async (req: Request, res: Response) => {
 /**
  * Helper to generate response using Gemini Flash
  */
-async function generateGeminiReply(systemMsg: string, userMsg: string, apiKey: string) {
+async function generateGeminiReply(systemMsg: string, userMsg: string, apiKey: string, modelName = 'gemini-2.5-flash') {
   try {
     const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: modelName,
       contents: `${systemMsg ? `[Instrucción del sistema: ${systemMsg}]\n\n` : ''}${userMsg}`,
     });
     return response.text || 'Orden procesada por el núcleo de inteligencia.';
   } catch (err: any) {
-    console.warn('Gemini fallback notice:', err?.message);
+    console.warn('Gemini request notice:', err?.message);
     return `[VVC LIAM CORE] ${userMsg.length > 0 ? `Comando procesado: "${userMsg}".` : 'Listo para asistirte.'} Todos los sistemas están sincronizados y operativos.`;
   }
 }
@@ -449,31 +449,33 @@ function cleanModelResponse(rawText: string): string {
 
 // Proxy for NVIDIA Build API with Auto-Healing & Instant Fallback
 app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
   try {
-    const { model, messages, apiKey: clientApiKey, endpoint, temperature = 0.6, max_tokens = 800 } = req.body;
+    const { model, messages, apiKey: clientApiKey, geminiApiKey: clientGeminiApiKey, endpoint, temperature = 0.6, max_tokens = 800 } = req.body;
 
-    const apiKey = (clientApiKey && clientApiKey.trim()) || process.env.NVIDIA_API_KEY;
+    const apiKey = (clientApiKey && clientApiKey.trim()) || (process.env.NVIDIA_API_KEY !== 'MY_NVIDIA_API_KEY' ? process.env.NVIDIA_API_KEY : '');
+    const geminiKey = (clientGeminiApiKey && clientGeminiApiKey.trim()) || (process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY' ? process.env.GEMINI_API_KEY : '');
     const targetUrl = (endpoint && endpoint.trim()) || NVIDIA_BASE_URL;
-    const geminiKey = process.env.GEMINI_API_KEY;
 
     const lastMsg = messages?.[messages.length - 1]?.content || 'Hola';
     const systemMsg = messages?.find((m: { role: string; content: string }) => m.role === 'system')?.content || '';
 
-    // If no NVIDIA key is configured, fallback to Gemini seamlessly
-    if (!apiKey || apiKey === 'MY_NVIDIA_API_KEY') {
-      if (geminiKey && geminiKey !== 'MY_GEMINI_API_KEY') {
-        const text = await generateGeminiReply(systemMsg, lastMsg, geminiKey);
+    // If no NVIDIA key is configured, fallback to Gemini or local
+    if (!apiKey) {
+      if (geminiKey) {
+        const text = await generateGeminiReply(systemMsg, lastMsg, geminiKey, 'gemini-2.5-flash');
         return res.json({
           id: `fallback-gemini-${Date.now()}`,
           choices: [{ message: { role: 'assistant', content: text } }],
-          model_used: 'Gemini 3.8 Flash (Inteligencia Activa)',
+          model_used: 'Google Gemini 2.5 Flash (Relay Cloud)',
           is_fallback: true,
         });
       }
 
       return res.status(401).json({
-        error: 'NVIDIA_API_KEY no configurada. Ingresa tu API Key en Configuración.',
+        error: 'Se requiere una API Key de NVIDIA para utilizar modelos en la nube. Configura tu clave secreta o utiliza un motor local RT-Lite On-Device.',
         code: 'MISSING_API_KEY',
+        requiresKey: 'nvidia',
       });
     }
 
@@ -621,24 +623,179 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
   }
 });
 
-// Gemini direct route
+// Gemini direct route with full client API Key support and model choice
 app.post('/api/chat/gemini', async (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
   try {
-    const { prompt, systemInstruction } = req.body;
-    const geminiKey = process.env.GEMINI_API_KEY;
+    const { prompt, systemInstruction, messages, apiKey: clientApiKey, model = 'gemini-2.5-flash' } = req.body;
+    const apiKey = (clientApiKey && clientApiKey.trim()) || (process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY' ? process.env.GEMINI_API_KEY : '');
 
-    if (!geminiKey || geminiKey === 'MY_GEMINI_API_KEY') {
-      return res.status(401).json({ error: 'GEMINI_API_KEY no disponible.' });
+    if (!apiKey) {
+      return res.status(401).json({
+        error: 'Se requiere una API Key de Google Gemini para utilizar este modelo. Ingrésala en la Bóveda de Secretos.',
+        code: 'MISSING_API_KEY',
+        requiresKey: 'gemini',
+      });
     }
 
-    const text = await generateGeminiReply(systemInstruction, prompt, geminiKey);
+    const lastMsg = prompt || messages?.[messages.length - 1]?.content || 'Hola';
+    const sysMsg = systemInstruction || messages?.find((m: { role: string; content: string }) => m.role === 'system')?.content || '';
+
+    // Standardize model name for GoogleGenAI
+    let targetModel = model.replace('google/', '');
+    if (!targetModel.startsWith('gemini-')) {
+      targetModel = 'gemini-2.5-flash';
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+    const fullContents = sysMsg ? `[Instrucción del sistema: ${sysMsg}]\n\n${lastMsg}` : lastMsg;
+    const response = await ai.models.generateContent({
+      model: targetModel,
+      contents: fullContents,
+    });
+
+    const responseText = cleanModelResponse(response.text || 'Respuesta generada por Google Gemini.');
+
     return res.json({
-      text,
-      model_used: 'gemini-2.5-flash',
+      id: `gemini-${Date.now()}`,
+      choices: [{ message: { role: 'assistant', content: responseText } }],
+      model_used: `Google ${targetModel} (Cloud)`,
+      text: responseText,
     });
   } catch (error: any) {
-    console.error('Gemini error:', error);
-    return res.status(500).json({ error: error.message });
+    console.error('[Gemini Route Error]:', error);
+    return res.status(500).json({
+      error: error?.message || 'Error en comunicación con Google Gemini.',
+    });
+  }
+});
+
+// Custom LLM Proxy (OpenAI / Groq / OpenRouter / Together / Ollama)
+app.post('/api/chat/custom', async (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  try {
+    const { endpoint, apiKey, model, messages, temperature = 0.6, max_tokens = 1000 } = req.body;
+
+    if (!endpoint || !endpoint.trim()) {
+      return res.status(400).json({
+        error: 'Debes especificar una URL de Endpoint válida para el LLM Personalizado.',
+        code: 'MISSING_ENDPOINT',
+      });
+    }
+
+    const targetUrl = endpoint.trim();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+
+    if (apiKey && apiKey.trim()) {
+      headers['Authorization'] = `Bearer ${apiKey.trim()}`;
+    }
+
+    const targetModel = model?.trim() || 'default';
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
+
+    const response = await fetch(targetUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        model: targetModel,
+        messages,
+        temperature,
+        max_tokens,
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      return res.status(response.status).json({
+        error: `Error en endpoint personalizado (${response.status}): ${errText.slice(0, 300)}`,
+      });
+    }
+
+    const data = await response.json();
+    const rawContent = data.choices?.[0]?.message?.content || data.text || '';
+    const cleaned = cleanModelResponse(rawContent);
+
+    return res.json({
+      ...data,
+      choices: [{ message: { role: 'assistant', content: cleaned || 'Comando ejecutado por Custom LLM.' } }],
+      model_used: `${targetModel} (Custom Endpoint)`,
+    });
+  } catch (error: any) {
+    console.error('[Custom LLM Error]:', error);
+    return res.status(500).json({
+      error: error?.message || 'Error al conectar con el endpoint LLM personalizado.',
+    });
+  }
+});
+
+// Test API Key / Secret endpoint
+app.post('/api/secrets/test', async (req: Request, res: Response) => {
+  const { provider, apiKey, endpoint, model } = req.body;
+  try {
+    if (provider === 'gemini') {
+      const key = (apiKey && apiKey.trim()) || process.env.GEMINI_API_KEY || '';
+      if (!key) return res.status(400).json({ success: false, error: 'Clave no proporcionada' });
+      const ai = new GoogleGenAI({ apiKey: key });
+      const testRes = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: 'Ping',
+      });
+      return res.json({ success: true, message: 'Google Gemini API Key verificada con éxito', ping: testRes.text?.slice(0, 50) });
+    }
+
+    if (provider === 'nvidia') {
+      const key = (apiKey && apiKey.trim()) || process.env.NVIDIA_API_KEY || '';
+      if (!key) return res.status(400).json({ success: false, error: 'Clave no proporcionada' });
+      const targetUrl = endpoint || NVIDIA_BASE_URL;
+      const resp = await fetch(targetUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${key}`,
+        },
+        body: JSON.stringify({
+          model: 'meta/llama-3.2-11b-vision-instruct',
+          messages: [{ role: 'user', content: 'Ping' }],
+          max_tokens: 10,
+        }),
+      });
+      if (!resp.ok) {
+        const text = await resp.text();
+        return res.status(resp.status).json({ success: false, error: `Error NVIDIA: ${text.slice(0, 200)}` });
+      }
+      return res.json({ success: true, message: 'NVIDIA NIM API Key verificada con éxito' });
+    }
+
+    if (provider === 'custom') {
+      if (!endpoint) return res.status(400).json({ success: false, error: 'Endpoint URL requerido' });
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+      const resp = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          model: model || 'test',
+          messages: [{ role: 'user', content: 'Ping' }],
+          max_tokens: 10,
+        }),
+      });
+      if (!resp.ok) {
+        const text = await resp.text();
+        return res.status(resp.status).json({ success: false, error: `Error Endpoint: ${text.slice(0, 200)}` });
+      }
+      return res.json({ success: true, message: 'Endpoint personalizado verificado con éxito' });
+    }
+
+    return res.status(400).json({ success: false, error: 'Proveedor no soportado' });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Fallo de verificación de clave' });
   }
 });
 

@@ -19,7 +19,8 @@ import {
   FileText,
   Bot,
   Activity,
-  HelpCircle
+  HelpCircle,
+  Key
 } from 'lucide-react';
 import type { User } from 'firebase/auth';
 import { 
@@ -60,6 +61,7 @@ interface HeaderProps {
   currentTheme: ThemeColorId;
   onSelectTheme: (theme: ThemeColorId) => void;
   onOpenHelp?: () => void;
+  onOpenSecrets?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -90,6 +92,7 @@ export const Header: React.FC<HeaderProps> = ({
   currentTheme,
   onSelectTheme,
   onOpenHelp,
+  onOpenSecrets,
 }) => {
   const currentModelInfo = AVAILABLE_MODELS.find((m) => m.id === currentModel) || AVAILABLE_MODELS[0];
   const currentCloudInfo = CLOUD_INTEGRATIONS.find((c) => c.id === currentCloudIntegration) || CLOUD_INTEGRATIONS[0];
@@ -116,37 +119,45 @@ export const Header: React.FC<HeaderProps> = ({
                 {currentModelInfo.name}
               </span>
               <span className="text-[9px] text-[#00f0ff] font-mono border border-[#00f0ff]/30 px-1 rounded">
-                {currentModel === 'rt-lite-local' ? 'OFFLINE' : 'NVIDIA'}
+                {currentModel === 'direct-no-ai'
+                  ? 'DIRECTO'
+                  : currentModel.startsWith('rt-lite')
+                  ? 'LOCAL'
+                  : currentModel.startsWith('google/')
+                  ? 'GEMINI'
+                  : currentModel === 'custom-llm'
+                  ? 'CUSTOM'
+                  : 'NVIDIA'}
               </span>
             </button>
 
             {/* Quick dropdown hover menu */}
             <div className="absolute left-0 mt-1 w-80 sm:w-96 bg-[#090c14] border border-[#1e2638] rounded-md shadow-2xl p-2 hidden group-hover:block z-50">
               <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono uppercase px-2 py-1 border-b border-[#1e2638] mb-1">
-                <span>Catálogo de Modelos NVIDIA & RT-Lite</span>
-                <span className="text-[#00FF66] font-bold">{AVAILABLE_MODELS.length} Modelos</span>
+                <span>Motores de Inteligencia & Modelos</span>
+                <span className="text-[#00FF66] font-bold">{AVAILABLE_MODELS.length} Opciones</span>
               </div>
               <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
-                {/* 1. Codificación */}
+                {/* 1. Google Gemini Cloud */}
                 <div>
-                  <div className="text-[9px] font-bold uppercase tracking-wider text-[#00FF66] px-2 py-0.5 bg-[#00FF66]/10 rounded flex items-center justify-between">
-                    <span>💻 Codificación & Software</span>
-                    <span className="text-[8px] opacity-80">NVIDIA NIM</span>
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-[#38bdf8] px-2 py-0.5 bg-[#38bdf8]/10 rounded flex items-center justify-between">
+                    <span>✨ Google Gemini (Cloud LLM)</span>
+                    <span className="text-[8px] opacity-80">Google AI</span>
                   </div>
                   <div className="space-y-0.5 mt-1">
-                    {AVAILABLE_MODELS.filter((m) => m.domain === 'coding').map((m) => (
+                    {AVAILABLE_MODELS.filter((m) => m.category === 'Google Gemini').map((m) => (
                       <button
                         key={m.id}
                         onClick={() => onSelectModel(m.id)}
                         className={`w-full text-left px-2 py-1.5 rounded text-xs font-mono transition-all flex flex-col ${
                           currentModel === m.id
-                            ? 'bg-[#00FF66]/20 text-[#00FF66] border border-[#00FF66]/40'
+                            ? 'bg-[#38bdf8]/20 text-[#38bdf8] border border-[#38bdf8]/40'
                             : 'text-slate-300 hover:bg-[#121724] hover:text-white'
                         }`}
                       >
                         <div className="flex items-center justify-between">
                           <span className="font-semibold truncate text-[11px]">{m.name}</span>
-                          <span className="text-[8px] px-1 rounded bg-[#00FF66]/20 text-[#00FF66] font-bold">CÓDIGO</span>
+                          <span className="text-[8px] px-1 rounded bg-[#38bdf8]/20 text-[#38bdf8] font-bold">GEMINI</span>
                         </div>
                         <span className="text-[9px] text-slate-400 truncate">{m.bestFor}</span>
                       </button>
@@ -154,54 +165,27 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                 </div>
 
-                {/* 2. Razonamiento Profundo & Flagship */}
+                {/* 2. Custom LLM & Modo Directo */}
                 <div>
-                  <div className="text-[9px] font-bold uppercase tracking-wider text-[#D4AF37] px-2 py-0.5 bg-[#D4AF37]/10 rounded flex items-center justify-between">
-                    <span>🧠 Razonamiento Profundo & Flagship</span>
-                    <span className="text-[8px] opacity-80">Full Engines</span>
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-amber-400 px-2 py-0.5 bg-amber-400/10 rounded flex items-center justify-between">
+                    <span>🔌 Custom LLM & Modo Directo</span>
+                    <span className="text-[8px] opacity-80">Tu Configuración</span>
                   </div>
                   <div className="space-y-0.5 mt-1">
-                    {AVAILABLE_MODELS.filter((m) => m.domain === 'flagship_reasoning').map((m) => (
+                    {AVAILABLE_MODELS.filter((m) => m.id === 'custom-llm' || m.id === 'direct-no-ai').map((m) => (
                       <button
                         key={m.id}
                         onClick={() => onSelectModel(m.id)}
                         className={`w-full text-left px-2 py-1.5 rounded text-xs font-mono transition-all flex flex-col ${
                           currentModel === m.id
-                            ? 'bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40'
+                            ? 'bg-amber-400/20 text-amber-300 border border-amber-400/40'
                             : 'text-slate-300 hover:bg-[#121724] hover:text-white'
                         }`}
                       >
                         <div className="flex items-center justify-between">
                           <span className="font-semibold truncate text-[11px]">{m.name}</span>
-                          <span className="text-[8px] px-1 rounded bg-[#D4AF37]/20 text-[#D4AF37] font-bold">FLAGSHIP</span>
-                        </div>
-                        <span className="text-[9px] text-slate-400 truncate">{m.bestFor}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 3. Baja Latencia & Voz */}
-                <div>
-                  <div className="text-[9px] font-bold uppercase tracking-wider text-[#00f0ff] px-2 py-0.5 bg-[#00f0ff]/10 rounded flex items-center justify-between">
-                    <span>⚡ Ultra-Baja Latencia & Voz Rápida</span>
-                    <span className="text-[8px] opacity-80">&lt;1s Voice</span>
-                  </div>
-                  <div className="space-y-0.5 mt-1">
-                    {AVAILABLE_MODELS.filter((m) => m.domain === 'fast_voice').map((m) => (
-                      <button
-                        key={m.id}
-                        onClick={() => onSelectModel(m.id)}
-                        className={`w-full text-left px-2 py-1.5 rounded text-xs font-mono transition-all flex flex-col ${
-                          currentModel === m.id
-                            ? 'bg-[#00f0ff]/20 text-[#00f0ff] border border-[#00f0ff]/40'
-                            : 'text-slate-300 hover:bg-[#121724] hover:text-white'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold truncate text-[11px]">{m.name}</span>
-                          <span className="text-[8px] px-1 rounded bg-[#00f0ff]/20 text-[#00f0ff] font-bold">
-                            {m.id === 'z-ai/glm-5-3-flash' ? 'LITE' : 'FAST'}
+                          <span className="text-[8px] px-1 rounded bg-amber-500/20 text-amber-300 font-bold">
+                            {m.id === 'direct-no-ai' ? 'SIN IA' : 'CUSTOM'}
                           </span>
                         </div>
                         <span className="text-[9px] text-slate-400 truncate">{m.bestFor}</span>
@@ -210,41 +194,14 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                 </div>
 
-                {/* 4. Multimodal & Agentes */}
-                <div>
-                  <div className="text-[9px] font-bold uppercase tracking-wider text-[#8A2BFF] px-2 py-0.5 bg-[#8A2BFF]/10 rounded flex items-center justify-between">
-                    <span>👁️ Multimodal & Agentes VAOS</span>
-                    <span className="text-[8px] opacity-80">Tools</span>
-                  </div>
-                  <div className="space-y-0.5 mt-1">
-                    {AVAILABLE_MODELS.filter((m) => m.domain === 'agents_tools' || m.domain === 'multimodal').map((m) => (
-                      <button
-                        key={m.id}
-                        onClick={() => onSelectModel(m.id)}
-                        className={`w-full text-left px-2 py-1.5 rounded text-xs font-mono transition-all flex flex-col ${
-                          currentModel === m.id
-                            ? 'bg-[#8A2BFF]/20 text-[#8A2BFF] border border-[#8A2BFF]/40'
-                            : 'text-slate-300 hover:bg-[#121724] hover:text-white'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold truncate text-[11px]">{m.name}</span>
-                          <span className="text-[8px] px-1 rounded bg-[#8A2BFF]/20 text-[#8A2BFF] font-bold">TOOLS</span>
-                        </div>
-                        <span className="text-[9px] text-slate-400 truncate">{m.bestFor}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 5. Motor Local RT-Lite */}
+                {/* 3. Motor Local RT-Lite */}
                 <div>
                   <div className="text-[9px] font-bold uppercase tracking-wider text-[#C0C0C0] px-2 py-0.5 bg-[#C0C0C0]/10 rounded flex items-center justify-between">
                     <span>🛡️ RT-Lite On-Device (Local)</span>
                     <span className="text-[8px] opacity-80">100% Offline</span>
                   </div>
                   <div className="space-y-0.5 mt-1">
-                    {AVAILABLE_MODELS.filter((m) => m.domain === 'offline_device').map((m) => (
+                    {AVAILABLE_MODELS.filter((m) => m.domain === 'offline_device' && m.id !== 'direct-no-ai').map((m) => (
                       <button
                         key={m.id}
                         onClick={() => onSelectModel(m.id)}
@@ -263,6 +220,33 @@ export const Header: React.FC<HeaderProps> = ({
                     ))}
                   </div>
                 </div>
+
+                {/* 4. Modelos NVIDIA NIM */}
+                <div>
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-[#00FF66] px-2 py-0.5 bg-[#00FF66]/10 rounded flex items-center justify-between">
+                    <span>⚡ NVIDIA NIM Open Catalog</span>
+                    <span className="text-[8px] opacity-80">NVIDIA Build</span>
+                  </div>
+                  <div className="space-y-0.5 mt-1">
+                    {AVAILABLE_MODELS.filter((m) => m.category === 'NVIDIA NIM').slice(0, 10).map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => onSelectModel(m.id)}
+                        className={`w-full text-left px-2 py-1.5 rounded text-xs font-mono transition-all flex flex-col ${
+                          currentModel === m.id
+                            ? 'bg-[#00FF66]/20 text-[#00FF66] border border-[#00FF66]/40'
+                            : 'text-slate-300 hover:bg-[#121724] hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold truncate text-[11px]">{m.name}</span>
+                          <span className="text-[8px] px-1 rounded bg-[#00FF66]/20 text-[#00FF66] font-bold">NIM</span>
+                        </div>
+                        <span className="text-[9px] text-slate-400 truncate">{m.bestFor}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -271,15 +255,23 @@ export const Header: React.FC<HeaderProps> = ({
           {onOpenAgents && (
             <button
               onClick={onOpenAgents}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono rounded bg-[#090f1d] border border-[#00f0ff]/40 hover:border-[#00f0ff] text-slate-200 hover:text-white transition-all shadow-[0_0_10px_rgba(0,240,255,0.15)]"
-              title={`Matriz de Agentes: ${activeAgentName || 'Coordinador'}`}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono rounded border transition-all ${
+                activeAgentName
+                  ? 'bg-[#090f1d] border-[#00f0ff]/40 hover:border-[#00f0ff] text-slate-200 hover:text-white shadow-[0_0_10px_rgba(0,240,255,0.15)]'
+                  : 'bg-[#0a0d14] border-slate-700/80 hover:border-slate-500 text-slate-400 hover:text-slate-200'
+              }`}
+              title={activeAgentName ? `Matriz de Agentes: ${activeAgentName}` : 'Matriz de Agentes: Sin agente seleccionado (Modo Neutro)'}
             >
-              <Bot className="w-3.5 h-3.5 text-[#00f0ff]" />
-              <span className="truncate max-w-[100px] lg:max-w-[130px] font-semibold text-cyan-300">
-                {activeAgentName || 'Agente'}
+              <Bot className={`w-3.5 h-3.5 ${activeAgentName ? 'text-[#00f0ff]' : 'text-slate-400'}`} />
+              <span className={`truncate max-w-[100px] lg:max-w-[130px] font-semibold ${activeAgentName ? 'text-cyan-300' : 'text-slate-300'}`}>
+                {activeAgentName || 'Sin Agente'}
               </span>
-              <span className="text-[9px] px-1 py-0.2 rounded bg-[#00f0ff]/20 text-[#00f0ff] font-bold border border-[#00f0ff]/40">
-                JSON
+              <span className={`text-[9px] px-1 py-0.2 rounded font-bold border ${
+                activeAgentName
+                  ? 'bg-[#00f0ff]/20 text-[#00f0ff] border-[#00f0ff]/40'
+                  : 'bg-slate-800 text-slate-400 border-slate-700'
+              }`}>
+                {activeAgentName ? 'ACTIVO' : 'NEUTRO'}
               </span>
             </button>
           )}
@@ -529,6 +521,18 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
               <span className="hidden sm:inline">Ayuda</span>
+            </button>
+          )}
+
+          {/* Secrets Vault Trigger */}
+          {onOpenSecrets && (
+            <button
+              onClick={onOpenSecrets}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono bg-amber-500/10 border border-amber-500/40 hover:border-amber-400 text-amber-300 hover:text-amber-200 transition-all shadow-[0_0_10px_rgba(245,158,11,0.2)] cursor-pointer"
+              title="Bóveda de Secretos: Ingresa tus API Keys de Gemini, NVIDIA o Custom LLM sin imposiciones"
+            >
+              <Key className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden sm:inline font-semibold">Secretos & APIs</span>
             </button>
           )}
 

@@ -22,6 +22,14 @@
     "business"
   ],
   "prefer_related_applications": false,
+  "related_applications": [],
+  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ec4e53b7",
+  "launch_handler": {
+    "client_mode": "auto"
+  },
+  "edge_side_panel": {
+    "preferred_width": 480
+  },
   "icons": [
     {
       "src": "/pwa-192x192.png",
@@ -118,6 +126,70 @@
           "sizes": "192x192"
         }
       ]
+    }
+  ],
+  "share_target": {
+    "action": "/?action=share",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "file_handlers": [
+    {
+      "action": "/?action=open-file",
+      "name": "Archivos de Texto y Datos",
+      "icons": [
+        {
+          "src": "/pwa-192x192.png",
+          "sizes": "192x192"
+        }
+      ],
+      "accept": {
+        "text/plain": [".txt", ".md"],
+        "application/json": [".json"]
+      }
+    }
+  ],
+  "protocol_handlers": [
+    {
+      "protocol": "web+vvcliam",
+      "url": "/?cmd=%s"
+    }
+  ],
+  "widgets": [
+    {
+      "name": "VVC LIAM Widget",
+      "short_name": "LIAM",
+      "description": "Widget de estado operativo y comandos rápidos",
+      "tag": "vvc-liam-widget",
+      "template": "widget-template",
+      "ms_ac_template": "widgets/adaptive-card.json",
+      "data": "api/vaos/telemetry/live",
+      "type": "application/json",
+      "screenshots": [
+        {
+          "src": "/screenshot-mobile.png",
+          "sizes": "750x1334",
+          "label": "Widget de estado"
+        }
+      ],
+      "icons": [
+        {
+          "src": "/pwa-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "note_taking": {
+    "new_note_url": "/?action=new-note"
+  },
+  "scope_extensions": [
+    {
+      "origin": "https://ais-pre-fiyohvu2y7dcecb5bhit2f-877308304198.us-east1.run.app"
     }
   ]
 }

@@ -113,7 +113,15 @@ export default defineConfig(() => {
               icons: [{ src: '/pwa-192x192.png', sizes: '192x192' }],
             },
           ],
-        },
+          note_taking: {
+            new_note_url: '/?action=new-note',
+          },
+          scope_extensions: [
+            {
+              origin: 'https://ais-pre-fiyohvu2y7dcecb5bhit2f-877308304198.us-east1.run.app',
+            },
+          ],
+        } as any,
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
           navigateFallback: '/offline.html',

@@ -116,15 +116,19 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
               <span>DISCO LOCAL ON</span>
             </span>
 
-            {/* Active Agent Badge */}
-            {activeAgentName && (
+            {/* Active Agent Badge or Sin Agente Selector */}
+            {onOpenAgents && (
               <button
                 onClick={onOpenAgents}
-                className="flex items-center gap-1 text-[10px] font-mono text-[#00f0ff] bg-[#00f0ff]/10 border border-[#00f0ff]/30 px-2 py-0.5 rounded hover:bg-[#00f0ff]/20 transition-all cursor-pointer shadow-sm"
-                title="Agente activo gobernando las directivas del LLM. Clic para cambiar o editar especificación JSON."
+                className={`flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded transition-all cursor-pointer shadow-sm border ${
+                  activeAgentName
+                    ? 'text-[#00f0ff] bg-[#00f0ff]/10 border-[#00f0ff]/30 hover:bg-[#00f0ff]/20'
+                    : 'text-slate-400 bg-slate-900/60 border-slate-700 hover:border-slate-500 hover:text-slate-200'
+                }`}
+                title={activeAgentName ? `Agente activo: ${activeAgentName}. Clic para cambiar o desactivar.` : 'Modo Neutro (Sin Agente). Clic para seleccionar o crear un agente.'}
               >
-                <Bot className="w-3 h-3 text-[#00f0ff]" />
-                <span className="truncate max-w-[110px] font-semibold">{activeAgentName}</span>
+                <Bot className={`w-3 h-3 ${activeAgentName ? 'text-[#00f0ff]' : 'text-slate-400'}`} />
+                <span className="truncate max-w-[110px] font-semibold">{activeAgentName || 'Sin Agente'}</span>
               </button>
             )}
 
