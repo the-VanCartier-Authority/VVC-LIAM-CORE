@@ -39,6 +39,7 @@ interface AgentsModalProps {
   onDeleteAgent: (agentId: string) => void;
   onResetAgents: () => void;
   onNotify?: (message: string) => void;
+  initialTab?: 'list' | 'add' | 'inspect';
 }
 
 const TEMPLATE_SAMPLE_JSON = `{
@@ -109,8 +110,15 @@ export const AgentsModal: React.FC<AgentsModalProps> = ({
   onDeleteAgent,
   onResetAgents,
   onNotify,
+  initialTab = 'list',
 }) => {
-  const [activeTab, setActiveTab] = useState<'list' | 'add' | 'inspect'>('list');
+  const [activeTab, setActiveTab] = useState<'list' | 'add' | 'inspect'>(initialTab);
+
+  React.useEffect(() => {
+    if (isOpen && initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
   const [jsonInput, setJsonInput] = useState(TEMPLATE_SAMPLE_JSON);
   const [inspectingAgent, setInspectingAgent] = useState<AgentProfile | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -351,7 +359,7 @@ export const AgentsModal: React.FC<AgentsModalProps> = ({
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `vvc_acia_agentes_backup_${new Date().toISOString().split('T')[0]}.json`;
+    link.download = `vvc_liam_core_agentes_backup_${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

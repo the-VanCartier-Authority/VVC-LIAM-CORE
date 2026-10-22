@@ -13,7 +13,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = Number(process.env.PORT) || 3000;
+// The dev server must always bind to port 3000 because NGINX runs on port 8080 and proxies to 3000.
+const PORT = process.env.PORT && process.env.PORT !== '8080' ? Number(process.env.PORT) : 3000;
 
 app.use(express.json({ limit: '15mb' }));
 
@@ -242,9 +243,10 @@ const TTS_MODELS = [
 const EDGE_VOICE_MAP: Record<string, string> = {
   es_mateo: 'es-ES-AlvaroNeural',
   es_sofia: 'es-ES-ElviraNeural',
-  es_valeria: 'es-ES-ElviraNeural',
   es_camila: 'es-MX-DaliaNeural',
   es_lucas: 'es-MX-JorgeNeural',
+  es_valeria: 'es-US-PalomaNeural',
+  es_diego: 'es-CO-GonzaloNeural',
   af_heart: 'en-US-JennyNeural',
   af_bella: 'en-US-AvaNeural',
   af_nicole: 'en-US-EmmaNeural',

@@ -57,9 +57,9 @@ interface HeaderProps {
   isMuted: boolean;
   onToggleMute: () => void;
   pendingTasksCount: number;
-  onOpenInstallModal: () => void;
-  currentTheme: ThemeColorId;
-  onSelectTheme: (theme: ThemeColorId) => void;
+  onOpenInstallModal?: () => void;
+  currentTheme?: ThemeColorId;
+  onSelectTheme?: (theme: ThemeColorId) => void;
   onOpenHelp?: () => void;
   onOpenSecrets?: () => void;
 }
@@ -88,15 +88,7 @@ export const Header: React.FC<HeaderProps> = ({
   isMuted,
   onToggleMute,
   pendingTasksCount,
-  onOpenInstallModal,
-  currentTheme,
-  onSelectTheme,
-  onOpenHelp,
-  onOpenSecrets,
 }) => {
-  const currentModelInfo = AVAILABLE_MODELS.find((m) => m.id === currentModel) || AVAILABLE_MODELS[0];
-  const currentCloudInfo = CLOUD_INTEGRATIONS.find((c) => c.id === currentCloudIntegration) || CLOUD_INTEGRATIONS[0];
-  const currentThemeInfo = THEME_SCHEMES.find((t) => t.id === currentTheme) || THEME_SCHEMES[0];
 
   return (
     <header className="w-full bg-[var(--bg-surface)]/95 backdrop-blur-md border-b border-[var(--border-subtle)] sticky top-0 z-40 transition-colors">
@@ -108,191 +100,11 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Zone 2: Navigation & Quick Hub Links */}
         <nav className="hidden md:flex items-center gap-1 sm:gap-2">
-          {/* Model Selector Dropdown in Nav */}
-          <div className="relative group">
-            <button
-              className="flex items-center gap-2 px-3 py-1.5 text-xs font-mono rounded bg-[#0a0d14] border border-[#1e2638] hover:border-[#b026ff]/50 text-slate-200 transition-colors"
-              title="Alternar entre modelos NVIDIA Build y RT-Lite On-Device"
-            >
-              <Cpu className="w-3.5 h-3.5 text-[#b026ff]" />
-              <span className="truncate max-w-[120px] lg:max-w-[180px]">
-                {currentModelInfo.name}
-              </span>
-              <span className="text-[9px] text-[#00f0ff] font-mono border border-[#00f0ff]/30 px-1 rounded">
-                {currentModel === 'direct-no-ai'
-                  ? 'DIRECTO'
-                  : currentModel.startsWith('rt-lite')
-                  ? 'LOCAL'
-                  : currentModel.startsWith('google/')
-                  ? 'GEMINI'
-                  : currentModel === 'custom-llm'
-                  ? 'CUSTOM'
-                  : 'NVIDIA'}
-              </span>
-            </button>
-
-            {/* Quick dropdown hover menu */}
-            <div className="absolute left-0 mt-1 w-80 sm:w-96 bg-[#090c14] border border-[#1e2638] rounded-md shadow-2xl p-2 hidden group-hover:block z-50">
-              <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono uppercase px-2 py-1 border-b border-[#1e2638] mb-1">
-                <span>Motores de Inteligencia & Modelos</span>
-                <span className="text-[#00FF66] font-bold">{AVAILABLE_MODELS.length} Opciones</span>
-              </div>
-              <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
-                {/* 1. Google Gemini Cloud */}
-                <div>
-                  <div className="text-[9px] font-bold uppercase tracking-wider text-[#38bdf8] px-2 py-0.5 bg-[#38bdf8]/10 rounded flex items-center justify-between">
-                    <span>✨ Google Gemini (Cloud LLM)</span>
-                    <span className="text-[8px] opacity-80">Google AI</span>
-                  </div>
-                  <div className="space-y-0.5 mt-1">
-                    {AVAILABLE_MODELS.filter((m) => m.category === 'Google Gemini').map((m) => (
-                      <button
-                        key={m.id}
-                        onClick={() => onSelectModel(m.id)}
-                        className={`w-full text-left px-2 py-1.5 rounded text-xs font-mono transition-all flex flex-col ${
-                          currentModel === m.id
-                            ? 'bg-[#38bdf8]/20 text-[#38bdf8] border border-[#38bdf8]/40'
-                            : 'text-slate-300 hover:bg-[#121724] hover:text-white'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold truncate text-[11px]">{m.name}</span>
-                          <span className="text-[8px] px-1 rounded bg-[#38bdf8]/20 text-[#38bdf8] font-bold">GEMINI</span>
-                        </div>
-                        <span className="text-[9px] text-slate-400 truncate">{m.bestFor}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 2. Custom LLM & Modo Directo */}
-                <div>
-                  <div className="text-[9px] font-bold uppercase tracking-wider text-amber-400 px-2 py-0.5 bg-amber-400/10 rounded flex items-center justify-between">
-                    <span>🔌 Custom LLM & Modo Directo</span>
-                    <span className="text-[8px] opacity-80">Tu Configuración</span>
-                  </div>
-                  <div className="space-y-0.5 mt-1">
-                    {AVAILABLE_MODELS.filter((m) => m.id === 'custom-llm' || m.id === 'direct-no-ai').map((m) => (
-                      <button
-                        key={m.id}
-                        onClick={() => onSelectModel(m.id)}
-                        className={`w-full text-left px-2 py-1.5 rounded text-xs font-mono transition-all flex flex-col ${
-                          currentModel === m.id
-                            ? 'bg-amber-400/20 text-amber-300 border border-amber-400/40'
-                            : 'text-slate-300 hover:bg-[#121724] hover:text-white'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold truncate text-[11px]">{m.name}</span>
-                          <span className="text-[8px] px-1 rounded bg-amber-500/20 text-amber-300 font-bold">
-                            {m.id === 'direct-no-ai' ? 'SIN IA' : 'CUSTOM'}
-                          </span>
-                        </div>
-                        <span className="text-[9px] text-slate-400 truncate">{m.bestFor}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 3. Motor Local RT-Lite */}
-                <div>
-                  <div className="text-[9px] font-bold uppercase tracking-wider text-[#C0C0C0] px-2 py-0.5 bg-[#C0C0C0]/10 rounded flex items-center justify-between">
-                    <span>🛡️ RT-Lite On-Device (Local)</span>
-                    <span className="text-[8px] opacity-80">100% Offline</span>
-                  </div>
-                  <div className="space-y-0.5 mt-1">
-                    {AVAILABLE_MODELS.filter((m) => m.domain === 'offline_device' && m.id !== 'direct-no-ai').map((m) => (
-                      <button
-                        key={m.id}
-                        onClick={() => onSelectModel(m.id)}
-                        className={`w-full text-left px-2 py-1.5 rounded text-xs font-mono transition-all flex flex-col ${
-                          currentModel === m.id
-                            ? 'bg-slate-700/40 text-slate-100 border border-slate-500'
-                            : 'text-slate-300 hover:bg-[#121724] hover:text-white'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold truncate text-[11px]">{m.name}</span>
-                          <span className="text-[8px] px-1 rounded bg-slate-800 text-slate-300 font-bold">LOCAL</span>
-                        </div>
-                        <span className="text-[9px] text-slate-400 truncate">{m.bestFor}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* 4. Modelos NVIDIA NIM */}
-                <div>
-                  <div className="text-[9px] font-bold uppercase tracking-wider text-[#00FF66] px-2 py-0.5 bg-[#00FF66]/10 rounded flex items-center justify-between">
-                    <span>⚡ NVIDIA NIM Open Catalog</span>
-                    <span className="text-[8px] opacity-80">NVIDIA Build</span>
-                  </div>
-                  <div className="space-y-0.5 mt-1">
-                    {AVAILABLE_MODELS.filter((m) => m.category === 'NVIDIA NIM').slice(0, 10).map((m) => (
-                      <button
-                        key={m.id}
-                        onClick={() => onSelectModel(m.id)}
-                        className={`w-full text-left px-2 py-1.5 rounded text-xs font-mono transition-all flex flex-col ${
-                          currentModel === m.id
-                            ? 'bg-[#00FF66]/20 text-[#00FF66] border border-[#00FF66]/40'
-                            : 'text-slate-300 hover:bg-[#121724] hover:text-white'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold truncate text-[11px]">{m.name}</span>
-                          <span className="text-[8px] px-1 rounded bg-[#00FF66]/20 text-[#00FF66] font-bold">NIM</span>
-                        </div>
-                        <span className="text-[9px] text-slate-400 truncate">{m.bestFor}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Specialized Agents Matrix Button */}
-          {onOpenAgents && (
-            <button
-              onClick={onOpenAgents}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono rounded border transition-all ${
-                activeAgentName
-                  ? 'bg-[#090f1d] border-[#00f0ff]/40 hover:border-[#00f0ff] text-slate-200 hover:text-white shadow-[0_0_10px_rgba(0,240,255,0.15)]'
-                  : 'bg-[#0a0d14] border-slate-700/80 hover:border-slate-500 text-slate-400 hover:text-slate-200'
-              }`}
-              title={activeAgentName ? `Matriz de Agentes: ${activeAgentName}` : 'Matriz de Agentes: Sin agente seleccionado (Modo Neutro)'}
-            >
-              <Bot className={`w-3.5 h-3.5 ${activeAgentName ? 'text-[#00f0ff]' : 'text-slate-400'}`} />
-              <span className={`truncate max-w-[100px] lg:max-w-[130px] font-semibold ${activeAgentName ? 'text-cyan-300' : 'text-slate-300'}`}>
-                {activeAgentName || 'Sin Agente'}
-              </span>
-              <span className={`text-[9px] px-1 py-0.2 rounded font-bold border ${
-                activeAgentName
-                  ? 'bg-[#00f0ff]/20 text-[#00f0ff] border-[#00f0ff]/40'
-                  : 'bg-slate-800 text-slate-400 border-slate-700'
-              }`}>
-                {activeAgentName ? 'ACTIVO' : 'NEUTRO'}
-              </span>
-            </button>
-          )}
-
-          {/* Cloud Service Integration Indicator Button */}
-          <button
-            onClick={onOpenSettings}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono rounded bg-[#0a0d14] border border-[#1e2638] hover:border-[#00f0ff]/40 text-slate-300 transition-colors"
-            title={`Integración Cloud: ${currentCloudInfo.name}`}
-          >
-            <Cloud className="w-3.5 h-3.5 text-[#00f0ff]" />
-            <span className="truncate max-w-[110px] lg:max-w-[150px]">
-              {currentCloudInfo.provider}
-            </span>
-          </button>
-
           {/* Real-time D3.js Telemetry & VAOS Button */}
           {onOpenTelemetry && (
             <button
               onClick={onOpenTelemetry}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono rounded bg-[#120B1C] border border-[#261833] hover:border-[#00FF66]/50 text-[#00FF66] transition-all shadow-[0_0_12px_rgba(0,255,102,0.12)]"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono rounded bg-[#120B1C] border border-[#261833] hover:border-[#00FF66]/50 text-[#00FF66] transition-all shadow-[0_0_12px_rgba(0,255,102,0.12)] cursor-pointer"
               title="Panel de Telemetría D3.js en tiempo real y Orquestador VAOS (Latencia, Tokens/seg, Batería)"
             >
               <Activity className="w-3.5 h-3.5 text-[#00FF66] animate-pulse" />
@@ -416,20 +228,10 @@ export const Header: React.FC<HeaderProps> = ({
               <span>Google</span>
             </button>
           )}
-          {/* Install App / APK Button */}
-          <button
-            onClick={onOpenInstallModal}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono bg-[#00f0ff]/15 border border-[#00f0ff]/50 hover:bg-[#00f0ff]/25 text-[#00f0ff] font-bold transition-all shadow-[0_0_10px_rgba(0,240,255,0.25)]"
-            title="Instalar como App en Android / Generar APK"
-          >
-            <Smartphone className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Instalar App / APK</span>
-          </button>
-
           {/* Offline Mode Switch */}
           <button
             onClick={onToggleOffline}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-mono border transition-all ${
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono border transition-all cursor-pointer ${
               isOffline
                 ? 'bg-[#ff2a5f]/20 border-[#ff2a5f] text-[#ff2a5f] shadow-[0_0_10px_rgba(255,42,95,0.3)]'
                 : 'bg-[#0a0d14] border-[#1e2638] text-slate-300 hover:border-[#00f0ff]/40'
@@ -443,7 +245,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Mute Voice Feedback */}
           <button
             onClick={onToggleMute}
-            className={`p-2 rounded text-xs font-mono border transition-all ${
+            className={`p-2 rounded-lg text-xs font-mono border transition-all cursor-pointer ${
               isMuted
                 ? 'bg-[#ff2a5f]/20 border-[#ff2a5f] text-[#ff2a5f]'
                 : 'bg-[#0a0d14] border-[#1e2638] text-slate-300 hover:text-[#00f0ff]'
@@ -453,96 +255,14 @@ export const Header: React.FC<HeaderProps> = ({
             {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5 text-[#00f0ff]" />}
           </button>
 
-          {/* Quick Theme Selector Dropdown */}
-          <div className="relative group">
-            <button
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-mono bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--primary-accent)]/60 text-[var(--text-primary)] transition-all shadow-sm cursor-pointer"
-              title="Cambiar esquema de color de la interfaz (Variables CSS)"
-            >
-              <Palette className="w-3.5 h-3.5 text-[var(--primary-accent)]" />
-              <span
-                className="w-2.5 h-2.5 rounded-full border border-white/20 shrink-0 shadow-sm"
-                style={{ backgroundColor: currentThemeInfo.primaryColor }}
-              />
-              <span className="hidden xl:inline truncate max-w-[90px] font-semibold">
-                {currentThemeInfo.name.split(' ')[0]}
-              </span>
-            </button>
-
-            {/* Dropdown Menu */}
-            <div className="absolute right-0 mt-1 w-64 bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl shadow-2xl p-2 hidden group-hover:block group-focus-within:block z-50 animate-fade-in">
-              <div className="text-[10px] text-[var(--text-secondary)] font-mono uppercase px-2 py-1 border-b border-[var(--border-subtle)] mb-1.5 flex items-center justify-between">
-                <span className="flex items-center gap-1">
-                  <Palette className="w-3 h-3 text-[var(--primary-accent)]" />
-                  <span>Esquema de Color CSS</span>
-                </span>
-                <span className="text-[9px] text-[var(--primary-accent)] font-bold">6 TEMAS</span>
-              </div>
-              <div className="space-y-1">
-                {THEME_SCHEMES.map((scheme) => {
-                  const isSelected = currentTheme === scheme.id;
-                  return (
-                    <button
-                      key={scheme.id}
-                      type="button"
-                      onClick={() => onSelectTheme(scheme.id)}
-                      className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-mono transition-all flex items-center justify-between cursor-pointer ${
-                        isSelected
-                          ? 'bg-[var(--tag-bg)] text-[var(--primary-accent)] border border-[var(--primary-accent)]/40 shadow-sm'
-                          : 'text-slate-300 hover:bg-[var(--bg-card)] hover:text-white border border-transparent'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 truncate">
-                        <span
-                          className="w-3 h-3 rounded-full border border-white/20 shrink-0 shadow-sm"
-                          style={{ backgroundColor: scheme.primaryColor }}
-                        />
-                        <div className="flex flex-col truncate">
-                          <span className="font-semibold truncate text-[11px]">{scheme.name}</span>
-                          <span className="text-[9px] text-slate-400 truncate opacity-80">{scheme.tagline}</span>
-                        </div>
-                      </div>
-                      {isSelected && (
-                        <span className="text-[10px] text-[var(--primary-accent)] font-bold ml-1.5 shrink-0">✓</span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Help Center Trigger */}
-          {onOpenHelp && (
-            <button
-              onClick={onOpenHelp}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-amber-400 text-slate-100 hover:text-amber-400 transition-all shadow-sm cursor-pointer"
-              title="Centro de Ayuda, Preguntas Frecuentes y Atajos de Voz"
-            >
-              <HelpCircle className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden sm:inline">Ayuda</span>
-            </button>
-          )}
-
-          {/* Secrets Vault Trigger */}
-          {onOpenSecrets && (
-            <button
-              onClick={onOpenSecrets}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono bg-amber-500/10 border border-amber-500/40 hover:border-amber-400 text-amber-300 hover:text-amber-200 transition-all shadow-[0_0_10px_rgba(245,158,11,0.2)] cursor-pointer"
-              title="Bóveda de Secretos: Ingresa tus API Keys de Gemini, NVIDIA o Custom LLM sin imposiciones"
-            >
-              <Key className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden sm:inline font-semibold">Secretos & APIs</span>
-            </button>
-          )}
-
-          {/* Settings Trigger */}
+          {/* Single Unified Settings Trigger */}
           <button
             onClick={onOpenSettings}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--primary-accent)] text-slate-100 hover:text-[var(--primary-accent)] transition-all shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono bg-[var(--primary-accent)]/15 border border-[var(--primary-accent)]/60 hover:bg-[var(--primary-accent)]/25 text-[var(--primary-accent)] font-bold transition-all shadow-[0_0_12px_rgba(0,240,255,0.2)] cursor-pointer"
+            title="Centro Unificado de Configuración (Modelos, Claves API, Voz Kokoro, Temas, PWA y Ayuda)"
           >
-            <Sliders className="w-3.5 h-3.5 text-[var(--primary-accent)]" />
-            <span className="hidden sm:inline">Configuración</span>
+            <Sliders className="w-3.5 h-3.5" />
+            <span>Configuración</span>
           </button>
         </div>
       </div>

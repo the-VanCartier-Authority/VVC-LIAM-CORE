@@ -25,6 +25,7 @@ import { GoogleContactsModal } from './components/GoogleContactsModal';
 import { HelpCenterModal } from './components/HelpCenterModal';
 import { AgentsModal } from './components/AgentsModal';
 import { ApiSecretsModal } from './components/ApiSecretsModal';
+import { ModelAgentControlBar } from './components/ModelAgentControlBar';
 import { SecretsService, type SecretKeyId } from './services/secretsService';
 import { TelemetryPanel } from './components/TelemetryPanel';
 import { platformService } from './core/adapters/PlatformService';
@@ -186,7 +187,7 @@ const INITIAL_ALARMS: AlarmItem[] = [
 export default function App() {
   // Model & AI State
   const [currentModel, setCurrentModel] = useState<ModelType>(() => {
-    const saved = localStorage.getItem('vvc_acia_model') as ModelType;
+    const saved = localStorage.getItem('vvc_liam_model') as ModelType;
     if (saved && saved !== 'nvidia/nemotron-3.5-lightning-30b-a3b') {
       return saved;
     }
@@ -195,7 +196,7 @@ export default function App() {
 
   // Cloud Service Integration State
   const [currentCloudIntegration, setCurrentCloudIntegration] = useState<CloudServiceIntegrationType>(() => {
-    return (localStorage.getItem('vvc_acia_cloud_integration') as CloudServiceIntegrationType) || 'google_calendar';
+    return (localStorage.getItem('vvc_liam_cloud_integration') as CloudServiceIntegrationType) || 'google_calendar';
   });
 
   const [nvidiaApiKey, setNvidiaApiKey] = useState(() => SecretsService.getSecret('nvidia_api_key'));
@@ -239,7 +240,7 @@ export default function App() {
 
   // Kokoro TTS State
   const [selectedVoiceId, setSelectedVoiceId] = useState<KokoroVoiceId>(() => {
-    return (localStorage.getItem('vvc_acia_voice') as KokoroVoiceId) || 'es_mateo';
+    return (localStorage.getItem('vvc_liam_voice') as KokoroVoiceId) || 'es_mateo';
   });
   const [pitchModifier, setPitchModifier] = useState(1.0);
   const [rateModifier, setRateModifier] = useState(1.05);
@@ -251,13 +252,13 @@ export default function App() {
 
   // Visual Color Theme State (CSS Variables)
   const [currentTheme, setCurrentTheme] = useState<ThemeColorId>(() => {
-    return (localStorage.getItem('vvc_acia_theme') as ThemeColorId) || 'liam-core-official';
+    return (localStorage.getItem('vvc_liam_theme') as ThemeColorId) || 'liam-core-official';
   });
 
   // Apply theme to documentElement on load and update
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', currentTheme);
-    localStorage.setItem('vvc_acia_theme', currentTheme);
+    localStorage.setItem('vvc_liam_theme', currentTheme);
   }, [currentTheme]);
 
   // Device & Hardware State
@@ -301,7 +302,7 @@ export default function App() {
 
   // Advanced Tasks, Reminders & Calendar Collections
   const [contacts, setContacts] = useState<PhoneContact[]>(() => {
-    const saved = localStorage.getItem('vvc_acia_contacts');
+    const saved = localStorage.getItem('vvc_liam_contacts');
     if (saved) {
       try { return JSON.parse(saved); } catch {}
     }
@@ -309,10 +310,10 @@ export default function App() {
   });
 
   useEffect(() => {
-    localStorage.setItem('vvc_acia_contacts', JSON.stringify(contacts));
+    localStorage.setItem('vvc_liam_contacts', JSON.stringify(contacts));
   }, [contacts]);
   const [tasks, setTasks] = useState<TaskItem[]>(() => {
-    const saved = localStorage.getItem('vvc_acia_tasks');
+    const saved = localStorage.getItem('vvc_liam_tasks');
     if (saved) {
       try { return JSON.parse(saved); } catch {}
     }
@@ -320,7 +321,7 @@ export default function App() {
   });
 
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>(() => {
-    const saved = localStorage.getItem('vvc_acia_events');
+    const saved = localStorage.getItem('vvc_liam_events');
     if (saved) {
       try { return JSON.parse(saved); } catch {}
     }
@@ -339,7 +340,7 @@ export default function App() {
   // Console messages with on-device persistence
   const [messages, setMessages] = useState<ConsoleMessage[]>(() => {
     try {
-      const saved = localStorage.getItem('vvc_acia_chat_history');
+      const saved = localStorage.getItem('vvc_liam_chat_history');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -382,13 +383,14 @@ export default function App() {
   const [isDocsModalOpen, setIsDocsModalOpen] = useState(false);
   const [docsModalMode, setDocsModalMode] = useState<'document' | 'spreadsheet'>('document');
   const [isAgentsModalOpen, setIsAgentsModalOpen] = useState(false);
+  const [agentsModalInitialTab, setAgentsModalInitialTab] = useState<'list' | 'add' | 'inspect'>('list');
   const [isTelemetryOpen, setIsTelemetryOpen] = useState(false);
   const [isContactsOpen, setIsContactsOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   // Custom Agents Matrix State (with VAOS Bifurcation: Exclusive Private Agents vs Public)
   const [agents, setAgents] = useState<AgentProfile[]>(() => {
-    const saved = localStorage.getItem('vvc_acia_custom_agents');
+    const saved = localStorage.getItem('vvc_liam_custom_agents');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -407,16 +409,16 @@ export default function App() {
 
   // Active Agent ID: empty string '' means NO agent selected (Modo Neutro Directo por defecto)
   const [activeAgentId, setActiveAgentId] = useState<string>(() => {
-    return localStorage.getItem('vvc_acia_active_agent_id') || '';
+    return localStorage.getItem('vvc_liam_active_agent_id') || '';
   });
 
   // Save agents and active ID to localStorage
   useEffect(() => {
-    localStorage.setItem('vvc_acia_custom_agents', JSON.stringify(agents));
+    localStorage.setItem('vvc_liam_custom_agents', JSON.stringify(agents));
   }, [agents]);
 
   useEffect(() => {
-    localStorage.setItem('vvc_acia_active_agent_id', activeAgentId);
+    localStorage.setItem('vvc_liam_active_agent_id', activeAgentId);
   }, [activeAgentId]);
 
   const activeAgent = agents.find((a) => a.id === activeAgentId) || null;
@@ -494,18 +496,18 @@ export default function App() {
 
   // Save tasks and events to localStorage
   useEffect(() => {
-    localStorage.setItem('vvc_acia_tasks', JSON.stringify(tasks));
+    localStorage.setItem('vvc_liam_tasks', JSON.stringify(tasks));
   }, [tasks]);
 
   useEffect(() => {
-    localStorage.setItem('vvc_acia_events', JSON.stringify(calendarEvents));
+    localStorage.setItem('vvc_liam_events', JSON.stringify(calendarEvents));
   }, [calendarEvents]);
 
   // Persist chat history to on-device localStorage
   useEffect(() => {
     try {
       const historyToSave = messages.slice(-150);
-      localStorage.setItem('vvc_acia_chat_history', JSON.stringify(historyToSave));
+      localStorage.setItem('vvc_liam_chat_history', JSON.stringify(historyToSave));
     } catch (e) {
       console.warn('Error saving chat history to localStorage:', e);
     }
@@ -1328,7 +1330,7 @@ export default function App() {
 
   const handleSelectModel = (model: ModelType) => {
     setCurrentModel(model);
-    localStorage.setItem('vvc_acia_model', model);
+    localStorage.setItem('vvc_liam_model', model);
     playCyberTone('confirm');
 
     // Prompt for secret API key if required and not set
@@ -1345,7 +1347,7 @@ export default function App() {
 
   const handleSelectCloudIntegration = (ci: CloudServiceIntegrationType) => {
     setCurrentCloudIntegration(ci);
-    localStorage.setItem('vvc_acia_cloud_integration', ci);
+    localStorage.setItem('vvc_liam_cloud_integration', ci);
     playCyberTone('confirm');
 
     if (ci === 'notion_workspace' && !SecretsService.hasSecret('notion_api_key')) {
@@ -1416,6 +1418,41 @@ export default function App() {
         onOpenHelp={() => setIsHelpOpen(true)}
       />
 
+      {/* Unified Direct Model, Credential and Agent Control Bar */}
+      <ModelAgentControlBar
+        currentModel={currentModel}
+        onSelectModel={(model) => {
+          setCurrentModel(model);
+          playCyberTone('confirm');
+        }}
+        activeAgentId={activeAgentId}
+        agents={agents}
+        onSelectAgent={(agentId) => {
+          setActiveAgentId(agentId);
+          playCyberTone('confirm');
+          if (agentId) {
+            const ag = agents.find((a) => a.id === agentId);
+            if (ag) {
+              speakKokoro(`Agente ${ag.name} activado.`, selectedVoiceId);
+            }
+          } else {
+            speakKokoro('Modo Neutro activado. Sin agente.', selectedVoiceId);
+          }
+        }}
+        onOpenAddAgent={() => {
+          setAgentsModalInitialTab('add');
+          setIsAgentsModalOpen(true);
+        }}
+        onOpenAllAgents={() => {
+          setAgentsModalInitialTab('list');
+          setIsAgentsModalOpen(true);
+        }}
+        onNotify={(msg) => {
+          playCyberTone('confirm');
+          speakKokoro(msg, selectedVoiceId);
+        }}
+      />
+
       {/* Real-Time Live Notification Alerts Toast */}
       <RealTimeAlertToast
         alerts={activeAlerts}
@@ -1468,7 +1505,7 @@ export default function App() {
           onSpeakMessage={handleSpeakMessage}
           onClearConsole={() => {
             setMessages([]);
-            localStorage.removeItem('vvc_acia_chat_history');
+            localStorage.removeItem('vvc_liam_chat_history');
           }}
           isListening={isListening}
           onToggleListening={toggleListening}
@@ -1625,7 +1662,7 @@ export default function App() {
         thirdPartyWebhookUrl={thirdPartyWebhookUrl}
         onUpdateWebhookUrl={(url) => {
           setThirdPartyWebhookUrl(url);
-          localStorage.setItem('vvc_acia_webhook', url);
+          localStorage.setItem('vvc_liam_webhook', url);
         }}
       />
 
@@ -1675,7 +1712,7 @@ export default function App() {
         selectedVoiceId={selectedVoiceId}
         onSelectVoiceId={(v) => {
           setSelectedVoiceId(v);
-          localStorage.setItem('vvc_acia_voice', v);
+          localStorage.setItem('vvc_liam_voice', v);
         }}
         pitchModifier={pitchModifier}
         onUpdatePitch={setPitchModifier}
@@ -1689,6 +1726,8 @@ export default function App() {
         onToggleOffline={() => setIsOffline(!isOffline)}
         currentTheme={currentTheme}
         onSelectTheme={(theme) => setCurrentTheme(theme)}
+        onOpenInstallModal={() => setIsInstallModalOpen(true)}
+        onOpenHelp={() => setIsHelpOpen(true)}
       />
 
       {/* API Keys & Secrets Vault Modal */}
@@ -1785,6 +1824,7 @@ export default function App() {
         onClose={() => setIsAgentsModalOpen(false)}
         agents={agents}
         activeAgentId={activeAgentId}
+        initialTab={agentsModalInitialTab}
         onSelectAgent={(id) => {
           setActiveAgentId(id);
           const ag = agents.find((a) => a.id === id);

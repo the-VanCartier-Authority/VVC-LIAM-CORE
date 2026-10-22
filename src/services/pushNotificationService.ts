@@ -215,7 +215,7 @@ export async function subscribeToPushNotifications(): Promise<{
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(subscription.toJSON()),
       });
-      localStorage.setItem('vvc_acia_push_active', 'true');
+      localStorage.setItem('vvc_liam_push_active', 'true');
       console.log('[VVC LIAM CORE SW] Suscripción Push nativa sincronizada con el servidor.');
       return { success: true, subscription };
     }
@@ -244,7 +244,7 @@ export async function unsubscribeFromPushNotifications(): Promise<boolean> {
         body: JSON.stringify({ endpoint: sub.endpoint }),
       });
       await sub.unsubscribe();
-      localStorage.removeItem('vvc_acia_push_active');
+      localStorage.removeItem('vvc_liam_push_active');
       return true;
     }
     return true;

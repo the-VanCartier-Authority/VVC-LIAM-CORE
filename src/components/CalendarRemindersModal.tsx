@@ -1095,7 +1095,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                                     : 'bg-[#b026ff]/20 text-[#b026ff] border border-[#b026ff]/40'
                                 }`}
                               >
-                                {event.source === 'vvc_liam' || event.source === 'vvc-acia' || !event.source
+                                {event.source === 'vvc_liam' || event.source === 'vvc_liam_core' || !event.source
                                   ? 'VVC LIAM CORE'
                                   : event.source.toUpperCase()}
                               </span>

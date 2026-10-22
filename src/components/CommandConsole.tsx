@@ -195,7 +195,7 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
                       {msg.sender === 'user'
                         ? '[USER_VOCAL]'
                         : msg.sender === 'assistant'
-                        ? `[ACIA_VOICE]`
+                        ? `[LIAM_VOICE]`
                         : '[KERNEL_SYS]'}
                     </span>
 

@@ -39,7 +39,7 @@ self.addEventListener('push', (event) => {
 
 // Notification Click: Focus existing window or open app
 self.addEventListener('notificationclick', (event) => {
-  console.log('[VVC-ACIA SW] Notification clicked:', event.action);
+  console.log('[VVC LIAM CORE SW] Notification clicked:', event.action);
   event.notification.close();
 
   if (event.action === 'dismiss') {

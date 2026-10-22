@@ -310,7 +310,7 @@ function humanizeTextForKokoro(rawText: string): string {
     .replace(/\[\w+[^\]]*\]/g, '')
     .replace(/[`*_~#<>]/g, '')
     .replace(/https?:\/\/\S+/g, 'enlace web')
-    .replace(/\b(?:VVC[\s-]?)?(?:LIAM\s+CORE|ACIA)\b/gi, 'V V C Liam Cor')
+    .replace(/\b(?:VVC[\s-]?)?(?:LIAM\s+CORE)\b/gi, 'V V C Liam Cor')
     .replace(/\bE2EE\b/gi, 'cifrado total')
     .replace(/\bNVIDIA\b/gi, 'Envidia')
     .replace(/\bNIM\b/gi, 'N I M')
@@ -379,11 +379,11 @@ function selectOptimalVoice(
   const candidatePool = langVoices.length > 0 ? langVoices : voices;
 
   const isFemale = (name: string) =>
-    /female|muj|monica|mónica|helena|zira|samantha|victoria|karen|elvira|paulina|sabina|sofia|sofía|laura|lucia|lucía|carmen/i.test(
+    /female|muj|monica|mónica|helena|zira|samantha|victoria|karen|elvira|paulina|sabina|sofia|sofía|laura|lucia|lucía|carmen|camila|valeria|dalia|elena|paloma|ava|emma|jenny/i.test(
       name
     );
   const isMale = (name: string) =>
-    /male|hom|jorge|pablo|david|mark|alex|daniel|alvaro|álvaro|raul|raúl|enrique|carlos|diego|mateo|manuel/i.test(
+    /male|hom|jorge|pablo|david|mark|alex|daniel|alvaro|álvaro|raul|raúl|enrique|carlos|diego|mateo|manuel|lucas|gonzalo|tomas|tomás|guy|brian|adam|michael/i.test(
       name
     );
 

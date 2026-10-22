@@ -124,15 +124,15 @@ export class SecretsService {
 
       // Backward compatibility with legacy storage keys
       if (id === 'nvidia_api_key') {
-        const legacy = localStorage.getItem('vvc_acia_nvidia_key');
+        const legacy = localStorage.getItem('vvc_liam_nvidia_key');
         if (legacy) return legacy;
       }
       if (id === 'custom_endpoint') {
-        const legacy = localStorage.getItem('vvc_acia_endpoint');
+        const legacy = localStorage.getItem('vvc_liam_endpoint');
         if (legacy) return legacy;
       }
       if (id === 'webhook_url') {
-        const legacy = localStorage.getItem('vvc_acia_webhook');
+        const legacy = localStorage.getItem('vvc_liam_webhook');
         if (legacy) return legacy;
       }
       return '';
@@ -150,18 +150,27 @@ export class SecretsService {
         localStorage.setItem(`${STORAGE_PREFIX}${id}`, clean);
       }
 
-      // Sync legacy keys for backward compatibility
+      // Sync legacy keys with VVC LIAM prefix
       if (id === 'nvidia_api_key') {
-        if (!clean) localStorage.removeItem('vvc_acia_nvidia_key');
-        else localStorage.setItem('vvc_acia_nvidia_key', clean);
+        if (!clean) {
+          localStorage.removeItem('vvc_liam_nvidia_key');
+        } else {
+          localStorage.setItem('vvc_liam_nvidia_key', clean);
+        }
       }
       if (id === 'custom_endpoint') {
-        if (!clean) localStorage.removeItem('vvc_acia_endpoint');
-        else localStorage.setItem('vvc_acia_endpoint', clean);
+        if (!clean) {
+          localStorage.removeItem('vvc_liam_endpoint');
+        } else {
+          localStorage.setItem('vvc_liam_endpoint', clean);
+        }
       }
       if (id === 'webhook_url') {
-        if (!clean) localStorage.removeItem('vvc_acia_webhook');
-        else localStorage.setItem('vvc_acia_webhook', clean);
+        if (!clean) {
+          localStorage.removeItem('vvc_liam_webhook');
+        } else {
+          localStorage.setItem('vvc_liam_webhook', clean);
+        }
       }
     } catch (e) {
       console.warn('[SecretsService] Error saving secret:', e);

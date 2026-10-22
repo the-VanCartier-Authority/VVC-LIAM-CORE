@@ -23,7 +23,8 @@ import {
   RefreshCw,
   AlertCircle,
   CheckCircle2,
-  Clock
+  Clock,
+  HelpCircle
 } from 'lucide-react';
 import { 
   AVAILABLE_MODELS, 
@@ -79,6 +80,9 @@ interface SettingsModalProps {
   geminiApiKey?: string;
   onUpdateGeminiApiKey?: (key: string) => void;
   onOpenSecrets?: () => void;
+  onOpenHelp?: () => void;
+  onOpenInstallModal?: () => void;
+  initialSection?: 'all' | 'models' | 'keys' | 'voice' | 'themes' | 'push' | 'help';
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -111,7 +115,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   geminiApiKey,
   onUpdateGeminiApiKey,
   onOpenSecrets,
+  onOpenHelp,
+  onOpenInstallModal,
+  initialSection = 'all',
 }) => {
+  const [activeSection, setActiveSection] = useState<'all' | 'models' | 'keys' | 'voice' | 'themes' | 'push' | 'help'>(initialSection);
+
+  useEffect(() => {
+    if (isOpen && initialSection) {
+      setActiveSection(initialSection);
+    }
+  }, [isOpen, initialSection]);
   const [apiKeyInput, setApiKeyInput] = useState(nvidiaApiKey);
   const [geminiKeyInput, setGeminiKeyInput] = useState(() => geminiApiKey || (typeof localStorage !== 'undefined' ? localStorage.getItem('vvc_secret_gemini_api_key') || '' : ''));
   const [endpointInput, setEndpointInput] = useState(customEndpoint || 'https://integrate.api.nvidia.com/v1/chat/completions');
@@ -246,13 +260,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in">
-      <div className="w-full max-w-2xl bg-[#080b12] border border-[#1e2638] rounded-2xl p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+      <div className="w-full max-w-2xl bg-[#080b12] border border-[#1e2638] rounded-2xl p-5 sm:p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-[#1e2638]">
           <div className="flex items-center gap-2">
             <Sliders className="w-4 h-4 text-[#00f0ff]" />
             <h3 className="font-mono text-sm font-bold text-white tracking-wider">
-              Configuración de Modelos & Servicios en la Nube
+              VVC LIAM CORE // Centro de Configuración Global
             </h3>
           </div>
 
@@ -264,9 +278,91 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
         </div>
 
+        {/* Unified Navigation Tabs Bar */}
+        <div className="flex items-center gap-1 overflow-x-auto py-2.5 border-b border-[#1e2638] text-[11px] font-mono shrink-0 no-scrollbar">
+          <button
+            type="button"
+            onClick={() => setActiveSection('all')}
+            className={`px-3 py-1 rounded-md transition-all whitespace-nowrap cursor-pointer ${
+              activeSection === 'all'
+                ? 'bg-[#00f0ff]/20 text-[#00f0ff] font-bold border border-[#00f0ff]/50 shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            📋 Ver Todo
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveSection('models')}
+            className={`px-3 py-1 rounded-md transition-all whitespace-nowrap cursor-pointer ${
+              activeSection === 'models'
+                ? 'bg-[#00f0ff]/20 text-[#00f0ff] font-bold border border-[#00f0ff]/50 shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            ⚙️ Modelos & Cloud
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveSection('keys')}
+            className={`px-3 py-1 rounded-md transition-all whitespace-nowrap cursor-pointer ${
+              activeSection === 'keys'
+                ? 'bg-[#ff2a5f]/20 text-[#ff2a5f] font-bold border border-[#ff2a5f]/50 shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            🔑 Claves & Secretos
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveSection('voice')}
+            className={`px-3 py-1 rounded-md transition-all whitespace-nowrap cursor-pointer ${
+              activeSection === 'voice'
+                ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/50 shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            🔊 Voz Kokoro (TTS)
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveSection('themes')}
+            className={`px-3 py-1 rounded-md transition-all whitespace-nowrap cursor-pointer ${
+              activeSection === 'themes'
+                ? 'bg-purple-500/20 text-purple-300 font-bold border border-purple-500/50 shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            🎨 Temas & Color
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveSection('push')}
+            className={`px-3 py-1 rounded-md transition-all whitespace-nowrap cursor-pointer ${
+              activeSection === 'push'
+                ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/50 shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            🔔 Notificaciones Push
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveSection('help')}
+            className={`px-3 py-1 rounded-md transition-all whitespace-nowrap cursor-pointer ${
+              activeSection === 'help'
+                ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/50 shadow-sm'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            ❓ Ayuda & Atajos
+          </button>
+        </div>
+
         {/* Scrollable Form Body */}
         <div className="flex-1 overflow-y-auto space-y-6 py-4 pr-1 font-mono text-xs">
-          {/* SECTION 1: SELECCIÓN DE MODELO Y SERVICIOS CLOUD (DROPDOWNS) */}
+          {/* SECTION 1: SELECCIÓN DE MODELO Y SERVICIOS CLOUD */}
+          {(activeSection === 'all' || activeSection === 'models') && (
           <div className="bg-[#0b0e17] border border-[#1e2638] rounded-xl p-4 space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-white flex items-center gap-1.5">
@@ -414,8 +510,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
             </div>
           </div>
+          )}
 
           {/* SECTION 2: ESQUEMA DE COLOR DE LA INTERFAZ (VARIABLES CSS) */}
+          {(activeSection === 'all' || activeSection === 'themes') && (
           <div className="bg-[#0b0e17] border border-[#1e2638] rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-white flex items-center gap-1.5">
@@ -492,8 +590,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               })}
             </div>
           </div>
+          )}
 
           {/* SECTION 3: SERVICE WORKER & NOTIFICACIONES PUSH NATIVAS EN SEGUNDO PLANO */}
+          {(activeSection === 'all' || activeSection === 'push') && (
           <div className="bg-[#0b0e17] border border-[#1e2638] rounded-xl p-4 space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-white flex items-center gap-1.5">
@@ -601,20 +701,38 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <Clock className="w-3.5 h-3.5" />
                 <span>{isSchedulingPush ? 'Programada (Minimiza ya)...' : 'Probar en 5s (Minimizar App)'}</span>
               </button>
+
+              {onOpenInstallModal && (
+                <button
+                  type="button"
+                  onClick={onOpenInstallModal}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#00f0ff]/15 hover:bg-[#00f0ff]/25 text-[#00f0ff] border border-[#00f0ff]/50 text-xs font-semibold transition-colors cursor-pointer"
+                  title="Instalar como App PWA en Android o compilar APK nativo"
+                >
+                  <Smartphone className="w-3.5 h-3.5" />
+                  <span>Instalar App en Android / Generar APK</span>
+                </button>
+              )}
             </div>
           </div>
+          )}
 
-          {/* SECTION 3: KOKORO VOICE ENGINE CONFIGURATION */}
+          {/* SECTION 4: KOKORO VOICE ENGINE CONFIGURATION */}
+          {(activeSection === 'all' || activeSection === 'voice') && (
           <div className="bg-[#0b0e17] border border-[#1e2638] rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-white flex items-center gap-1.5">
                 <Volume2 className="w-4 h-4 text-[#00f0ff]" />
-                Motor de Voz Realista Kokoro (TTS)
+                Motor de Voz Realista Kokoro (TTS en Español)
               </span>
               <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">
-                Kokoro Core Integrado
+                Studio Neural & Fallback Local
               </span>
             </div>
+
+            <p className="text-slate-400 text-xs leading-relaxed">
+              VVC LIAM CORE implementa síntesis neural de alta fidelidad en español con entonación natural (Álvaro, Elvira, Camila, Lucas, Mateo, Sofía) respaldado por motor Edge-TTS y compatibilidad on-device Web Speech API calibrada para funcionamiento sin conexión.
+            </p>
 
             <div>
               <label className="text-[11px] text-slate-400 block mb-1.5">
@@ -682,8 +800,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </button>
             </div>
           </div>
+          )}
 
-          {/* SECTION 4: CREDENCIALES & CLAVES SECRETAS DE APIS */}
+          {/* SECTION 5: CREDENCIALES & CLAVES SECRETAS DE APIS */}
+          {(activeSection === 'all' || activeSection === 'keys') && (
           <div className="bg-[#0b0e17] border border-[#1e2638] rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-white flex items-center gap-1.5">
@@ -787,8 +907,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </button>
             </div>
           </div>
+          )}
 
-          {/* SECTION 5: PANTALLA & SINCRONIZACION */}
+          {/* SECTION 6: PANTALLA & SINCRONIZACION */}
+          {(activeSection === 'all' || activeSection === 'models') && (
           <div className="bg-[#0b0e17] border border-[#1e2638] rounded-xl p-4 space-y-3">
             <span className="text-xs font-semibold text-white flex items-center gap-1.5">
               <Moon className="w-4 h-4 text-[#00f0ff]" />
@@ -861,6 +983,60 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </button>
             </div>
           </div>
+          )}
+
+          {/* SECTION 7: CENTRO DE AYUDA, ATAJOS Y DIRECTIVAS */}
+          {(activeSection === 'all' || activeSection === 'help') && (
+            <div className="bg-[#0b0e17] border border-[#1e2638] rounded-xl p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-white flex items-center gap-1.5">
+                  <HelpCircle className="w-4 h-4 text-emerald-400" />
+                  Atajos de Voz & Directivas Operativas
+                </span>
+                {onOpenHelp && (
+                  <button
+                    type="button"
+                    onClick={onOpenHelp}
+                    className="text-[10px] text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 rounded font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    <span>Abrir Centro de Ayuda Completo</span>
+                  </button>
+                )}
+              </div>
+
+              <p className="text-slate-400 text-xs leading-relaxed">
+                VVC LIAM CORE opera por voz y texto sin fricción. A continuación se presentan los comandos clave más utilizados:
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
+                <div className="p-2.5 rounded-lg bg-[#07090e] border border-slate-800">
+                  <div className="text-[#00f0ff] font-bold">"Llamar a [Contacto]"</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">Ejecuta llamada de voz directa con control de altavoz.</div>
+                </div>
+                <div className="p-2.5 rounded-lg bg-[#07090e] border border-slate-800">
+                  <div className="text-emerald-400 font-bold">"Encender / Apagar Linterna"</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">Controla la antorcha física de la cámara o pantalla.</div>
+                </div>
+                <div className="p-2.5 rounded-lg bg-[#07090e] border border-slate-800">
+                  <div className="text-purple-400 font-bold">"Poner alarma a las [HH:MM]"</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">Programa alarma con timbre cyber acústico.</div>
+                </div>
+                <div className="p-2.5 rounded-lg bg-[#07090e] border border-slate-800">
+                  <div className="text-amber-400 font-bold">"Crear reunión [Título] a las [HH:MM]"</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">Inserta evento en la agenda y detecta conflictos.</div>
+                </div>
+                <div className="p-2.5 rounded-lg bg-[#07090e] border border-slate-800">
+                  <div className="text-cyan-400 font-bold">"Activar agente [Vladimir / Valentina / Victoria]"</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">Bifurca directivas especializadas del agente.</div>
+                </div>
+                <div className="p-2.5 rounded-lg bg-[#07090e] border border-slate-800">
+                  <div className="text-rose-400 font-bold">"Guardar nota secreta / Bóveda"</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">Cifra en AES-GCM-256 en la bóveda de seguridad.</div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

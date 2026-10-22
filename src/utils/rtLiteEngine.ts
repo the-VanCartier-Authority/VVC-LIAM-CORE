@@ -1255,7 +1255,7 @@ export function generateRTLiteResponse(prompt: string, activeEngine: ModelType =
     activeEngine === 'rt-lite-security' ? '[RT-Lite Obsidian Vault & Security]' :
     '[RT-Lite Master Omni-Engine]';
 
-  if (p.includes('quién eres') || p.includes('quien eres') || p.includes('tu nombre') || p.includes('vvc liam') || p.includes('liam core') || p.includes('vvc-acia')) {
+  if (p.includes('quién eres') || p.includes('quien eres') || p.includes('tu nombre') || p.includes('vvc liam') || p.includes('liam core')) {
     return `${enginePrefix} Soy VVC LIAM CORE, tu estación de inteligencia artificial autónoma de vanguardia con arquitectura VAOS. Opero con todos los motores integrados: control físico de actuadores del teléfono, telecomunicaciones y llamadas directas, matriz de calendario con detección y resolución de conflictos, sincronización con Google, Outlook y Apple Calendar, y estudio de documentos y hojas de cálculo exportables a PDF.`;
   }
 

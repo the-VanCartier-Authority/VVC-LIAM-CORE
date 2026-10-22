@@ -109,7 +109,7 @@ export const EncryptedVaultModal: React.FC<EncryptedVaultModalProps> = ({
     const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(vaultItems, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `vvc_acia_encrypted_vault_${Date.now()}.json`);
+    downloadAnchor.setAttribute('download', `vvc_liam_core_encrypted_vault_${Date.now()}.json`);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();

@@ -101,7 +101,7 @@ export function downloadICSFile(events: CalendarEvent[], tasks: TaskItem[]) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.setAttribute('download', `vvc_acia_agenda_${new Date().toISOString().split('T')[0]}.ics`);
+  link.setAttribute('download', `vvc_liam_core_agenda_${new Date().toISOString().split('T')[0]}.ics`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

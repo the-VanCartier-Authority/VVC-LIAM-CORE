@@ -686,14 +686,18 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
 ];
 
 export type KokoroVoiceId =
+  | 'es_mateo'
+  | 'es_sofia'
+  | 'es_camila'
+  | 'es_lucas'
+  | 'es_valeria'
+  | 'es_diego'
   | 'af_heart'
   | 'af_bella'
   | 'af_nicole'
   | 'am_adam'
   | 'am_michael'
-  | 'bf_emma'
-  | 'es_mateo'
-  | 'es_sofia';
+  | 'bf_emma';
 
 export interface KokoroVoice {
   id: KokoroVoiceId;
@@ -709,7 +713,7 @@ export interface KokoroVoice {
 export const KOKORO_VOICES: KokoroVoice[] = [
   {
     id: 'es_mateo',
-    name: 'Neural Mateo HD (Fenrir)',
+    name: 'Mateo (España) · Neural HD',
     gender: 'Masculina',
     language: 'Español',
     style: 'Neural Studio HD: Profunda, ejecutiva y sobria',
@@ -719,7 +723,7 @@ export const KOKORO_VOICES: KokoroVoice[] = [
   },
   {
     id: 'es_sofia',
-    name: 'Neural Sofía HD (Kore)',
+    name: 'Sofía (España) · Neural HD',
     gender: 'Femenina',
     language: 'Español',
     style: 'Neural Studio HD: Cálida, fluida y ultra-natural',
@@ -728,8 +732,48 @@ export const KOKORO_VOICES: KokoroVoice[] = [
     rate: 1.05,
   },
   {
+    id: 'es_camila',
+    name: 'Camila (México) · Neural HD',
+    gender: 'Femenina',
+    language: 'Español',
+    style: 'Neural Studio HD: Clara, ágil y expresiva',
+    samplePhrase: 'Comando verificado. Todos los módulos operativos se encuentran en línea.',
+    pitch: 1.02,
+    rate: 1.04,
+  },
+  {
+    id: 'es_lucas',
+    name: 'Lucas (México) · Neural HD',
+    gender: 'Masculina',
+    language: 'Español',
+    style: 'Neural Studio HD: Firme, segura y directa',
+    samplePhrase: 'Instrucción procesada con éxito por el orquestador VAOS.',
+    pitch: 0.96,
+    rate: 1.02,
+  },
+  {
+    id: 'es_valeria',
+    name: 'Valeria (Latinoamérica) · Neural HD',
+    gender: 'Femenina',
+    language: 'Español',
+    style: 'Neural Studio HD: Suave, diplomática y elegante',
+    samplePhrase: 'Notificación registrada. La agenda ha sido actualizada correctamente.',
+    pitch: 1.0,
+    rate: 1.0,
+  },
+  {
+    id: 'es_diego',
+    name: 'Diego (Colombia) · Neural HD',
+    gender: 'Masculina',
+    language: 'Español',
+    style: 'Neural Studio HD: Cálida, ejecutiva y equilibrada',
+    samplePhrase: 'Bóveda de seguridad asegurada. Claves en memoria protegida.',
+    pitch: 0.94,
+    rate: 1.02,
+  },
+  {
     id: 'af_heart',
-    name: 'Neural Heart HD (Zephyr)',
+    name: 'Kokoro Heart (Ultra-HD)',
     gender: 'Femenina',
     language: 'English',
     style: 'Neural Studio HD: Tecnológica, suave y precisa',
@@ -779,7 +823,7 @@ export const KOKORO_VOICES: KokoroVoice[] = [
   },
   {
     id: 'bf_emma',
-    name: 'Kokoro Emma',
+    name: 'Kokoro Emma (British)',
     gender: 'Femenina',
     language: 'English',
     style: 'Acento británico sofisticado',
@@ -888,7 +932,7 @@ export interface CalendarEvent {
   attendees?: string[];
   iCalUID?: string;
   recurrence?: 'none' | 'daily' | 'weekly' | 'weekdays' | 'monthly';
-  source?: 'vvc_liam' | 'vvc-acia' | 'google' | 'outlook' | 'apple';
+  source?: 'vvc_liam' | 'vvc_liam_core' | 'google' | 'outlook' | 'apple';
   syncStatus?: 'synced' | 'local' | 'conflict_resolved';
   conflictNote?: string;
 }
