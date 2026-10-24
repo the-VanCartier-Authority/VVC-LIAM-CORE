@@ -26,4 +26,16 @@ test('B03: two valid Firebase users cannot read each other tasks or telemetry', 
     assert.deepEqual(b.points, []); assert.equal(b.stats.totalDispatched, 0);
     assert.ok(a.points.every(point => point.ownerUid === 'fixture-user-a'));
   });
+  await t.test('other users cannot push an owned task out of its per-user result window', async () => {
+    for (let i = 0; i < 21; i++) {
+      const response = await fetch(app.base + '/api/vaos/dispatch', { method: 'POST',
+        headers: { ...userB, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command: `crear documento fixture-b-${i}` }) });
+      assert.equal(response.status, 200);
+    }
+    const tasksA = await (await fetch(app.base + '/api/vaos/tasks', { headers: app.authHeaders })).json();
+    const tasksB = await (await fetch(app.base + '/api/vaos/tasks', { headers: userB })).json();
+    assert.ok(tasksA.some(task => task.taskId === asyncTask.taskId));
+    assert.equal(tasksB.length, 20); assert.ok(tasksB.every(task => task.ownerUid === 'fixture-user-b'));
+  });
 });
