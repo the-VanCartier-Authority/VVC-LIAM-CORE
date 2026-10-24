@@ -12,6 +12,7 @@ import { executionOutcome } from './src/shared/executionOutcome.ts';
 import { createFirebaseVerifier, firebaseIdentityMiddleware } from './src/server/firebaseIdentity.ts';
 import { BackendLimits, resourceErrorHandler } from './src/server/backendLimits.ts';
 import { providerModel, fallbackSelection, modelProvenance, ModelRoutingError } from './src/shared/modelRouting.ts';
+import { chatPolicy } from './src/server/chatPolicy.ts';
 
 dotenv.config();
 const providers = new ProviderRegistry(process.env.LLM_PROVIDERS_JSON || '[]');
@@ -41,6 +42,7 @@ app.use('/api', firebaseIdentityMiddleware(createFirebaseVerifier(firebaseProjec
 app.use('/api', limits.middleware());
 app.use(express.json({ limit: '256kb' }));
 app.use('/api', limits.payload());
+app.use('/api/chat', chatPolicy);
 
 // Mount VAOS Smart Routing Orchestrator (Policy Engine, Fast Path & Async Queue)
 app.use('/api/vaos', createVaosRouter(limits));
