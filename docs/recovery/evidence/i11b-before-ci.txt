@@ -1,0 +1,17 @@
+2026-10-24T22:14:47.8259905Z Validated Node 24.19.0; package manager bun@1.4.4
+2026-10-24T22:14:47.9146449Z bun install v1.4.4 (38afee6c8)
+2026-10-24T22:14:57.5042561Z ✖ I11b: disconnect closes an already transmitted custom-provider request (1558.224178ms)
+2026-10-24T22:14:58.6655476Z ✖ I11b: a disconnected NVIDIA request cannot start its explicit Gemini fallback (1161.272294ms)
+2026-10-24T22:15:00.1308344Z ✖ I11b: disconnect propagates to the Gemini SDK abort signal (1465.72099ms)
+2026-10-24T22:15:15.1755850Z ℹ tests 127
+2026-10-24T22:15:15.1757275Z ℹ pass 124
+2026-10-24T22:15:15.1757763Z ℹ fail 3
+2026-10-24T22:15:15.1774791Z ✖ I11b: disconnect closes an already transmitted custom-provider request (1558.224178ms)
+2026-10-24T22:15:15.1775991Z   AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+2026-10-24T22:15:15.1777043Z   false !== true
+2026-10-24T22:15:15.1786210Z ✖ I11b: a disconnected NVIDIA request cannot start its explicit Gemini fallback (1161.272294ms)
+2026-10-24T22:15:15.1787196Z   AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+2026-10-24T22:15:15.1800999Z ✖ I11b: disconnect propagates to the Gemini SDK abort signal (1465.72099ms)
+2026-10-24T22:15:15.1802026Z   AssertionError [ERR_ASSERTION]: The input did not match the regular expression /aborted/. Input:
+2026-10-24T22:15:15.1803205Z   'started\n'
+2026-10-24T22:15:15.1808435Z     actual: 'started\n',

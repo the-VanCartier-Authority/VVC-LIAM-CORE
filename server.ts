@@ -1,3 +1,4 @@
+import { chatCancellation, assertChatActive, assertNotAborted, RequestAbortedError } from './src/server/requestCancellation.ts';
 import { geminiConversation, ChatInputError } from './src/server/geminiConversation.ts';
 import express from 'express';
 import type { Request, Response } from 'express';
@@ -45,6 +46,7 @@ app.use('/api', limits.middleware());
 app.use(express.json({ limit: '256kb' }));
 app.use('/api', limits.payload());
 app.use('/api/chat', chatPolicy);
+app.use('/api/chat', chatCancellation);
 
 // Mount VAOS Smart Routing Orchestrator (Policy Engine, Fast Path & Async Queue)
 app.use('/api/vaos', createVaosRouter(limits));
@@ -436,17 +438,21 @@ app.post('/api/tts', async (req: Request, res: Response) => {
 /**
  * Helper to generate response using Gemini Flash
  */
-async function generateGeminiReply(body: Record<string, unknown>, apiKey: string, modelName = 'gemini-2.5-flash') {
+async function generateGeminiReply(body: Record<string, unknown>, apiKey: string, modelName = 'gemini-2.5-flash', signal?: AbortSignal) {
+  assertNotAborted(signal);
   const conversation = geminiConversation(body);
   try {
     const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: 30000, retryOptions: { attempts: 1 } } });
     const response = await ai.models.generateContent({
       model: modelName,
       ...conversation,
+      config: { ...conversation.config, abortSignal: signal },
     });
+    assertNotAborted(signal);
     if (!response.text?.trim()) throw new UpstreamError();
     return response.text;
   } catch (err: any) {
+    assertNotAborted(signal);
     console.warn('Gemini request notice: upstream request failed');
     throw new UpstreamError();
   }
@@ -483,6 +489,7 @@ function cleanModelResponse(rawText: string): string {
 app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   try {
+    assertChatActive(req, res);
     const { model, messages, apiKey: clientApiKey, geminiApiKey: clientGeminiApiKey, temperature = 0.6, max_tokens = 800 } = req.body;
 
     const provider = providers.select('nvidia', req.body);
@@ -494,7 +501,7 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
     // A configured Gemini key alone never authorizes replacing the chosen NIM.
     if (!apiKey) {
       if (geminiKey) {
-        const text = await generateGeminiReply(req.body, geminiKey, 'gemini-2.5-flash');
+        const text = await generateGeminiReply(req.body, geminiKey, 'gemini-2.5-flash', req.inferenceSignal);
         return res.json({
           id: `fallback-gemini-${Date.now()}`,
           choices: [{ message: { role: 'assistant', content: text } }],
@@ -551,7 +558,7 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
     try {
       // Extended timeout for deep reasoning and massive code generation
       const timeoutDuration = (isDeepReasoning || isCodingModel) ? 60000 : 30000;
-      const response = await postProvider(provider, apiKey, payload, timeoutDuration);
+      const response = await postProvider(provider, apiKey, payload, timeoutDuration, undefined, req.inferenceSignal);
 
       if (response.ok) {
         const data = await response.json();
@@ -586,7 +593,7 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
               ...payload,
               model: 'meta/llama-3.2-11b-vision-instruct',
               max_tokens: 800,
-            }, 10000);
+            }, 10000, undefined, req.inferenceSignal);
           if (fastRes.ok) {
             const fastData = await fastRes.json();
             const fastText = cleanModelResponse(fastData.choices?.[0]?.message?.content || '');
@@ -602,17 +609,19 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
             }
           }
         } catch (error) {
-          if (error instanceof EgressPolicyError) throw error;
+          if (error instanceof EgressPolicyError || error instanceof RequestAbortedError) throw error;
         }
       }
     } catch (fetchErr: unknown) {
-      if (fetchErr instanceof EgressPolicyError) throw fetchErr;
+      if (fetchErr instanceof EgressPolicyError || fetchErr instanceof RequestAbortedError) throw fetchErr;
+      assertChatActive(req, res);
       console.warn('NVIDIA request notice: upstream request failed');
     }
 
     // Cross-provider fallback uses its own credential and truthful provenance.
+    assertChatActive(req, res);
     if (geminiKey && geminiKey !== 'MY_GEMINI_API_KEY') {
-      const text = await generateGeminiReply(req.body, geminiKey, 'gemini-2.5-flash');
+      const text = await generateGeminiReply(req.body, geminiKey, 'gemini-2.5-flash', req.inferenceSignal);
       return res.json({
         id: `auto-backup-${Date.now()}`,
         choices: [{ message: { role: 'assistant', content: text } }],
@@ -625,6 +634,7 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
 
     return egressFailure(res, new UpstreamError());
   } catch (error: any) {
+    if (error instanceof RequestAbortedError || req.inferenceSignal?.aborted || req.aborted || res.destroyed) return;
     return egressFailure(res, error);
   }
 });
@@ -633,6 +643,7 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
 app.post('/api/chat/gemini', async (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   try {
+    assertChatActive(req, res);
     const { apiKey: clientApiKey, model = 'gemini-2.5-flash' } = req.body;
     const targetModel = providerModel('gemini', model);
     const apiKey = providerKey(providers.select('gemini', req.body), clientApiKey);
@@ -649,7 +660,9 @@ app.post('/api/chat/gemini', async (req: Request, res: Response) => {
 
     const conversation = geminiConversation(req.body);
     const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: 30000, retryOptions: { attempts: 1 } } });
-    const response = await ai.models.generateContent({ model: targetModel, ...conversation });
+    assertChatActive(req, res);
+    const response = await ai.models.generateContent({ model: targetModel, ...conversation, config: { ...conversation.config, abortSignal: req.inferenceSignal } });
+    assertChatActive(req, res);
 
     const responseText = cleanModelResponse(response.text || '');
     if (!responseText.trim()) throw new UpstreamError();
@@ -663,6 +676,7 @@ app.post('/api/chat/gemini', async (req: Request, res: Response) => {
       realExecution: false,
     });
   } catch (error: any) {
+    if (error instanceof RequestAbortedError || req.inferenceSignal?.aborted || req.aborted || res.destroyed) return;
     return egressFailure(res, error);
   }
 });
@@ -671,6 +685,7 @@ app.post('/api/chat/gemini', async (req: Request, res: Response) => {
 app.post('/api/chat/custom', async (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   try {
+    assertChatActive(req, res);
     const { apiKey, model, messages, temperature = 0.6, max_tokens = 1000 } = req.body;
 
     const provider = providers.select('custom', req.body);
@@ -682,7 +697,8 @@ app.post('/api/chat/custom', async (req: Request, res: Response) => {
         messages,
         temperature,
         max_tokens,
-      });
+      }, 45000, undefined, req.inferenceSignal);
+    assertChatActive(req, res);
 
     if (!response.ok) {
       return res.status(response.status).json({
@@ -705,6 +721,7 @@ app.post('/api/chat/custom', async (req: Request, res: Response) => {
       realExecution: false,
     });
   } catch (error: any) {
+    if (error instanceof RequestAbortedError || req.inferenceSignal?.aborted || req.aborted || res.destroyed) return;
     return egressFailure(res, error);
   }
 });
