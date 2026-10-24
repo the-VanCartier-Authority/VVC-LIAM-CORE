@@ -28,6 +28,8 @@ try {
   assert.doesNotMatch(index, /@vite\/client/);
   assert.equal((await fetch(app.base + asset)).status, 200);
   assert.equal((await fetch(app.base + '/manifest.json')).status, 200);
+  assert.equal((await fetch(app.base + '/api/vaos/tasks')).status, 401);
+  assert.equal((await fetch(app.base + '/api/vaos/tasks', { headers: app.authHeaders })).status, 200);
   const config = await (await fetch(app.base + '/api/config')).text();
   assert.doesNotMatch(config, /synthetic-smoke-server/);
   for (const [route, provider] of [['/api/chat/nvidia', 'nvidia'], ['/api/chat/custom', 'custom'],
@@ -43,7 +45,7 @@ try {
   assert.equal((await post(app.base, '/api/chat/gemini', { prompt: 'fixture' })).status, 401);
   console.log(JSON.stringify({ node: process.version, mode: 'production', staticHtml: 200, asset: 200,
     manifest: 200, rejectedRoutes: 4, rejectedDestinationCalls: 0, registeredFixtureCalls: calls,
-    missingGeminiKey: 401, externalInferenceCalls: 0 }));
+    missingGeminiKey: 401, missingIdentity: 401, validIdentity: 200, externalInferenceCalls: 0 }));
 } finally {
   await app?.stop(); fixture.closeAllConnections(); await new Promise(resolve => fixture.close(resolve));
 }

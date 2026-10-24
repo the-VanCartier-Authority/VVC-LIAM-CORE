@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { backendFetch } from '../services/backendApi';
 import { 
   X, 
   Key, 
@@ -106,7 +107,7 @@ export const ApiSecretsModal: React.FC<ApiSecretsModalProps> = ({
         return;
       }
 
-      const res = await fetch('/api/secrets/test', {
+      const res = await backendFetch('/api/secrets/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider, apiKey, endpoint, model }),

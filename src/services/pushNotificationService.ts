@@ -1,5 +1,6 @@
 // VVC LIAM CORE // Native Push Notification & Service Worker Service
 // Enables native background notifications and Web Push even when app is minimized or closed
+import { backendFetch } from './backendApi';
 
 export interface PushSubscriptionStatus {
   isSupported: boolean;
@@ -159,7 +160,7 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
  */
 export async function fetchVapidPublicKey(): Promise<string | null> {
   try {
-    const response = await fetch('/api/push/vapid-public-key');
+    const response = await backendFetch('/api/push/vapid-public-key');
     if (!response.ok) return null;
     const data = await response.json();
     return data.publicKey || null;
@@ -210,7 +211,7 @@ export async function subscribeToPushNotifications(): Promise<{
 
     // Register subscription on backend
     if (subscription) {
-      await fetch('/api/push/subscribe', {
+      await backendFetch('/api/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(subscription.toJSON()),
@@ -238,7 +239,7 @@ export async function unsubscribeFromPushNotifications(): Promise<boolean> {
 
     const sub = await reg.pushManager.getSubscription();
     if (sub) {
-      await fetch('/api/push/unsubscribe', {
+      await backendFetch('/api/push/unsubscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ endpoint: sub.endpoint }),
@@ -346,7 +347,7 @@ export async function sendBackgroundAlert(
 
   // 3. Trigger server Web Push
   try {
-    await fetch('/api/push/send', {
+    await backendFetch('/api/push/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -395,7 +396,7 @@ export async function scheduleBackgroundAlert(
 
   // Also schedule on backend via Web Push for guaranteed OS delivery
   try {
-    await fetch('/api/push/send', {
+    await backendFetch('/api/push/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { inferenceFailureText } from './shared/executionOutcome';
+import { backendFetch } from './services/backendApi';
 import { Header } from './components/Header';
 import { VoiceOrbVisualizer } from './components/VoiceOrbVisualizer';
 import { QuickCommandChips } from './components/QuickCommandChips';
@@ -1082,7 +1083,7 @@ export default function App() {
             throw new Error('Se requiere tu API Key de Google Gemini guardada como secreto para continuar.');
           }
 
-          const res = await fetch('/api/chat/gemini', {
+          const res = await backendFetch('/api/chat/gemini', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1118,7 +1119,7 @@ export default function App() {
             throw new Error('Se requiere configurar el Endpoint URL del LLM en la Bóveda de Secretos.');
           }
 
-          const res = await fetch('/api/chat/custom', {
+          const res = await backendFetch('/api/chat/custom', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1152,7 +1153,7 @@ export default function App() {
             throw new Error('Se requiere tu API Key de NVIDIA NIM guardada como secreto para continuar.');
           }
 
-          const res = await fetch('/api/chat/nvidia', {
+          const res = await backendFetch('/api/chat/nvidia', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
