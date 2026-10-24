@@ -39,6 +39,8 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Regression suite
         run: npm test
+      - name: Production advisory audit
+        run: bun audit --production
       - name: TypeScript
         run: npm run lint
       - name: Production build
