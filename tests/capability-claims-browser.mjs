@@ -18,7 +18,7 @@ try {
   await page.getByRole('button', { name: 'Gmail', exact: true }).click();
   const gmailE2eeBadges = await page.getByText('OAUTH E2EE', { exact: true }).count();
   await page.goto(app.base, { waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: 'Agenda & Tareas', exact: true }).click();
+  await page.getByRole('button', { name: /^Agenda & Tareas/ }).click();
   const calendarE2eeBadges = await page.getByText('Sincronización RFC 5545 iCal & E2EE', { exact: true }).count();
   console.log(JSON.stringify({ browser: browser.version(), vaultE2eeLinks, templateMarked, fictionalCertification,
     gmailE2eeBadges, calendarE2eeBadges, realExternalCalls: 0 }));
