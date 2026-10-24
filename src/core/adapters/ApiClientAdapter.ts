@@ -65,9 +65,9 @@ export class ApiClientAdapter implements ApiClient {
   public async getVaosTelemetry(): Promise<{
     points: VaosTelemetryPoint[];
     stats: {
-      avgFastPathLatencyMs: number;
-      avgAsyncDurationMs: number;
-      avgTokensPerSec: number;
+      avgFastPathLatencyMs: number | null;
+      avgAsyncDurationMs: number | null;
+      avgTokensPerSec: number | null;
       totalDispatched: number;
       fastPathCount: number;
       asyncCount: number;

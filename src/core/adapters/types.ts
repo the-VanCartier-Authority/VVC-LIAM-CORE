@@ -7,11 +7,12 @@
 export type PlatformType = 'pwa' | 'android' | 'ios' | 'windows' | 'web';
 
 export interface DeviceBatteryInfo {
-  level: number; // 0.0 to 1.0
-  charging: boolean;
-  chargingTime: number; // in seconds, or Infinity
-  dischargingTime: number; // in seconds, or Infinity
-  temperatureEstimatedC?: number;
+  level: number | null; // 0.0 to 1.0, or unavailable
+  charging: boolean | null;
+  chargingTime: number | null;
+  dischargingTime: number | null;
+  source: 'browser' | 'unavailable';
+  temperatureEstimatedC?: number | null;
   healthProfile?: 'OPTIMAL' | 'NORMAL' | 'LOW_POWER';
 }
 
@@ -49,7 +50,9 @@ export interface VaosTelemetryPoint {
   priority: TaskPriority;
   route: TaskRoute;
   latencyMs: number;
-  tokensPerSec: number;
+  tokensPerSec: number | null;
+  tokensSource: 'provider' | 'estimated' | 'unavailable';
+  latencyScope: 'policy_routing' | 'processing_wall_time';
   success: boolean;
   agentId: string;
 }
@@ -64,7 +67,7 @@ export interface VaosDispatchResult {
     text: string;
     actionType?: string;
     latencyMs: number;
-    tokensPerSec: number;
+    tokensPerSec: number | null;
     handledBy: string;
     data?: Record<string, unknown>;
   };
@@ -91,7 +94,7 @@ export interface VaosTaskDetail {
   result?: {
     text: string;
     actionType?: string;
-    tokensPerSec?: number;
+    tokensPerSec?: number | null;
     data?: Record<string, unknown>;
   };
   error?: string;
@@ -105,9 +108,9 @@ export interface ApiClient {
   getVaosTelemetry(): Promise<{
     points: VaosTelemetryPoint[];
     stats: {
-      avgFastPathLatencyMs: number;
-      avgAsyncDurationMs: number;
-      avgTokensPerSec: number;
+      avgFastPathLatencyMs: number | null;
+      avgAsyncDurationMs: number | null;
+      avgTokensPerSec: number | null;
       totalDispatched: number;
       fastPathCount: number;
       asyncCount: number;
