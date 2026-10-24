@@ -57,12 +57,13 @@ export class VaosPolicyEngine {
   public static evaluate(
     command: string,
     agentId?: string,
-    forcePriority?: unknown
+    forcePriority?: unknown,
+    commandLimit = 5000
   ): {
     approved: boolean; reason?: string; code?: string;
     priority: TaskPriority; route: TaskRoute; category: string;
   } {
-    const policy = this.classify(command);
+    const policy = this.classify(command, commandLimit);
     // Server classification is authoritative, including security rejection.
     // Client hints may increase scrutiny; they can never lower it.
     if (!policy.approved || forcePriority === undefined) return policy;
@@ -78,7 +79,7 @@ export class VaosPolicyEngine {
     return { ...policy, priority: suggested, route: 'ASYNC_PATH', category: `CLIENT_ESCALATED_${policy.category}` };
   }
 
-  private static classify(command: string): {
+  private static classify(command: string, commandLimit: number): {
     approved: boolean;
     reason?: string;
     priority: TaskPriority;
@@ -88,7 +89,7 @@ export class VaosPolicyEngine {
     const cmd = command.toLowerCase().trim();
 
     // 1. Sanitization / Safety Check
-    if (cmd.includes('<script>') || cmd.includes('__proto__') || cmd.length > 5000) {
+    if (cmd.includes('<script>') || cmd.includes('__proto__') || cmd.length > commandLimit) {
       return {
         approved: false,
         reason: 'Violación de directiva de seguridad: contenido sospechoso o exceso de carga.',

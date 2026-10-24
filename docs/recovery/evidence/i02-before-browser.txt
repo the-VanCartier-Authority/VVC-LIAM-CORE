@@ -1,0 +1,19 @@
+{"browser":"154.0.8037.57","paths":["/api/vaos/dispatch","/api/chat/nvidia"],"errors":[],"realExternalCalls":0}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: chat must not create a second hidden generation
+
+1 !== 0
+
+    at file:///workspace/vvc-i02/tests/chat-decision-browser.mjs:78:10 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 1,
+  expected: 0,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

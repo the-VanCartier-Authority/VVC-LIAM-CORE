@@ -1042,14 +1042,6 @@ export default function App() {
         // --- NIVEL 3: MODELOS EN LA NUBE (GEMINI, NVIDIA NIM, CUSTOM LLM) ---
         const cloudInfo = CLOUD_INTEGRATIONS.find((c) => c.id === currentCloudIntegration) || CLOUD_INTEGRATIONS[0];
 
-        // Dispatch to VAOS Policy Engine & Telemetry Gateway in background
-        platformService.api.dispatchVaos({
-          command: commandText,
-          agentId: activeAgent ? activeAgent.id : 'neutral-core',
-          isExclusiveAgent: activeAgent ? Boolean(activeAgent.isExclusivePrivate) : false,
-          injectedSkills: activeAgent ? (activeAgent.injectedSkills || []) : [],
-        }).catch((err) => console.warn('[VAOS Gateway]', err));
-
         // Construct System Prompt according to whether an Agent is selected or No Agent (Neutral Mode)
         let systemPrompt = '';
         if (activeAgent) {
