@@ -1,0 +1,49 @@
+✖ I06: People API fixture imports into the real phone contract and real directory/dialer (259.757672ms)
+✖ I06: missing phone never becomes an email or invented number (0.488369ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 268.028219
+
+✖ failing tests:
+
+test at tests/imported-contacts.test.mjs:36:1
+✖ I06: People API fixture imports into the real phone contract and real directory/dialer (259.757672ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - '+34 600 123 456'
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-i06/tests/imported-contacts.test.mjs:45:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: '+34 600 123 456',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/imported-contacts.test.mjs:52:1
+✖ I06: missing phone never becomes an email or invented number (0.488369ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  undefined !== ''
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-i06/tests/imported-contacts.test.mjs:56:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: '',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

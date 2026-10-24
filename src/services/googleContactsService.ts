@@ -68,15 +68,14 @@ export async function listGoogleContacts(
 export function convertGoogleContactsToPhoneContacts(
   items: GoogleContactItem[]
 ): PhoneContact[] {
-  return items.map((item, index) => ({
+  return items.map((item): PhoneContact => ({
     id: `google-${item.resourceName.replace('/', '-')}`,
     name: item.name,
-    number: item.phoneNumber || item.email || '+1 555-0100',
-    type: 'movil',
+    phone: item.phoneNumber?.trim() || '',
     email: item.email,
     avatar: item.photoUrl,
     isGoogleContact: true,
-  } as any));
+  }));
 }
 
 /**
