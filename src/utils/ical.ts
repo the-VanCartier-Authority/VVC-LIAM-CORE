@@ -1,95 +1,27 @@
-/**
- * iCalendar (RFC 5545) & Third-Party Integration Dispatcher
- * Seamless export to Google Calendar, Apple Calendar, Outlook, and webhook integrations.
- */
-
+// Local iCalendar export; provider delivery is a separate operation.
 import type { CalendarEvent, TaskItem } from '../types';
+import { calendarEventLines } from './calendarSync.ts';
+import { calendarDate, compactInstant, compactWall, foldICalLines, icalText, taskDueInstant, TemporalInputError, localCalendarDate } from './temporal.ts';
 
-/**
- * Format Date & Time into iCal timestamp format (YYYYMMDDTHHMMSSZ)
- */
-function formatICalDateTime(dateStr: string, timeStr = '00:00'): string {
-  const [year, month, day] = dateStr.split('-');
-  const [hours, minutes] = timeStr.split(':');
-
-  const d = new Date(
-    parseInt(year, 10),
-    parseInt(month, 10) - 1,
-    parseInt(day, 10),
-    parseInt(hours, 10) || 0,
-    parseInt(minutes, 10) || 0
-  );
-
-  return d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-}
-
-/**
- * Generate standard RFC 5545 .ics calendar content
- */
 export function generateICSContent(events: CalendarEvent[], tasks: TaskItem[]): string {
-  const lines: string[] = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//VVC-LIAM-CORE//Voice Assistant//ES',
-    'CALSCALE:GREGORIAN',
-    'METHOD:PUBLISH',
-    'X-WR-CALNAME:VVC LIAM CORE Agenda & Tareas',
-    'X-WR-TIMEZONE:UTC',
-  ];
-
-  // Export Calendar Events
-  events.forEach((event) => {
-    const startStr = formatICalDateTime(event.date, event.time);
-    const endStr = formatICalDateTime(event.date, event.endTime || event.time);
-    const uid = event.iCalUID || `event-${event.id}-${Date.now()}@vvc-liam.internal`;
-
-    lines.push('BEGIN:VEVENT');
-    lines.push(`UID:${uid}`);
-    lines.push(`DTSTAMP:${formatICalDateTime(new Date().toISOString().split('T')[0])}`);
-    lines.push(`DTSTART:${startStr}`);
-    lines.push(`DTEND:${endStr}`);
-    lines.push(`SUMMARY:${event.title.replace(/\n/g, ' ')}`);
-    if (event.location) {
-      lines.push(`LOCATION:${event.location.replace(/\n/g, ' ')}`);
-    }
-    if (event.description) {
-      lines.push(`DESCRIPTION:${event.description.replace(/\n/g, '\\n')}`);
-    }
-    lines.push('STATUS:CONFIRMED');
-    lines.push('BEGIN:VALARM');
-    lines.push('TRIGGER:-PT15M');
-    lines.push('ACTION:DISPLAY');
-    lines.push(`DESCRIPTION:Recordatorio VVC LIAM CORE: ${event.title}`);
-    lines.push('END:VALARM');
-    lines.push('END:VEVENT');
-  });
-
-  // Export Tasks & Reminders as VTODO / VEVENT with alarm
-  tasks.forEach((task) => {
-    const taskDate = task.dueDate || new Date().toISOString().split('T')[0];
-    const taskStart = formatICalDateTime(taskDate, task.timeDue);
-    const uid = `task-${task.id}@vvc-liam.internal`;
-
-    lines.push('BEGIN:VTODO');
-    lines.push(`UID:${uid}`);
-    lines.push(`DTSTAMP:${formatICalDateTime(new Date().toISOString().split('T')[0])}`);
-    lines.push(`DUE:${taskStart}`);
-    lines.push(`SUMMARY:${task.title}`);
-    lines.push(`STATUS:${task.isCompleted ? 'COMPLETED' : 'NEEDS-ACTION'}`);
-    lines.push(`PRIORITY:${task.priority === 'critica' ? '1' : task.priority === 'alta' ? '2' : '5'}`);
-    if (task.description) {
-      lines.push(`DESCRIPTION:${task.description.replace(/\n/g, '\\n')}`);
-    }
-    lines.push('BEGIN:VALARM');
-    lines.push('TRIGGER:-PT0M');
-    lines.push('ACTION:DISPLAY');
-    lines.push(`DESCRIPTION:${task.title}`);
-    lines.push('END:VALARM');
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//VVC LIAM CORE//Agenda Export//ES', 'CALSCALE:GREGORIAN'];
+  events.forEach(event => lines.push(...calendarEventLines(event)));
+  tasks.forEach(task => {
+    if (task.recurrence && task.recurrence !== 'none')
+      throw new TemporalInputError('UNSUPPORTED_RECURRENCE', 'La exportación admite tareas puntuales. No se exportará una recurrencia como si fuera un único vencimiento.');
+    const due = taskDueInstant(task);
+    if (!task.dueDate && task.timeDue) throw new TemporalInputError('DATE_REQUIRED', 'Falta la fecha de una tarea con hora.');
+    lines.push('BEGIN:VTODO', `UID:${icalText(`task-${task.id}@vvc-liam.internal`)}`, `DTSTAMP:${compactInstant(new Date())}`);
+    if (task.dueDate) lines.push(due ? `DUE:${task.timeZone ? compactInstant(due) : compactWall(task.dueDate, task.timeDue)}`
+      : `DUE;VALUE=DATE:${calendarDate(task.dueDate).replace(/-/g, '')}`);
+    lines.push(`SUMMARY:${icalText(task.title)}`, `STATUS:${task.isCompleted ? 'COMPLETED' : 'NEEDS-ACTION'}`,
+      `PRIORITY:${task.priority === 'critica' ? '1' : task.priority === 'alta' ? '2' : '5'}`);
+    if (task.description) lines.push(`DESCRIPTION:${icalText(task.description)}`);
+    if (due) lines.push('BEGIN:VALARM', 'TRIGGER:-PT0M', 'ACTION:DISPLAY', `DESCRIPTION:${icalText(task.title)}`, 'END:VALARM');
     lines.push('END:VTODO');
   });
-
   lines.push('END:VCALENDAR');
-  return lines.join('\r\n');
+  return foldICalLines(lines);
 }
 
 /**
@@ -101,7 +33,7 @@ export function downloadICSFile(events: CalendarEvent[], tasks: TaskItem[]) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.setAttribute('download', `vvc_liam_core_agenda_${new Date().toISOString().split('T')[0]}.ics`);
+  link.setAttribute('download', `vvc_liam_core_agenda_${localCalendarDate()}.ics`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

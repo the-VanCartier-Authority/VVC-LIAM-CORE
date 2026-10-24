@@ -16,6 +16,8 @@ import {
   type ConflictAnalysis 
 } from './calendarSync';
 
+import { TemporalInputError, clockTime, clockPrefix, zoneFromText, dateFromText, timeFromText, stripTemporalText, zonedInstant, zonedParts, eventInterval, snoozeTaskTiming, taskTiming } from './temporal.ts';
+
 export interface CommandExecutionResult {
   isHandled: boolean;
   spokenResponse: string;
@@ -75,7 +77,17 @@ export interface CommandExecutionResult {
   openHelp?: boolean;
 }
 
-export function parseNaturalVoiceCommand(
+export function parseNaturalVoiceCommand(rawInput: string, deviceState: DeviceState, contacts: PhoneContact[],
+  existingTasks: TaskItem[] = [], existingEvents: CalendarEvent[] = []): CommandExecutionResult {
+  try { return parseIntent(rawInput, deviceState, contacts, existingTasks, existingEvents); }
+  catch (error) {
+    if (!(error instanceof TemporalInputError)) throw error;
+    return { isHandled: true, spokenResponse: error.message + ' No se ha ejecutado ninguna acción.',
+      actionDetails: 'Fecha, hora o zona pendientes de aclaración.' };
+  }
+}
+
+function parseIntent(
   rawInput: string,
   deviceState: DeviceState,
   contacts: PhoneContact[],
@@ -108,26 +120,12 @@ export function parseNaturalVoiceCommand(
     const match = query.match(/^(?:crear tarea|nueva tarea|recordatorio|recuérdame|anotar tarea|tarea)(?::|\s+de|\s+que)?\s*(.+)/i);
     const fullBody = match ? match[1] : query;
 
-    // Detect time (e.g. "a las 18:00")
-    const timeMatch = fullBody.match(/(?:a las|para las)\s*(\d{1,2}:\d{2}|\d{1,2}\s*(?:de la tarde|de la mañana|am|pm)?)/i);
-    let timeDue = '18:00';
-    if (timeMatch) {
-      const rawT = timeMatch[1].trim();
-      if (rawT.includes(':')) {
-        timeDue = rawT;
-      } else {
-        const h = parseInt(rawT, 10);
-        timeDue = `${h.toString().padStart(2, '0')}:00`;
-      }
-    }
-
-    // Detect date (hoy, mañana, fecha)
-    let dueDate = new Date().toISOString().split('T')[0];
-    if (fullBody.includes('mañana')) {
-      const d = new Date();
-      d.setDate(d.getDate() + 1);
-      dueDate = d.toISOString().split('T')[0];
-    }
+    const temporalZone = zoneFromText(fullBody).timeZone;
+    const dueDate = dateFromText(fullBody, temporalZone);
+    const requestedTime = timeFromText(fullBody);
+    const timeDue = requestedTime?.time || '';
+    if (timeDue && !dueDate) throw new TemporalInputError('DATE_REQUIRED', 'Indica una fecha para esa hora.');
+    const dueAt = timeDue ? zonedInstant(dueDate, timeDue, temporalZone).toISOString() : undefined;
 
     // Detect priority
     let priority: 'baja' | 'media' | 'alta' | 'critica' = 'alta';
@@ -148,7 +146,7 @@ export function parseNaturalVoiceCommand(
     }
 
     // Extract title cleaned
-    const title = fullBody
+    const title = stripTemporalText(fullBody)
       .replace(/(?:a las|para las)\s*\d{1,2}(?::\d{2})?/gi, '')
       .replace(/urgente|crítica|critica|prioridad alta|prioridad baja/gi, '')
       .replace(/para hoy|para mañana/gi, '')
@@ -157,13 +155,15 @@ export function parseNaturalVoiceCommand(
 
     return {
       isHandled: true,
-      spokenResponse: `Tarea "${title}" creada con prioridad ${priority} para las ${timeDue}. Guardada en la lista local; sincronización y notificación no verificadas.`,
+      spokenResponse: `Tarea "${title}" creada con prioridad ${priority} ${timeDue ? 'para las ' + timeDue : 'sin hora de aviso'}. Guardada en la lista local; sincronización y notificación no verificadas.`,
       actionType: 'task',
       actionDetails: `Tarea registrada: "${title}" [${priority.toUpperCase()}] Fecha: ${dueDate} ${timeDue}`,
       newTask: {
         title,
         dueDate,
         timeDue,
+        timeZone: dueDate ? temporalZone : undefined,
+        dueAt,
         priority,
         category: priority === 'critica' ? 'urgente' : 'trabajo',
         isCompleted: false,
@@ -216,9 +216,8 @@ export function parseNaturalVoiceCommand(
     const matched = matches[0];
 
     if (matched) {
-      const now = new Date();
-      now.setMinutes(now.getMinutes() + minutes);
-      const newTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const timing = snoozeTaskTiming(matched.timeZone, minutes);
+      const newTime = `${timing.dueDate} ${timing.timeDue} (${timing.timeZone})`;
 
       return {
         isHandled: true,
@@ -227,7 +226,7 @@ export function parseNaturalVoiceCommand(
         actionDetails: `Pospuesto ${minutes} min: "${matched.title}" -> ${newTime}`,
         taskToModify: {
           id: matched.id,
-          updates: { timeDue: newTime, snoozedUntil: newTime },
+          updates: timing,
         },
       };
     }
@@ -235,10 +234,10 @@ export function parseNaturalVoiceCommand(
 
   // 3. MODIFICAR RECORDATORIO O TAREA EXISTENTE
   // e.g.: "modificar recordatorio café: cambiar hora a las 19:30", "cambiar hora de tarea café a las 18:00"
-  const modifyTimeMatch = query.match(/^(?:modificar (?:recordatorio|tarea)|cambiar hora (?:de|del) (?:recordatorio|tarea))\s+(.+?)(?::\s*cambiar hora a las|\s+a las|\s+para las)\s*(\d{1,2}:\d{2})/i);
+  const modifyTimeMatch = query.match(/^(?:modificar (?:recordatorio|tarea)|cambiar hora (?:de|del) (?:recordatorio|tarea))\s+(.+?)(?::\s*cambiar hora a las|\s+a las|\s+para las)\s*(.+)$/i);
   if (modifyTimeMatch) {
     const targetTitle = modifyTimeMatch[1].trim();
-    const newTime = modifyTimeMatch[2].trim();
+    const newTime = clockTime(modifyTimeMatch[2].trim());
     const matches = existingTasks.filter(
       (t) => typeof t.title === 'string' && (t.title.toLowerCase().includes(targetTitle) || targetTitle.includes(t.title.toLowerCase()))
     );
@@ -253,7 +252,7 @@ export function parseNaturalVoiceCommand(
         actionDetails: `Hora modificada: "${matched.title}" -> ${newTime}`,
         taskToModify: {
           id: matched.id,
-          updates: { timeDue: newTime },
+          updates: taskTiming(matched.dueDate, newTime, matched.timeZone),
         },
       };
     }
@@ -495,20 +494,25 @@ export function parseNaturalVoiceCommand(
   // 12. ALARMAS Y TEMPORIZADORES
   const alarmMatch = query.match(/^(?:(?:poner|crear|programar|configurar)\s+)?(?:alarma|despiértame|despertador)(?: a las| para las| a la)?\s*(\d{1,2})(?::(\d{2}))?/i);
   if (alarmMatch) {
-    const hours = alarmMatch[1].padStart(2, '0');
-    const minutes = alarmMatch[2] ? alarmMatch[2] : '00';
-    const timeFormatted = `${hours}:${minutes}`;
+    const alarmBody = query.replace(/^(?:(?:poner|crear|programar|configurar)\s+)?(?:alarma|despiértame|despertador)(?: a las| para las| a la)?\s*/i, '');
+    const timeFormatted = clockPrefix(alarmBody).time;
+    const alarmZone = zoneFromText(query).timeZone;
+    const alarmDate = dateFromText(query, alarmZone);
+    const dueAt = zonedInstant(alarmDate, timeFormatted, alarmZone).toISOString();
 
     return {
       isHandled: true,
-      spokenResponse: `Alarma programada para las ${timeFormatted}.`,
+      spokenResponse: `Alarma guardada en la sesión para el ${alarmDate} a las ${timeFormatted} (${alarmZone}). La activación persistente o del dispositivo no está disponible.`,
       actionType: 'alarm',
       actionDetails: `Nueva alarma guardada: ${timeFormatted}`,
       newAlarm: {
         time: timeFormatted,
+        date: alarmDate,
+        dueAt,
+        timeZone: alarmZone,
         label: 'Alarma de voz VVC LIAM CORE',
         enabled: true,
-        days: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'],
+        days: [],
       },
     };
   }
@@ -545,33 +549,15 @@ export function parseNaturalVoiceCommand(
     starts('solapamiento') ||
     starts('choque de horario')
   ) {
-    // Check conflicts across existingEvents
     const conflicts: Array<{ a: CalendarEvent; b: CalendarEvent }> = [];
     for (let i = 0; i < existingEvents.length; i++) {
-      for (let j = i + 1; j < existingEvents.length; j++) {
-        const ev1 = existingEvents[i];
-        const ev2 = existingEvents[j];
-        if (ev1.date === ev2.date) {
-          const s1 = parseInt(ev1.time.split(':')[0] || '0') * 60 + parseInt(ev1.time.split(':')[1] || '0');
-          const e1 = ev1.endTime ? parseInt(ev1.endTime.split(':')[0] || '0') * 60 + parseInt(ev1.endTime.split(':')[1] || '0') : s1 + 60;
-          const s2 = parseInt(ev2.time.split(':')[0] || '0') * 60 + parseInt(ev2.time.split(':')[1] || '0');
-          const e2 = ev2.endTime ? parseInt(ev2.endTime.split(':')[0] || '0') * 60 + parseInt(ev2.endTime.split(':')[1] || '0') : s2 + 60;
-          if (s1 < e2 && s2 < e1) {
-            conflicts.push({ a: ev1, b: ev2 });
-          }
-        }
-      }
+      const analysis = detectEventConflicts(existingEvents[i], existingEvents.slice(i + 1));
+      if (analysis.status === 'unavailable') return clarify(analysis.message);
+      for (const event of analysis.conflictingEvents) conflicts.push({ a: existingEvents[i], b: event });
     }
-
-    if (conflicts.length === 0) {
-      return {
-        isHandled: true,
-        spokenResponse: 'Excelente. No se detectaron conflictos de programación en tu calendario. Todos los eventos disponen de franjas horarias libres.',
-        actionType: 'calendar',
-        actionDetails: 'Diagnóstico de Agenda: 0 conflictos detectados.',
-        openCalendar: true,
-      };
-    }
+    if (!conflicts.length) return { isHandled: true,
+      spokenResponse: 'No hay solapamientos en la lista local válida. No he comprobado calendarios externos.',
+      actionType: 'calendar', actionDetails: 'Lista local: 0 solapamientos.', openCalendar: true };
 
     const firstPair = conflicts[0];
     return {
@@ -590,20 +576,16 @@ export function parseNaturalVoiceCommand(
     starts('reajustar evento') ||
     starts('arreglar solapamiento')
   ) {
-    const updatedList: CalendarEvent[] = [];
+    const updatedList: CalendarEvent[] = [...existingEvents];
     let resolvedCount = 0;
-
-    for (let i = 0; i < existingEvents.length; i++) {
-      const current = existingEvents[i];
-      const others = existingEvents.filter((_, idx) => idx !== i);
+    for (let i = 0; i < updatedList.length; i++) {
+      const current = updatedList[i], others = updatedList.filter((_, idx) => idx !== i);
       const conflict = detectEventConflicts(current, others);
-
-      if (conflict.hasConflict && conflict.suggestedSlots.length > 0) {
+      if (conflict.status === 'unavailable') return clarify(conflict.message);
+      if (conflict.hasConflict) {
         const resolution = resolveEventConflict(current, others);
-        updatedList.push(resolution.resolvedEvent);
+        updatedList[i] = resolution.resolvedEvent;
         resolvedCount++;
-      } else {
-        updatedList.push(current);
       }
     }
 
@@ -620,7 +602,7 @@ export function parseNaturalVoiceCommand(
 
     return {
       isHandled: true,
-      spokenResponse: 'Tu calendario ya se encuentra libre de conflictos y optimizado.',
+      spokenResponse: 'No hay solapamientos en la lista local válida. No se han comprobado calendarios externos.',
       actionType: 'calendar',
       actionDetails: 'Calendario optimizado: sin solapamientos pendientes.',
       openCalendar: true,
@@ -694,74 +676,25 @@ export function parseNaturalVoiceCommand(
     const rawMatch = query.match(/(?:agendar|programar|nuevo evento|nueva reunión|nueva cita|crear evento|evento|reunión|cita)(?::|\s+de|\s+para)?\s*(.+)/i);
     const body = rawMatch ? rawMatch[1] : query;
 
-    // 1. Detect Date
-    let dateStr = new Date().toISOString().split('T')[0];
-    if (body.includes('mañana') && !body.includes('pasado mañana')) {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      dateStr = tomorrow.toISOString().split('T')[0];
-    } else if (body.includes('pasado mañana')) {
-      const dayAfter = new Date();
-      dayAfter.setDate(dayAfter.getDate() + 2);
-      dateStr = dayAfter.toISOString().split('T')[0];
-    } else {
-      // Check explicit day of month e.g. "15 de octubre" or "2026-10-15"
-      const specificDateMatch = body.match(/(\d{1,2})\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)/i);
-      if (specificDateMatch) {
-        const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-        const mIdx = monthNames.indexOf(specificDateMatch[2].toLowerCase());
-        const dayNum = parseInt(specificDateMatch[1], 10);
-        const y = new Date().getFullYear();
-        const dObj = new Date(y, mIdx, dayNum);
-        dateStr = dObj.toISOString().split('T')[0];
-      }
+    const temporalZone = zoneFromText(body).timeZone;
+    const dateStr = dateFromText(body, temporalZone);
+    const requestedStart = timeFromText(body);
+    if (!requestedStart) throw new TemporalInputError('TIME_REQUIRED', 'Indica una hora de inicio para el evento.');
+    const startTime = requestedStart.time;
+    const requestedEnd = timeFromText(body, true);
+    let timing;
+    if (requestedEnd) timing = eventInterval({ date: dateStr, time: startTime, endTime: requestedEnd.time, timeZone: temporalZone });
+    else {
+      const duration = /(?:por|durante)\s*(\d+)\s*(horas?|hrs?|minutos?|min)\b/i.exec(body);
+      const quantity = duration ? Number(duration[1]) : 60;
+      const durationMinutes = duration && duration[2].toLowerCase().startsWith('h') ? quantity * 60 : quantity;
+      if (!Number.isSafeInteger(durationMinutes) || durationMinutes <= 0 || durationMinutes > 10080)
+        throw new TemporalInputError('INVALID_DURATION', 'Indica una duración de 1 a 10080 minutos.');
+      const end = zonedParts(zonedInstant(dateStr, startTime, temporalZone).getTime() + durationMinutes * 60000, temporalZone);
+      timing = eventInterval({ date: dateStr, time: startTime, endDate: end.date, endTime: end.time, timeZone: temporalZone });
     }
-
-    // 2. Detect Start Time
-    let startTime = '10:00';
-    const startTimeMatch = body.match(/(?:a las|para las|desde las|inicio a las)\s*(\d{1,2}:\d{2}|\d{1,2}(?:\s*(?:am|pm|de la mañana|de la tarde))?)/i);
-    if (startTimeMatch) {
-      const tRaw = startTimeMatch[1].trim();
-      if (tRaw.includes(':')) {
-        startTime = tRaw;
-      } else {
-        let h = parseInt(tRaw, 10);
-        if (tRaw.includes('tarde') || tRaw.includes('pm')) {
-          if (h < 12) h += 12;
-        }
-        startTime = `${h.toString().padStart(2, '0')}:00`;
-      }
-    }
-
-    // 3. Detect End Time or Duration
-    let endTime = '';
-    const endTimeMatch = body.match(/(?:hasta las|fin a las|hasta)\s*(\d{1,2}:\d{2}|\d{1,2}(?:\s*(?:am|pm|de la mañana|de la tarde))?)/i);
-    if (endTimeMatch) {
-      const endRaw = endTimeMatch[1].trim();
-      if (endRaw.includes(':')) {
-        endTime = endRaw;
-      } else {
-        let h = parseInt(endRaw, 10);
-        if (endRaw.includes('tarde') || endRaw.includes('pm')) {
-          if (h < 12) h += 12;
-        }
-        endTime = `${h.toString().padStart(2, '0')}:00`;
-      }
-    } else {
-      // Check duration like "por 2 horas" or "por 90 minutos"
-      const durationMatch = body.match(/(?:por|durante)\s*(\d+)\s*(horas?|hrs?|minutos?|min)/i);
-      const [startH, startM] = startTime.split(':').map((v) => parseInt(v, 10) || 0);
-      let durationMinutes = 60;
-      if (durationMatch) {
-        const qty = parseInt(durationMatch[1], 10);
-        const unit = durationMatch[2].toLowerCase();
-        durationMinutes = unit.startsWith('h') ? qty * 60 : qty;
-      }
-      const totalEndMinutes = startH * 60 + startM + durationMinutes;
-      const endH = Math.floor(totalEndMinutes / 60) % 24;
-      const endM = totalEndMinutes % 60;
-      endTime = `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`;
-    }
+    const endTime = timing.endTime;
+    const endDate = timing.endDate;
 
     // 4. Detect Location
     let location = 'Virtual / VVC LIAM CORE Hub';
@@ -780,7 +713,7 @@ export function parseNaturalVoiceCommand(
     }
 
     // 6. Clean Title
-    let cleanTitle = body
+    let cleanTitle = stripTemporalText(body)
       .replace(/(?:a las|para las|desde las|hasta las|hasta|fin a las)\s*\d{1,2}(?::\d{2})?(?:\s*(?:am|pm|de la mañana|de la tarde))?/gi, '')
       .replace(/(?:por|durante)\s*\d+\s*(?:horas?|hrs?|minutos?|min)/gi, '')
       .replace(/hoy|mañana|pasado mañana|\d{1,2}\s+de\s+[a-z]+/gi, '')
@@ -802,6 +735,8 @@ export function parseNaturalVoiceCommand(
       date: dateStr,
       time: startTime,
       endTime: endTime,
+      endDate,
+      timeZone: temporalZone,
       location,
       description: attendees.length > 0 ? `Participantes: ${attendees.join(', ')}` : 'Programado por voz con VVC LIAM CORE',
       category: 'reunion',
@@ -813,6 +748,7 @@ export function parseNaturalVoiceCommand(
 
     // 7. INTELLIGENT CONFLICT DETECTION & RESOLUTION
     const conflictResult = detectEventConflicts(candidateEvent, existingEvents);
+    if (conflictResult.status === 'unavailable') return clarify(conflictResult.message);
     let finalEvent = candidateEvent;
     let spoken = '';
 
@@ -827,6 +763,8 @@ export function parseNaturalVoiceCommand(
           date: bestSlot.date,
           time: bestSlot.time,
           endTime: bestSlot.endTime,
+          endDate: bestSlot.endDate,
+          timeZone: bestSlot.timeZone,
           syncStatus: 'conflict_resolved',
           conflictNote: `Horario ajustado de ${startTime} a ${bestSlot.time} para resolver solapamiento con "${conflictWith}".`,
         };
@@ -849,6 +787,8 @@ export function parseNaturalVoiceCommand(
         date: finalEvent.date,
         time: finalEvent.time,
         endTime: finalEvent.endTime,
+        endDate: finalEvent.endDate,
+        timeZone: finalEvent.timeZone,
         location: finalEvent.location,
         description: finalEvent.description,
         category: finalEvent.category,

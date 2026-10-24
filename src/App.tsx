@@ -7,6 +7,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { inferenceFailureText } from './shared/executionOutcome';
 import { createConfirmationGate, needsSensitiveConfirmation, sensitiveActionSummary } from './core/actionConfirmation';
 import { SensitiveActionDialog } from './components/SensitiveActionDialog';
+import { localCalendarDate, addCalendarDays, taskDueInMinute, snoozeTaskTiming } from './utils/temporal';
 import { Header } from './components/Header';
 import { VoiceOrbVisualizer } from './components/VoiceOrbVisualizer';
 import { QuickCommandChips } from './components/QuickCommandChips';
@@ -111,7 +112,7 @@ const INITIAL_TASKS: TaskItem[] = [
   {
     id: 't-1',
     title: 'Comprobar telemetría de inferencia NVIDIA',
-    dueDate: new Date().toISOString().split('T')[0],
+    dueDate: localCalendarDate(),
     timeDue: '14:30',
     priority: 'alta',
     category: 'trabajo',
@@ -128,7 +129,7 @@ const INITIAL_TASKS: TaskItem[] = [
   {
     id: 't-2',
     title: 'Respaldar claves de cifrado E2EE',
-    dueDate: new Date().toISOString().split('T')[0],
+    dueDate: localCalendarDate(),
     timeDue: '18:00',
     priority: 'critica',
     category: 'urgente',
@@ -145,7 +146,7 @@ const INITIAL_TASKS: TaskItem[] = [
   {
     id: 't-3',
     title: 'Sincronizar agenda semanal con VVC LIAM CORE',
-    dueDate: new Date().toISOString().split('T')[0],
+    dueDate: localCalendarDate(),
     timeDue: '20:00',
     priority: 'media',
     category: 'proyecto',
@@ -163,7 +164,7 @@ const INITIAL_EVENTS: CalendarEvent[] = [
   {
     id: 'e1',
     title: 'Reunión de Arquitectura Neuronal & Cloud',
-    date: new Date().toISOString().split('T')[0],
+    date: localCalendarDate(),
     time: '11:00',
     endTime: '12:00',
     location: 'Virtual Terminal VVC LIAM CORE',
@@ -174,7 +175,7 @@ const INITIAL_EVENTS: CalendarEvent[] = [
   {
     id: 'e2',
     title: 'Revisión de Seguridad Zero-Knowledge',
-    date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+    date: addCalendarDays(localCalendarDate(), 1),
     time: '16:00',
     endTime: '17:00',
     location: 'Laboratorio Cifrado',
@@ -604,16 +605,13 @@ export default function App() {
   useEffect(() => {
     const checkTasksInterval = setInterval(() => {
       const now = new Date();
-      const currentDateStr = now.toISOString().split('T')[0];
-      const currentTimeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const minuteKey = Math.floor(now.getTime() / 60000);
 
       tasks.forEach((task) => {
-        if (!task.isCompleted && task.timeDue === currentTimeStr) {
-          // Check if due today or snoozed until current time
-          const isDueNow = !task.dueDate || task.dueDate === currentDateStr || task.snoozedUntil === currentTimeStr;
-          const triggerKey = `${task.id}-${currentTimeStr}-${currentDateStr}`;
+        if (taskDueInMinute(task, now)) {
+          const triggerKey = `${task.id}-${minuteKey}`;
 
-          if (isDueNow && !notifiedTaskTimestampsRef.current[triggerKey]) {
+          if (!notifiedTaskTimestampsRef.current[triggerKey]) {
             notifiedTaskTimestampsRef.current[triggerKey] = true;
 
             // 1. Play cybernetic alert tone
@@ -684,11 +682,14 @@ export default function App() {
 
   // Convert Task to Calendar Event
   const handleConvertTaskToEvent = (task: TaskItem) => {
+    if (!task.dueDate) { setIsCalendarOpen(true); return; }
     const newEvent: CalendarEvent = {
       id: `e-task-${task.id}`,
       title: task.title,
-      date: task.dueDate || new Date().toISOString().split('T')[0],
-      time: task.timeDue || '10:00',
+      date: task.dueDate,
+      time: task.timeDue,
+      allDay: !task.timeDue,
+      timeZone: task.timeZone,
       description: `Tarea vinculada de VVC LIAM CORE [Prioridad: ${task.priority.toUpperCase()}]`,
       location: 'Virtual Hub VVC LIAM CORE',
       category: 'tarea',
@@ -1508,12 +1509,7 @@ export default function App() {
           playCyberTone('confirm');
         }}
         onSnooze={(taskId, minutes) => {
-          const now = new Date();
-          now.setMinutes(now.getMinutes() + minutes);
-          const nextTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          setTasks((prev) =>
-            prev.map((t) => (t.id === taskId ? { ...t, timeDue: nextTime, snoozedUntil: nextTime } : t))
-          );
+          setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, ...snoozeTaskTiming(t.timeZone, minutes) } : t));
           playCyberTone('confirm');
         }}
         onDismiss={(alertId) => {

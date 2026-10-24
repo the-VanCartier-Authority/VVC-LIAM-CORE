@@ -41,6 +41,7 @@ import {
   parseICSFeed,
   type ConflictAnalysis
 } from '../utils/calendarSync';
+import { localCalendarDate, localTimeZone, taskTiming, eventInterval, calendarDate, type CalendarTiming } from '../utils/temporal';
 import type { User } from 'firebase/auth';
 import { getAccessToken } from '../services/googleAuth';
 import {
@@ -92,8 +93,10 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
 
   // Task Creation Form
   const [newTitle, setNewTitle] = useState('');
-  const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newDate, setNewDate] = useState(localCalendarDate());
   const [newTime, setNewTime] = useState('18:00');
+  const [newTaskZone, setNewTaskZone] = useState(localTimeZone);
+  const [temporalMessage, setTemporalMessage] = useState<string | null>(null);
   const [newPriority, setNewPriority] = useState<'baja' | 'media' | 'alta' | 'critica'>('alta');
   const [newCategory, setNewCategory] = useState<'trabajo' | 'personal' | 'urgente' | 'sistema' | 'proyecto'>('trabajo');
   const [newRecurrence, setNewRecurrence] = useState<'none' | 'daily' | 'weekly' | 'weekdays' | 'monthly'>('none');
@@ -107,8 +110,10 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
 
   // Complex Event Creation Form
   const [newEventTitle, setNewEventTitle] = useState('');
-  const [newEventDate, setNewEventDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newEventDate, setNewEventDate] = useState(localCalendarDate());
   const [newEventTime, setNewEventTime] = useState('10:00');
+  const [newEventZone, setNewEventZone] = useState(localTimeZone);
+  const [newEventEndDate, setNewEventEndDate] = useState('');
   const [newEventEndTime, setNewEventEndTime] = useState('11:00');
   const [newEventLocation, setNewEventLocation] = useState('Enlace Seguro VVC LIAM CORE');
   const [newEventCategory, setNewEventCategory] = useState<'reunion' | 'tarea' | 'llamada' | 'personal' | 'sistema'>('reunion');
@@ -129,6 +134,9 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
       date: newEventDate,
       time: newEventTime,
       endTime: newEventEndTime,
+      endDate: newEventEndDate || undefined,
+      timeZone: newEventZone,
+      recurrence: newEventRecurrence,
     },
     events
   );
@@ -140,8 +148,9 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
   const [googleSuccess, setGoogleSuccess] = useState<string | null>(null);
   const [googleEventToDelete, setGoogleEventToDelete] = useState<GoogleCalendarEventItem | null>(null);
   const [gDirectTitle, setGDirectTitle] = useState('');
-  const [gDirectDate, setGDirectDate] = useState(new Date().toISOString().split('T')[0]);
+  const [gDirectDate, setGDirectDate] = useState(localCalendarDate());
   const [gDirectTime, setGDirectTime] = useState('11:00');
+  const [gDirectZone, setGDirectZone] = useState(localTimeZone);
   const [gDirectEndTime, setGDirectEndTime] = useState('12:00');
   const [gDirectDesc, setGDirectDesc] = useState('');
 
@@ -171,10 +180,10 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
     setIsLoadingGoogle(true);
     setGoogleError(null);
     try {
+      const interval = eventInterval({ date: gDirectDate, time: gDirectTime, endTime: gDirectEndTime, timeZone: gDirectZone });
+      const startDateTime = interval.start.toISOString(), endDateTime = interval.end.toISOString();
       const token = await getAccessToken();
       if (!token) throw new Error('Se requiere iniciar sesión con Google');
-      const startDateTime = new Date(`${gDirectDate}T${gDirectTime}:00`).toISOString();
-      const endDateTime = new Date(`${gDirectDate}T${gDirectEndTime || gDirectTime}:00`).toISOString();
       await createGoogleCalendarEvent(token, {
         summary: gDirectTitle.trim(),
         description: gDirectDesc.trim() || undefined,
@@ -226,6 +235,10 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
     e.preventDefault();
     if (!newTitle.trim()) return;
 
+    let timing: ReturnType<typeof taskTiming>;
+    try { timing = taskTiming(newDate, newTime, newTaskZone); setTemporalMessage(null); }
+    catch (error) { setTemporalMessage((error as Error).message); return; }
+
     const subtasksList: SubtaskItem[] = tempSubtasks.map((st, i) => ({
       id: `st-${Date.now()}-${i}`,
       title: st,
@@ -234,8 +247,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
 
     onAddTask({
       title: newTitle.trim(),
-      dueDate: newDate,
-      timeDue: newTime,
+      ...timing,
       priority: newPriority,
       category: newCategory,
       isCompleted: false,
@@ -263,15 +275,18 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
       .map((a) => a.trim())
       .filter((a) => a.length > 0);
 
+    if (conflictAnalysis.status === 'unavailable') { setTemporalMessage(conflictAnalysis.message); return; }
+    const timing = eventInterval({ date: newEventDate, time: newEventTime, endTime: newEventEndTime, endDate: newEventEndDate || undefined, timeZone: newEventZone });
+    setTemporalMessage(null);
     let eventDate = newEventDate;
     let eventTime = newEventTime;
     let eventEndTime = newEventEndTime;
     let conflictNote: string | undefined = undefined;
-    let syncStatus: 'synced' | 'local' | 'conflict_resolved' = 'synced';
+    const syncStatus = 'local' as const;
 
     if (conflictAnalysis.hasConflict) {
-      conflictNote = `Conflicto detectado originalmente con ${conflictAnalysis.conflictingEvents[0]?.title || 'evento existente'}.`;
-      syncStatus = 'conflict_resolved';
+      conflictNote = `Conflicto local pendiente con ${conflictAnalysis.conflictingEvents[0]?.title || 'evento existente'}. No se ha reajustado el horario.`;
+
     }
 
     onAddEvent({
@@ -279,6 +294,8 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
       date: eventDate,
       time: eventTime,
       endTime: eventEndTime,
+      endDate: timing.endDate,
+      timeZone: timing.timeZone,
       location: newEventLocation.trim() || 'Virtual / VVC LIAM CORE Hub',
       description: newEventDescription.trim() || undefined,
       category: newEventCategory,
@@ -296,10 +313,12 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
   };
 
   // Auto-resolve conflict by adopting suggested slot
-  const handleAutoResolveConflict = (slot: { date: string; time: string; endTime: string }) => {
+  const handleAutoResolveConflict = (slot: CalendarTiming) => {
     setNewEventDate(slot.date);
     setNewEventTime(slot.time);
-    setNewEventEndTime(slot.endTime);
+    setNewEventEndTime(slot.endTime || '');
+    setNewEventEndDate(slot.endDate || '');
+    if (slot.timeZone) setNewEventZone(slot.timeZone);
   };
 
   // Import external .ICS file (Google Calendar, Outlook, Apple Calendar)
@@ -318,6 +337,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
         ? 'outlook'
         : 'google';
 
+      try {
       const parsed = parseICSFeed(content, providerGuess);
       if (parsed.length === 0) {
         setImportStatusMessage('No se encontraron eventos válidos en el archivo .ics seleccionado.');
@@ -333,8 +353,11 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
 
       setImportStatusMessage(`✓ ${parsed.length} eventos importados exitosamente desde ${providerGuess.toUpperCase()} Calendar.`);
       setTimeout(() => setImportStatusMessage(null), 4500);
+      } catch (error) { setImportStatusMessage(`No se importó el archivo: ${(error as Error).message}`); }
     };
 
+    reader.onerror = () => setImportStatusMessage('No se pudo leer el archivo. No se importó ningún evento.');
+    if (file.size > 2 * 1024 * 1024) { setImportStatusMessage('El archivo supera 2 MiB. No se importó ningún evento.'); return; }
     reader.readAsText(file);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -345,7 +368,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
     const sampleTask = tasks[0] || {
       id: 'demo-task',
       title: 'Prueba de Integración VVC LIAM CORE Webhook',
-      dueDate: new Date().toISOString().split('T')[0],
+      dueDate: localCalendarDate(),
       timeDue: '12:00',
       priority: 'alta',
       category: 'sistema',
@@ -391,7 +414,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => downloadICSFile(events, tasks)}
+              onClick={() => { try { downloadICSFile(events, tasks); setTemporalMessage(null); } catch (error) { setTemporalMessage((error as Error).message); } }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#131929] hover:bg-[#1a233b] border border-[#1e2638] text-slate-200 text-xs font-mono transition-colors"
               title="Descargar archivo .ics compatible con Google Calendar, Apple y Outlook"
             >
@@ -408,6 +431,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
           </div>
         </div>
 
+        {temporalMessage && <p role="alert" className="text-xs text-amber-300 p-2">{temporalMessage}</p>}
         {/* Tab Buttons */}
         <div className="flex items-center gap-2 my-3 p-1 bg-[#0d121f] rounded-lg border border-[#1e2638]">
           <button
@@ -505,6 +529,9 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                   />
                 </div>
 
+                <label className="block text-xs text-slate-300">Zona horaria de la tarea (IANA)
+                  <input aria-label="Zona horaria de la tarea" value={newTaskZone} onChange={e => setNewTaskZone(e.target.value)} className="block w-full bg-[#06080d] border border-[#1e2638] rounded px-2 py-1.5" />
+                </label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <div>
                     <label className="text-[10px] text-slate-400 block mb-1">Prioridad:</label>
@@ -748,7 +775,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                             <div className="flex items-center gap-3 text-[11px] text-slate-400">
                               <span className="flex items-center gap-1 text-[#00f0ff]">
                                 <Clock className="w-3 h-3" />
-                                {task.dueDate} · {task.timeDue}
+                                {task.dueDate || 'Sin fecha'} · {task.timeDue || 'Sin hora'} · {task.timeZone || 'Hora flotante'}
                               </span>
 
                               {task.calendarEventId ? (
@@ -868,7 +895,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
 
                   <button
                     type="button"
-                    onClick={() => downloadICSFile(events, tasks)}
+                    onClick={() => { try { downloadICSFile(events, tasks); setTemporalMessage(null); } catch (error) { setTemporalMessage((error as Error).message); } }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#131929] hover:bg-[#1a233b] border border-[#1e2638] text-slate-200 text-xs font-semibold transition-colors"
                   >
                     <Download className="w-3.5 h-3.5 text-slate-400" />
@@ -930,6 +957,14 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-300">
+                  <label>Zona horaria del evento (IANA)
+                    <input aria-label="Zona horaria del evento" value={newEventZone} onChange={e => setNewEventZone(e.target.value)} className="block w-full bg-[#06080d] border border-[#1e2638] rounded px-2 py-1.5" />
+                  </label>
+                  <label>Fecha final (opcional; hora menor = día siguiente)
+                    <input aria-label="Fecha final del evento" type="date" value={newEventEndDate} onChange={e => setNewEventEndDate(e.target.value)} className="block w-full bg-[#06080d] border border-[#1e2638] rounded px-2 py-1.5" />
+                  </label>
+                </div>
                 {/* Additional Complex Event Options */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <input
@@ -984,7 +1019,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                 />
 
                 {/* LIVE SCHEDULING CONFLICT DETECTION & RESOLUTION WARNING */}
-                {conflictAnalysis.hasConflict && (
+                {conflictAnalysis.status !== 'clear' && (
                   <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/40 text-amber-300 text-xs space-y-2 animate-fade-in">
                     <div className="flex items-center gap-2 font-bold">
                       <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
@@ -1017,7 +1052,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                 <div className="flex justify-end pt-1">
                   <button
                     type="submit"
-                    disabled={!newEventTitle.trim()}
+                    disabled={!newEventTitle.trim() || conflictAnalysis.status === 'unavailable'}
                     className="px-5 py-2 rounded-lg bg-[#b026ff] hover:bg-[#9b15ea] text-white font-semibold flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(176,38,255,0.4)] disabled:opacity-40"
                   >
                     <Plus className="w-4 h-4" />
@@ -1041,11 +1076,13 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                   </div>
                 ) : (
                   events.map((event) => {
-                    const isConflictResolved = event.syncStatus === 'conflict_resolved' || Boolean(event.conflictNote);
-                    const googleUrl = generateGoogleCalendarUrl(event);
-                    const outlookUrl = generateOutlookCalendarUrl(event);
+                    const isConflictResolved = event.syncStatus === 'conflict_resolved';
+                    let googleUrl: string | undefined, outlookUrl: string | undefined, timingError = '';
+                    try { googleUrl = generateGoogleCalendarUrl(event); outlookUrl = generateOutlookCalendarUrl(event); }
+                    catch (error) { timingError = (error as Error).message; }
 
                     const handleDownloadApple = () => {
+                      try {
                       const icsContent = generateAppleCalendarICS(event);
                       const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
                       const url = URL.createObjectURL(blob);
@@ -1056,6 +1093,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                       link.click();
                       document.body.removeChild(link);
                       URL.revokeObjectURL(url);
+                      } catch (error) { setTemporalMessage((error as Error).message); }
                     };
 
                     return (
@@ -1070,7 +1108,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                         <div className="flex items-start gap-3">
                           <div className="w-12 h-12 rounded-lg bg-[#131929] border border-[#b026ff]/30 flex flex-col items-center justify-center text-center shrink-0">
                             <span className="text-[9px] text-[#b026ff] uppercase font-bold">
-                              {new Date(event.date).toLocaleDateString('es-ES', { month: 'short' })}
+                              {(() => { try { return new Date(calendarDate(event.date) + 'T12:00Z').toLocaleDateString('es-ES', { month: 'short', timeZone: 'UTC' }); } catch { return 'Revisar'; } })()}
                             </span>
                             <span className="text-sm font-bold text-white leading-none">
                               {event.date.split('-')[2] || '01'}
@@ -1119,7 +1157,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                             <div className="flex items-center gap-2 text-[11px] text-slate-400 flex-wrap">
                               <span className="text-[#00f0ff] font-semibold flex items-center gap-1">
                                 <Clock className="w-3 h-3" />
-                                {event.time} {event.endTime ? ` - ${event.endTime}` : ''}
+                                {event.allDay ? 'Día completo' : `${event.time}${event.endTime ? ` - ${event.endTime}` : ''}`} {event.endDate && event.endDate !== event.date ? ` · fin ${event.endDate}${event.allDay ? ' (exclusivo)' : ''}` : ''} · {event.timeZone || 'Hora flotante (sin zona registrada)'}
                               </span>
                               {event.location && <span>· {event.location}</span>}
                               {event.attendees && event.attendees.length > 0 && (
@@ -1130,6 +1168,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                               )}
                             </div>
 
+                            {timingError && <p role="alert" className="text-xs text-amber-300">Revisar fecha: {timingError}</p>}
                             {event.conflictNote && (
                               <p className="text-[10px] text-amber-300/90 italic">
                                 {event.conflictNote}
@@ -1148,6 +1187,8 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                         <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
                           <a
                             href={googleUrl}
+                            aria-disabled={!googleUrl}
+                            onClick={e => { if (!googleUrl) e.preventDefault(); }}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="p-1.5 rounded-lg bg-[#141a29] hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 text-[10px] font-semibold flex items-center gap-1 transition-colors"
@@ -1159,6 +1200,8 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
 
                           <a
                             href={outlookUrl}
+                            aria-disabled={!outlookUrl}
+                            onClick={e => { if (!outlookUrl) e.preventDefault(); }}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="p-1.5 rounded-lg bg-[#141a29] hover:bg-cyan-600/30 text-cyan-400 border border-cyan-500/30 text-[10px] font-semibold flex items-center gap-1 transition-colors"
@@ -1171,6 +1214,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                           <button
                             type="button"
                             onClick={handleDownloadApple}
+                            disabled={Boolean(timingError)}
                             className="p-1.5 rounded-lg bg-[#141a29] hover:bg-slate-700 text-slate-200 border border-slate-600/40 text-[10px] font-semibold flex items-center gap-1 transition-colors"
                             title="Descargar evento para Apple Calendar (.ics)"
                           >
@@ -1297,6 +1341,9 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                     </div>
                   </div>
 
+                  <label className="block text-xs text-slate-300">Zona horaria para Google (IANA)
+                    <input aria-label="Zona horaria para Google" value={gDirectZone} onChange={e => setGDirectZone(e.target.value)} className="block w-full bg-[#06080d] border border-[#1e2638] rounded px-2 py-1.5" />
+                  </label>
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -1429,7 +1476,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                     </p>
                   </div>
                   <button
-                    onClick={() => downloadICSFile(events, tasks)}
+                    onClick={() => { try { downloadICSFile(events, tasks); setTemporalMessage(null); } catch (error) { setTemporalMessage((error as Error).message); } }}
                     className="w-full py-2 rounded bg-[#00f0ff]/10 hover:bg-[#00f0ff]/20 text-[#00f0ff] border border-[#00f0ff]/40 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
                   >
                     <Download className="w-3.5 h-3.5" />
@@ -1550,6 +1597,10 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                   />
                 </div>
 
+                <label className="block text-xs text-slate-300">Zona horaria de la tarea (IANA; confirma al guardar)
+                  <input aria-label="Zona horaria de la tarea editada" value={editingTask.timeZone || localTimeZone()} onChange={e => setEditingTask({ ...editingTask, timeZone: e.target.value })} className="block w-full bg-[#06080d] border border-[#1e2638] rounded px-2 py-1.5" />
+                </label>
+                {temporalMessage && <p role="alert" className="text-xs text-amber-300">{temporalMessage}</p>}
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-[10px] text-slate-400 block mb-1">Fecha:</label>
@@ -1611,14 +1662,16 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                 </button>
                 <button
                   onClick={() => {
+                    try {
+                    const timing = taskTiming(editingTask.dueDate, editingTask.timeDue, editingTask.timeZone || localTimeZone());
                     onUpdateTask(editingTask.id, {
                       title: editingTask.title,
-                      dueDate: editingTask.dueDate,
-                      timeDue: editingTask.timeDue,
+                      ...timing,
                       priority: editingTask.priority,
                       recurrence: editingTask.recurrence,
                     });
-                    setEditingTask(null);
+                    setEditingTask(null); setTemporalMessage(null);
+                    } catch (error) { setTemporalMessage((error as Error).message); }
                   }}
                   className="px-4 py-1.5 rounded bg-[#00f0ff] text-black font-semibold text-xs font-mono shadow-[0_0_12px_rgba(0,240,255,0.4)]"
                 >
