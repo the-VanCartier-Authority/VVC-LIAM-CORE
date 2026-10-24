@@ -874,6 +874,9 @@ export interface AlarmItem {
   label: string;
   enabled: boolean;
   days: string[];
+  timeZone?: string;
+  date?: string; // one-shot civil date when explicitly created by RT Lite
+  dueAt?: string;
 }
 
 export interface TimerItem {
@@ -897,6 +900,8 @@ export interface TaskItem {
   description?: string;
   dueDate: string; // YYYY-MM-DD
   timeDue: string; // HH:mm
+  timeZone?: string;
+  dueAt?: string; // canonical UTC instant when a time is known
   priority: 'baja' | 'media' | 'alta' | 'critica';
   category: 'trabajo' | 'personal' | 'urgente' | 'sistema' | 'proyecto';
   isCompleted: boolean;
@@ -910,7 +915,7 @@ export interface TaskItem {
     todoist?: boolean;
     slackWebhook?: boolean;
   };
-  snoozedUntil?: string; // HH:mm
+  snoozedUntil?: string; // canonical UTC instant for new snoozes; legacy HH:mm is not an instant
   createdAt: number;
   updatedAt: number;
 }
@@ -924,6 +929,9 @@ export interface CalendarEvent {
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
   endTime?: string; // HH:mm
+  endDate?: string; // YYYY-MM-DD, exclusive for all-day events
+  timeZone?: string; // IANA; absent means floating wall time
+  allDay?: boolean;
   location?: string;
   description?: string;
   category?: 'reunion' | 'tarea' | 'llamada' | 'personal' | 'sistema';

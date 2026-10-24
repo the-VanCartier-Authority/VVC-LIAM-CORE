@@ -1,0 +1,297 @@
+✖ I08: de la mañana is a time period, and today is the local calendar day (43.037589ms)
+✖ I08: 12 AM means midnight (1.478516ms)
+✖ I08: minute precision PM and tomorrow retain the correct local date (3.427605ms)
+✖ I08: invalid clock does not create an alarm (2.176744ms)
+✖ I08: February 31 never rolls into March (1.27737ms)
+✖ I08: DST gap/fold 2026-03-08 02:30 needs clarification (1.131966ms)
+✖ I08: DST gap/fold 2026-11-01 01:30 needs clarification (0.66512ms)
+✖ I08: Google template uses the recorded zone instead of appending Z to wall time (1.067782ms)
+✖ I08: crossing midnight preserves the end date (0.717266ms)
+✖ I08: conflict comparison uses instants across different recorded zones (0.830753ms)
+✖ I08: imported UTC stays explicitly UTC instead of becoming a floating local clock (0.947966ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 0
+ℹ fail 11
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 77.642876
+
+✖ failing tests:
+
+test at tests/temporal-regression.test.mjs:15:1
+✖ I08: de la mañana is a time period, and today is the local calendar day (43.037589ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '2026-10-25'
+  - '2026-10-23'
+              ^
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-i08/tests/temporal-regression.test.mjs:18:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '2026-10-25',
+    expected: '2026-10-23',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/temporal-regression.test.mjs:20:1
+✖ I08: 12 AM means midnight (1.478516ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  '12:00' !== '00:00'
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-i08/tests/temporal-regression.test.mjs:22:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '12:00',
+    expected: '00:00',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/temporal-regression.test.mjs:24:1
+✖ I08: minute precision PM and tomorrow retain the correct local date (3.427605ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  '3:30' !== '15:30'
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-i08/tests/temporal-regression.test.mjs:27:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '3:30',
+    expected: '15:30',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/temporal-regression.test.mjs:30:1
+✖ I08: invalid clock does not create an alarm (2.176744ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + {
+  +   days: [
+  +     'Lun',
+  +     'Mar',
+  +     'Mié',
+  +     'Jue',
+  +     'Vie'
+  +   ],
+  +   enabled: true,
+  +   label: 'Alarma de voz VVC LIAM CORE',
+  +   time: '25:99'
+  + }
+  - undefined
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-i08/tests/temporal-regression.test.mjs:32:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/temporal-regression.test.mjs:34:1
+✖ I08: February 31 never rolls into March (1.27737ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + {
+  +   attendees: undefined,
+  +   category: 'reunion',
+  +   conflictNote: undefined,
+  +   date: '2026-03-03',
+  +   description: 'Programado por voz con VVC LIAM CORE',
+  +   endTime: '11:00',
+  +   isAutomated: true,
+  +   location: 'Virtual / VVC LIAM CORE Hub',
+  +   source: 'vvc_liam',
+  +   syncStatus: 'local',
+  +   time: '10:00',
+  +   title: 'Reunión el  de 2027'
+  + }
+  - undefined
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-i08/tests/temporal-regression.test.mjs:36:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/temporal-regression.test.mjs:39:3
+✖ I08: DST gap/fold 2026-03-08 02:30 needs clarification (1.131966ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + {
+  +   attendees: undefined,
+  +   category: 'reunion',
+  +   conflictNote: undefined,
+  +   date: '2026-10-24',
+  +   description: 'Programado por voz con VVC LIAM CORE',
+  +   endTime: '03:30',
+  +   isAutomated: true,
+  +   location: 'Virtual / VVC LIAM CORE Hub',
+  +   source: 'vvc_liam',
+  +   syncStatus: 'local',
+  +   time: '02:30',
+  +   title: 'Reunión el 2026-03-08  zona america/new_york'
+  + }
+  - undefined
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-i08/tests/temporal-regression.test.mjs:41:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/temporal-regression.test.mjs:39:3
+✖ I08: DST gap/fold 2026-11-01 01:30 needs clarification (0.66512ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + {
+  +   attendees: undefined,
+  +   category: 'reunion',
+  +   conflictNote: undefined,
+  +   date: '2026-10-24',
+  +   description: 'Programado por voz con VVC LIAM CORE',
+  +   endTime: '02:30',
+  +   isAutomated: true,
+  +   location: 'Virtual / VVC LIAM CORE Hub',
+  +   source: 'vvc_liam',
+  +   syncStatus: 'local',
+  +   time: '01:30',
+  +   title: 'Reunión el 2026-11-01  zona america/new_york'
+  + }
+  - undefined
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-i08/tests/temporal-regression.test.mjs:41:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [Object],
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/temporal-regression.test.mjs:43:1
+✖ I08: Google template uses the recorded zone instead of appending Z to wall time (1.067782ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '20261102T100000Z/20261102T110000Z'
+  - '20261102T150000Z/20261102T160000Z'
+               ^
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-i08/tests/temporal-regression.test.mjs:47:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '20261102T100000Z/20261102T110000Z',
+    expected: '20261102T150000Z/20261102T160000Z',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/temporal-regression.test.mjs:49:1
+✖ I08: crossing midnight preserves the end date (0.717266ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '20261024T233000Z/20261024T003000Z'
+  - '20261024T233000Z/20261025T003000Z'
+                             ^
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-i08/tests/temporal-regression.test.mjs:53:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '20261024T233000Z/20261024T003000Z',
+    expected: '20261024T233000Z/20261025T003000Z',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/temporal-regression.test.mjs:55:1
+✖ I08: conflict comparison uses instants across different recorded zones (0.830753ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-i08/tests/temporal-regression.test.mjs:59:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/temporal-regression.test.mjs:61:1
+✖ I08: imported UTC stays explicitly UTC instead of becoming a floating local clock (0.947966ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  undefined !== 'UTC'
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-i08/tests/temporal-regression.test.mjs:64:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'UTC',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

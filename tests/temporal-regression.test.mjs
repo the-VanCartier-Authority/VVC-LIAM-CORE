@@ -63,3 +63,26 @@ test('I08: imported UTC stays explicitly UTC instead of becoming a floating loca
   const [event] = parseICSFeed('BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:fixture\r\nDTSTART:20261102T150000Z\r\nDTEND:20261102T160000Z\r\nSUMMARY:fixture\r\nEND:VEVENT\r\nEND:VCALENDAR');
   assert.equal(event.timeZone, 'UTC');
 });
+test('I08: task edits and snoozes cannot retain a stale day/instant', t => {
+  fixed(t);
+  const task = { id: 'task', title: 'Café', dueDate: '2026-10-23', timeDue: '23:00', timeZone: 'America/Los_Angeles',
+    dueAt: '2026-10-24T06:00:00.000Z', priority: 'media', category: 'personal', recurrence: 'none', subtasks: [], isCompleted: false };
+  const snooze = parse('posponer tarea café 60 minutos', {}, [], [task]).taskToModify.updates;
+  assert.equal(snooze.dueDate, '2026-10-24'); assert.equal(snooze.timeDue, '00:30');
+  assert.equal(snooze.dueAt, '2026-10-24T07:30:00.000Z');
+  const edited = parse('cambiar hora de tarea café a las 3:30pm', {}, [], [task]).taskToModify.updates;
+  assert.equal(edited.timeDue, '15:30'); assert.equal(edited.dueAt, '2026-10-23T22:30:00.000Z');
+  assert.equal(parse('cambiar hora de tarea café a las 25:99', {}, [], [task]).taskToModify, undefined);
+});
+test('I08: unknown availability and unsupported dates cannot produce a clear/scheduled result', t => {
+  fixed(t);
+  const invalid = [{ id: 'bad', title: 'Invalid', date: '2026-02-31', time: '10:00' }];
+  assert.equal(parse('agendar reunión mañana a las 10:00', {}, [], [], invalid).newCalendarEvent, undefined);
+  assert.match(parse('comprobar conflicto', {}, [], [], invalid).spokenResponse, /No se puede comprobar/);
+  assert.equal(parse('resolver conflicto', {}, [], [], invalid).eventsToUpdate, undefined);
+  assert.equal(parse('agendar reunión el lunes a las 10:00', {}, []).newCalendarEvent, undefined);
+  assert.equal(parse('agendar reunión el 31/02 a las 10:00', {}, []).newCalendarEvent, undefined);
+  assert.equal(parse('alarma a las 01:30 el 2026-11-01 zona America/New_York', {}, []).newAlarm, undefined);
+  const noTime = parse('crear tarea medicina sin fecha', {}, []).newTask;
+  assert.equal(noTime.dueDate, ''); assert.equal(noTime.timeDue, ''); assert.equal(noTime.dueAt, undefined);
+});
