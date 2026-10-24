@@ -1,13 +1,37 @@
+import { chatCancellation, assertChatActive, assertNotAborted, RequestAbortedError } from './src/server/requestCancellation.ts';
+import { geminiConversation, ChatInputError } from './src/server/geminiConversation.ts';
 import express from 'express';
 import type { Request, Response } from 'express';
 import dotenv from 'dotenv';
+import { readFileSync } from 'node:fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 import webpush from 'web-push';
 import { createVaosRouter } from './src/server/vaosOrchestrator.ts';
+import { ProviderRegistry, providerKey, postProvider, EgressPolicyError, UpstreamError } from './src/server/providerEgress.ts';
+import { executionOutcome } from './src/shared/executionOutcome.ts';
+import { createFirebaseVerifier, firebaseIdentityMiddleware } from './src/server/firebaseIdentity.ts';
+import { BackendLimits, resourceErrorHandler } from './src/server/backendLimits.ts';
+import { PushDestinations, PushRegistry, PushError, createPushSender, pushPayload } from './src/server/pushDelivery.ts';
+import { providerModel, fallbackSelection, modelProvenance, ModelRoutingError } from './src/shared/modelRouting.ts';
+import { chatPolicy } from './src/server/chatPolicy.ts';
 
 dotenv.config();
+const providers = new ProviderRegistry(process.env.LLM_PROVIDERS_JSON || '[]');
+const limits = new BackendLimits(process.env.BACKEND_LIMITS_JSON || '{}');
+
+function egressFailure(res: Response, error: unknown) {
+  if (error instanceof ChatInputError) return res.status(400).json({ code: error.code, error: error.message, outcome: executionOutcome('failed', 'chat-input'), realExecution: false });
+  if (error instanceof ModelRoutingError) return res.status(400).json({ success: false,
+    code: error.code, error: error.message, outcome: executionOutcome('failed', 'model-selection'), realExecution: false });
+  const policy = error instanceof EgressPolicyError;
+  return res.status(policy ? 400 : 502).json({ success: false,
+    outcome: executionOutcome('failed', 'provider'),
+    realExecution: false,
+    code: policy ? 'EGRESS_POLICY' : 'UPSTREAM_ERROR',
+    error: policy ? 'Destino o credencial no permitido por la política del servidor.' : 'No se pudo completar la petición al proveedor.' });
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,15 +40,19 @@ const app = express();
 // The dev server must always bind to port 3000 because NGINX runs on port 8080 and proxies to 3000.
 const PORT = process.env.PORT && process.env.PORT !== '8080' ? Number(process.env.PORT) : 3000;
 
-app.use(express.json({ limit: '15mb' }));
+const firebaseProjectId = process.env.FIREBASE_PROJECT_ID || JSON.parse(
+  readFileSync(new URL('./firebase-applet-config.json', import.meta.url), 'utf8')).projectId;
+app.use('/api', firebaseIdentityMiddleware(createFirebaseVerifier(firebaseProjectId)));
+app.use('/api', limits.middleware());
+app.use(express.json({ limit: '256kb' }));
+app.use('/api', limits.payload());
+app.use('/api/chat', chatPolicy);
+app.use('/api/chat', chatCancellation);
 
 // Mount VAOS Smart Routing Orchestrator (Policy Engine, Fast Path & Async Queue)
-app.use('/api/vaos', createVaosRouter());
+app.use('/api/vaos', createVaosRouter(limits));
 
-// NVIDIA Build default endpoint
-const NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
-
-// Neural voice mapping for Studio-grade Kokoro profiles
+// Neural voice mapping for application voice profiles
 const VOICE_MAP: Record<string, string> = {
   es_mateo: 'Fenrir',   // Male, deep executive obsidian voice
   es_sofia: 'Kore',     // Female, warm natural articulate voice
@@ -62,16 +90,8 @@ try {
   console.warn('[VVC LIAM Push] Error configurando VAPID details:', vapidErr);
 }
 
-// In-memory Push Subscriptions registry
-interface PushSubRecord {
-  endpoint: string;
-  expirationTime?: number | null;
-  keys: {
-    p256dh: string;
-    auth: string;
-  };
-}
-const pushSubscriptions = new Map<string, PushSubRecord>();
+const pushDestinations = new PushDestinations(process.env.PUSH_ADDITIONAL_HOSTS_JSON || '[]');
+const pushRegistry = new PushRegistry(pushDestinations, createPushSender(pushDestinations));
 
 // Service Worker & PWA Direct Routes with proper MIME type and scope headers
 app.get('/manifest.json', (_req: Request, res: Response) => {
@@ -114,81 +134,33 @@ app.get('/api/push/vapid-public-key', (_req: Request, res: Response) => {
   res.json({ publicKey: vapidPublicKey });
 });
 
+function pushFailure(res: Response, error: unknown) {
+  return res.status(error instanceof PushError ? error.status : 500).json({ success: false,
+    code: error instanceof PushError ? error.code : 'PUSH_FAILED', error: 'No se pudo completar la operación push.' });
+}
+
 app.post('/api/push/subscribe', (req: Request, res: Response) => {
-  const sub = req.body;
-  if (!sub || !sub.endpoint || !sub.keys) {
-    return res.status(400).json({ error: 'Suscripción Web Push no válida.' });
-  }
-  pushSubscriptions.set(sub.endpoint, sub);
-  console.log(`[VVC LIAM Push] Nueva suscripción registrada. Total activas: ${pushSubscriptions.size}`);
-  return res.json({ success: true, count: pushSubscriptions.size });
+  try { return res.json({ success: true, count: pushRegistry.subscribe(req.auth!.uid, req.body) }); }
+  catch (error) { return pushFailure(res, error); }
 });
-
 app.post('/api/push/unsubscribe', (req: Request, res: Response) => {
-  const { endpoint } = req.body;
-  if (endpoint) {
-    pushSubscriptions.delete(endpoint);
-    console.log(`[VVC LIAM Push] Suscripción eliminada. Restantes: ${pushSubscriptions.size}`);
-  }
-  return res.json({ success: true, count: pushSubscriptions.size });
+  try { return res.json({ success: true, count: pushRegistry.unsubscribe(req.auth!.uid, req.body?.endpoint) }); }
+  catch (error) { return pushFailure(res, error); }
 });
-
 app.post('/api/push/send', async (req: Request, res: Response) => {
   try {
-    const { title, body, icon, badge, url, taskId, delayMs, tag } = req.body;
-    const payload = JSON.stringify({
-      title: title || 'VVC LIAM CORE // Alerta en Segundo Plano',
-      body: body || 'Alerta o recordatorio programado en segundo plano.',
-      icon: icon || '/pwa-192x192.png',
-      badge: badge || '/pwa-192x192.png',
-      tag: tag || `vvc-alert-${Date.now()}`,
-      url: url || '/',
-      taskId: taskId || null,
-      timestamp: Date.now(),
-    });
-
-    const dispatch = async () => {
-      let sentCount = 0;
-      const expired: string[] = [];
-
-      for (const [endpoint, sub] of pushSubscriptions.entries()) {
-        try {
-          await webpush.sendNotification(sub as any, payload);
-          sentCount++;
-        } catch (err: any) {
-          console.warn('[VVC LIAM CORE Push] Envío fallido para endpoint:', endpoint, err?.statusCode);
-          if (err?.statusCode === 404 || err?.statusCode === 410) {
-            expired.push(endpoint);
-          }
-        }
-      }
-
-      for (const ep of expired) {
-        pushSubscriptions.delete(ep);
-      }
-
-      return { sent: sentCount, total: pushSubscriptions.size };
-    };
-
-    if (delayMs && Number(delayMs) > 0) {
-      setTimeout(dispatch, Number(delayMs));
-      return res.json({ success: true, scheduled: true, delayMs: Number(delayMs) });
+    const uid = req.auth!.uid;
+    const { payload, delayMs } = pushPayload(req.body);
+    if (delayMs) {
+      pushRegistry.schedule(uid, payload, delayMs);
+      return res.status(202).json({ success: true, scheduled: true, delayMs, delivery: 'not_attempted', durable: false });
     }
-
-    const result = await dispatch();
-    return res.json({ success: true, ...result });
-  } catch (error: any) {
-    console.error('[VVC LIAM CORE Push] Error en /api/push/send:', error);
-    return res.status(500).json({ error: error?.message || 'Error al emitir notificación push.' });
-  }
+    const result = await pushRegistry.dispatch(uid, payload);
+    return res.json({ success: result.failed === 0, ...result });
+  } catch (error) { return pushFailure(res, error); }
 });
-
-app.get('/api/push/status', (_req: Request, res: Response) => {
-  res.json({
-    enabled: true,
-    hasVapidKey: Boolean(vapidPublicKey),
-    activeSubscribers: pushSubscriptions.size,
-  });
+app.get('/api/push/status', (req: Request, res: Response) => {
+  res.json({ enabled: true, hasVapidKey: Boolean(vapidPublicKey), activeSubscribers: pushRegistry.count(req.auth!.uid) });
 });
 
 // API Configuration endpoint
@@ -239,7 +211,7 @@ const TTS_MODELS = [
   'gemini-3.8-flash-lite-tts',
 ];
 
-// Map Kokoro voice profiles to ultra-natural studio neural voices
+// Map application voice profiles to the Edge provider
 const EDGE_VOICE_MAP: Record<string, string> = {
   es_mateo: 'es-ES-AlvaroNeural',
   es_sofia: 'es-ES-ElviraNeural',
@@ -261,35 +233,37 @@ async function generateEdgeTTS(text: string, voiceId: string): Promise<{ audio: 
   const { MsEdgeTTS, OUTPUT_FORMAT } = await import('msedge-tts');
   const tts = new MsEdgeTTS();
   const voiceName = EDGE_VOICE_MAP[voiceId] || 'es-ES-AlvaroNeural';
-  await tts.setMetadata(voiceName, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
-  const { audioStream } = tts.toStream(text);
-
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    const timeout = setTimeout(() => {
-      reject(new Error('EDGE_TTS_TIMEOUT'));
-    }, 7000);
-
-    audioStream.on('data', (d: Buffer) => chunks.push(d));
-    audioStream.on('end', () => {
+    let audioStream: ReturnType<typeof tts.toStream>['audioStream'] | undefined;
+    let settled = false, size = 0;
+    const finish = (error?: Error) => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timeout);
-      const buf = Buffer.concat(chunks);
-      resolve({
-        audio: buf.toString('base64'),
-        mimeType: 'audio/mp3',
-        voiceName,
+      try { tts.close(); audioStream?.destroy(); } catch {}
+      if (error) reject(error);
+      else resolve({ audio: Buffer.concat(chunks).toString('base64'), mimeType: 'audio/mp3', voiceName });
+    };
+    // Include metadata/socket setup in the deadline, not only audio reception.
+    const timeout = setTimeout(() => finish(new Error('EDGE_TTS_TIMEOUT')), 7000);
+    tts.setMetadata(voiceName, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3).then(() => {
+      if (settled) return;
+      audioStream = tts.toStream(text).audioStream;
+      audioStream.on('data', (chunk: Buffer) => {
+        size += chunk.length;
+        if (size > 4 * 1024 * 1024) finish(new Error('EDGE_TTS_SIZE_LIMIT'));
+        else chunks.push(chunk);
       });
-    });
-    audioStream.on('error', (err) => {
-      clearTimeout(timeout);
-      reject(err);
-    });
+      audioStream.once('end', () => finish());
+      audioStream.once('error', () => finish(new Error('EDGE_TTS_FAILED')));
+    }).catch(() => finish(new Error('EDGE_TTS_FAILED')));
   });
 }
 
 /**
  * High-Fidelity Studio Neural Voice Synthesis (TTS)
- * Produces ultra-realistic neural speech with zero quota limits and instant playback
+ * Uses configured voice providers subject to quotas, network and browser availability
  */
 app.post('/api/tts', async (req: Request, res: Response) => {
   try {
@@ -350,7 +324,7 @@ app.post('/api/tts', async (req: Request, res: Response) => {
     const geminiKey = process.env.GEMINI_API_KEY;
     if (geminiKey && geminiKey !== 'MY_GEMINI_API_KEY') {
       const voiceName = VOICE_MAP[voiceId] || 'Fenrir';
-      const ai = new GoogleGenAI({ apiKey: geminiKey });
+      const ai = new GoogleGenAI({ apiKey: geminiKey, httpOptions: { timeout: 6000, retryOptions: { attempts: 1 } } });
 
       for (const model of TTS_MODELS) {
         try {
@@ -363,6 +337,7 @@ app.post('/api/tts', async (req: Request, res: Response) => {
             contents: [{ role: 'user', parts: [{ text: cleanText }] }],
             config: {
               responseModalities: ['AUDIO'],
+              maxOutputTokens: 4096,
               speechConfig: {
                 voiceConfig: {
                   prebuiltVoiceConfig: { voiceName },
@@ -408,17 +383,23 @@ app.post('/api/tts', async (req: Request, res: Response) => {
 /**
  * Helper to generate response using Gemini Flash
  */
-async function generateGeminiReply(systemMsg: string, userMsg: string, apiKey: string, modelName = 'gemini-2.5-flash') {
+async function generateGeminiReply(body: Record<string, unknown>, apiKey: string, modelName = 'gemini-2.5-flash', signal?: AbortSignal) {
+  assertNotAborted(signal);
+  const conversation = geminiConversation(body);
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: 30000, retryOptions: { attempts: 1 } } });
     const response = await ai.models.generateContent({
       model: modelName,
-      contents: `${systemMsg ? `[Instrucción del sistema: ${systemMsg}]\n\n` : ''}${userMsg}`,
+      ...conversation,
+      config: { ...conversation.config, abortSignal: signal },
     });
-    return response.text || 'Orden procesada por el núcleo de inteligencia.';
+    assertNotAborted(signal);
+    if (!response.text?.trim()) throw new UpstreamError();
+    return response.text;
   } catch (err: any) {
-    console.warn('Gemini request notice:', err?.message);
-    return `[VVC LIAM CORE] ${userMsg.length > 0 ? `Comando procesado: "${userMsg}".` : 'Listo para asistirte.'} Todos los sistemas están sincronizados y operativos.`;
+    assertNotAborted(signal);
+    console.warn('Gemini request notice: upstream request failed');
+    throw new UpstreamError();
   }
 }
 
@@ -449,28 +430,30 @@ function cleanModelResponse(rawText: string): string {
   return cleaned || rawText;
 }
 
-// Proxy for NVIDIA Build API with Auto-Healing & Instant Fallback
+// NVIDIA proxy. A different model/provider requires explicit fallback selection.
 app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   try {
-    const { model, messages, apiKey: clientApiKey, geminiApiKey: clientGeminiApiKey, endpoint, temperature = 0.6, max_tokens = 800 } = req.body;
+    assertChatActive(req, res);
+    const { model, messages, apiKey: clientApiKey, geminiApiKey: clientGeminiApiKey, temperature = 0.6, max_tokens = 800 } = req.body;
 
-    const apiKey = (clientApiKey && clientApiKey.trim()) || (process.env.NVIDIA_API_KEY !== 'MY_NVIDIA_API_KEY' ? process.env.NVIDIA_API_KEY : '');
-    const geminiKey = (clientGeminiApiKey && clientGeminiApiKey.trim()) || (process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY' ? process.env.GEMINI_API_KEY : '');
-    const targetUrl = (endpoint && endpoint.trim()) || NVIDIA_BASE_URL;
+    const provider = providers.select('nvidia', req.body);
+    const selectedModel = providerModel('nvidia', model ?? 'meta/llama-3.2-11b-vision-instruct');
+    const fallback = fallbackSelection(req.body.fallback);
+    const apiKey = providerKey(provider, clientApiKey);
+    const geminiKey = fallback === 'gemini-flash' ? providerKey(providers.select('gemini', {}), clientGeminiApiKey) : '';
 
-    const lastMsg = messages?.[messages.length - 1]?.content || 'Hola';
-    const systemMsg = messages?.find((m: { role: string; content: string }) => m.role === 'system')?.content || '';
-
-    // If no NVIDIA key is configured, fallback to Gemini or local
+    // A configured Gemini key alone never authorizes replacing the chosen NIM.
     if (!apiKey) {
       if (geminiKey) {
-        const text = await generateGeminiReply(systemMsg, lastMsg, geminiKey, 'gemini-2.5-flash');
+        const text = await generateGeminiReply(req.body, geminiKey, 'gemini-2.5-flash', req.inferenceSignal);
         return res.json({
           id: `fallback-gemini-${Date.now()}`,
           choices: [{ message: { role: 'assistant', content: text } }],
-          model_used: 'Google Gemini 2.5 Flash (Relay Cloud)',
+          ...modelProvenance('gemini', selectedModel, 'gemini-2.5-flash'),
           is_fallback: true,
+          outcome: executionOutcome('generated', 'gemini'),
+          realExecution: false,
         });
       }
 
@@ -478,11 +461,10 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
         error: 'Se requiere una API Key de NVIDIA para utilizar modelos en la nube. Configura tu clave secreta o utiliza un motor local RT-Lite On-Device.',
         code: 'MISSING_API_KEY',
         requiresKey: 'nvidia',
+        outcome: executionOutcome('unavailable', 'nvidia'),
+        realExecution: false,
       });
     }
-
-    // Determine requested model (no forced downgrades)
-    const selectedModel = model || 'meta/llama-3.2-11b-vision-instruct';
 
     // Adaptive token allocation and timeout based on model architecture
     const isCodingModel =
@@ -521,21 +503,7 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
     try {
       // Extended timeout for deep reasoning and massive code generation
       const timeoutDuration = (isDeepReasoning || isCodingModel) ? 60000 : 30000;
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
-
-      const response = await fetch(targetUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
+      const response = await postProvider(provider, apiKey, payload, timeoutDuration, undefined, req.inferenceSignal);
 
       if (response.ok) {
         const data = await response.json();
@@ -555,31 +523,22 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
           }
           return res.json({
             ...data,
-            model_used: selectedModel,
+            ...modelProvenance(provider.id, selectedModel, selectedModel, data.model),
             is_fallback: false,
+            outcome: executionOutcome('generated', provider.id),
+            realExecution: false,
           });
         }
       }
 
-      // If the chosen model failed on NVIDIA, try fast fallback only on true failure
-      if (selectedModel !== 'meta/llama-3.2-11b-vision-instruct') {
-        const fastController = new AbortController();
-        const fastTimeout = setTimeout(() => fastController.abort(), 10000);
+      // Only the explicitly requested backup may replace a failed model.
+      if (fallback === 'nvidia-fast' && selectedModel !== 'meta/llama-3.2-11b-vision-instruct') {
         try {
-          const fastRes = await fetch(targetUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${apiKey}`,
-            },
-            body: JSON.stringify({
+          const fastRes = await postProvider(provider, apiKey, {
               ...payload,
               model: 'meta/llama-3.2-11b-vision-instruct',
               max_tokens: 800,
-            }),
-            signal: fastController.signal,
-          });
-          clearTimeout(fastTimeout);
+            }, 10000, undefined, req.inferenceSignal);
           if (fastRes.ok) {
             const fastData = await fastRes.json();
             const fastText = cleanModelResponse(fastData.choices?.[0]?.message?.content || '');
@@ -587,41 +546,41 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
               fastData.choices[0].message.content = fastText;
               return res.json({
                 ...fastData,
-                model_used: `Llama 3.2 11B (NVIDIA Build Cloud · Respaldo Rápido)`,
-                is_fallback: false,
+                ...modelProvenance(provider.id, selectedModel, 'meta/llama-3.2-11b-vision-instruct', fastData.model),
+                is_fallback: true,
+                outcome: executionOutcome('generated', provider.id),
+                realExecution: false,
               });
             }
           }
-        } catch {
-          clearTimeout(fastTimeout);
+        } catch (error) {
+          if (error instanceof EgressPolicyError || error instanceof RequestAbortedError) throw error;
         }
       }
-    } catch (fetchErr: any) {
-      console.warn('NVIDIA request notice:', fetchErr?.message);
+    } catch (fetchErr: unknown) {
+      if (fetchErr instanceof EgressPolicyError || fetchErr instanceof RequestAbortedError) throw fetchErr;
+      assertChatActive(req, res);
+      console.warn('NVIDIA request notice: upstream request failed');
     }
 
-    // Smooth fallback to Gemini or local core so the user always gets a clear answer
+    // Cross-provider fallback uses its own credential and truthful provenance.
+    assertChatActive(req, res);
     if (geminiKey && geminiKey !== 'MY_GEMINI_API_KEY') {
-      const text = await generateGeminiReply(systemMsg, lastMsg, geminiKey);
+      const text = await generateGeminiReply(req.body, geminiKey, 'gemini-2.5-flash', req.inferenceSignal);
       return res.json({
         id: `auto-backup-${Date.now()}`,
         choices: [{ message: { role: 'assistant', content: text } }],
-        model_used: `${selectedModel} (Motor Inteligente Optimizado)`,
+        ...modelProvenance('gemini', selectedModel, 'gemini-2.5-flash'),
         is_fallback: true,
+        outcome: executionOutcome('generated', 'gemini'),
+        realExecution: false,
       });
     }
 
-    return res.json({
-      id: `local-${Date.now()}`,
-      choices: [{ message: { role: 'assistant', content: `Comando recibido y procesado por el núcleo VVC LIAM CORE. Todos los módulos operativos.` } }],
-      model_used: `VVC LIAM CORE (Local)`,
-      is_fallback: true,
-    });
+    return egressFailure(res, new UpstreamError());
   } catch (error: any) {
-    console.error('Error in /api/chat/nvidia:', error);
-    return res.status(500).json({
-      error: error?.message || 'Error interno al comunicarse con el proveedor del modelo.',
-    });
+    if (error instanceof RequestAbortedError || req.inferenceSignal?.aborted || req.aborted || res.destroyed) return;
+    return egressFailure(res, error);
   }
 });
 
@@ -629,46 +588,41 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
 app.post('/api/chat/gemini', async (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   try {
-    const { prompt, systemInstruction, messages, apiKey: clientApiKey, model = 'gemini-2.5-flash' } = req.body;
-    const apiKey = (clientApiKey && clientApiKey.trim()) || (process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY' ? process.env.GEMINI_API_KEY : '');
+    assertChatActive(req, res);
+    const { apiKey: clientApiKey, model = 'gemini-2.5-flash' } = req.body;
+    const targetModel = providerModel('gemini', model);
+    const apiKey = providerKey(providers.select('gemini', req.body), clientApiKey);
 
     if (!apiKey) {
       return res.status(401).json({
         error: 'Se requiere una API Key de Google Gemini para utilizar este modelo. Ingrésala en la Bóveda de Secretos.',
         code: 'MISSING_API_KEY',
         requiresKey: 'gemini',
+        outcome: executionOutcome('unavailable', 'gemini'),
+        realExecution: false,
       });
     }
 
-    const lastMsg = prompt || messages?.[messages.length - 1]?.content || 'Hola';
-    const sysMsg = systemInstruction || messages?.find((m: { role: string; content: string }) => m.role === 'system')?.content || '';
+    const conversation = geminiConversation(req.body);
+    const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: 30000, retryOptions: { attempts: 1 } } });
+    assertChatActive(req, res);
+    const response = await ai.models.generateContent({ model: targetModel, ...conversation, config: { ...conversation.config, abortSignal: req.inferenceSignal } });
+    assertChatActive(req, res);
 
-    // Standardize model name for GoogleGenAI
-    let targetModel = model.replace('google/', '');
-    if (!targetModel.startsWith('gemini-')) {
-      targetModel = 'gemini-2.5-flash';
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
-    const fullContents = sysMsg ? `[Instrucción del sistema: ${sysMsg}]\n\n${lastMsg}` : lastMsg;
-    const response = await ai.models.generateContent({
-      model: targetModel,
-      contents: fullContents,
-    });
-
-    const responseText = cleanModelResponse(response.text || 'Respuesta generada por Google Gemini.');
+    const responseText = cleanModelResponse(response.text || '');
+    if (!responseText.trim()) throw new UpstreamError();
 
     return res.json({
       id: `gemini-${Date.now()}`,
       choices: [{ message: { role: 'assistant', content: responseText } }],
-      model_used: `Google ${targetModel} (Cloud)`,
+      ...modelProvenance('gemini', model, targetModel, response.modelVersion),
       text: responseText,
+      outcome: executionOutcome('generated', 'gemini'),
+      realExecution: false,
     });
   } catch (error: any) {
-    console.error('[Gemini Route Error]:', error);
-    return res.status(500).json({
-      error: error?.message || 'Error en comunicación con Google Gemini.',
-    });
+    if (error instanceof RequestAbortedError || req.inferenceSignal?.aborted || req.aborted || res.destroyed) return;
+    return egressFailure(res, error);
   }
 });
 
@@ -676,130 +630,99 @@ app.post('/api/chat/gemini', async (req: Request, res: Response) => {
 app.post('/api/chat/custom', async (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   try {
-    const { endpoint, apiKey, model, messages, temperature = 0.6, max_tokens = 1000 } = req.body;
+    assertChatActive(req, res);
+    const { apiKey, model, messages, temperature = 0.6, max_tokens = 1000 } = req.body;
 
-    if (!endpoint || !endpoint.trim()) {
-      return res.status(400).json({
-        error: 'Debes especificar una URL de Endpoint válida para el LLM Personalizado.',
-        code: 'MISSING_ENDPOINT',
-      });
-    }
-
-    const targetUrl = endpoint.trim();
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    };
-
-    if (apiKey && apiKey.trim()) {
-      headers['Authorization'] = `Bearer ${apiKey.trim()}`;
-    }
+    const provider = providers.select('custom', req.body);
+    const key = providerKey(provider, apiKey);
 
     const targetModel = model?.trim() || 'default';
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000);
-
-    const response = await fetch(targetUrl, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
+    const response = await postProvider(provider, key, {
         model: targetModel,
         messages,
         temperature,
         max_tokens,
-      }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
+      }, 45000, undefined, req.inferenceSignal);
+    assertChatActive(req, res);
 
     if (!response.ok) {
-      const errText = await response.text().catch(() => '');
       return res.status(response.status).json({
-        error: `Error en endpoint personalizado (${response.status}): ${errText.slice(0, 300)}`,
+        error: `Error en proveedor personalizado (${response.status}).`,
+        outcome: executionOutcome('failed', provider.id),
+        realExecution: false,
       });
     }
 
     const data = await response.json();
     const rawContent = data.choices?.[0]?.message?.content || data.text || '';
     const cleaned = cleanModelResponse(rawContent);
+    if (!cleaned.trim()) throw new UpstreamError();
 
     return res.json({
       ...data,
-      choices: [{ message: { role: 'assistant', content: cleaned || 'Comando ejecutado por Custom LLM.' } }],
-      model_used: `${targetModel} (Custom Endpoint)`,
+      choices: [{ message: { role: 'assistant', content: cleaned } }],
+      ...modelProvenance(provider.id, targetModel, targetModel, data.model),
+      outcome: executionOutcome('generated', provider.id),
+      realExecution: false,
     });
   } catch (error: any) {
-    console.error('[Custom LLM Error]:', error);
-    return res.status(500).json({
-      error: error?.message || 'Error al conectar con el endpoint LLM personalizado.',
-    });
+    if (error instanceof RequestAbortedError || req.inferenceSignal?.aborted || req.aborted || res.destroyed) return;
+    return egressFailure(res, error);
   }
 });
 
 // Test API Key / Secret endpoint
 app.post('/api/secrets/test', async (req: Request, res: Response) => {
-  const { provider, apiKey, endpoint, model } = req.body;
+  const { provider, apiKey, model } = req.body;
   try {
     if (provider === 'gemini') {
-      const key = (apiKey && apiKey.trim()) || process.env.GEMINI_API_KEY || '';
+      const key = providerKey(providers.select('gemini', req.body), apiKey);
       if (!key) return res.status(400).json({ success: false, error: 'Clave no proporcionada' });
-      const ai = new GoogleGenAI({ apiKey: key });
+      const ai = new GoogleGenAI({ apiKey: key, httpOptions: { timeout: 30000, retryOptions: { attempts: 1 } } });
       const testRes = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: 'Ping',
+        config: { maxOutputTokens: 4096 },
       });
       return res.json({ success: true, message: 'Google Gemini API Key verificada con éxito', ping: testRes.text?.slice(0, 50) });
     }
 
     if (provider === 'nvidia') {
-      const key = (apiKey && apiKey.trim()) || process.env.NVIDIA_API_KEY || '';
+      const target = providers.select('nvidia', req.body);
+      const key = providerKey(target, apiKey);
       if (!key) return res.status(400).json({ success: false, error: 'Clave no proporcionada' });
-      const targetUrl = endpoint || NVIDIA_BASE_URL;
-      const resp = await fetch(targetUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${key}`,
-        },
-        body: JSON.stringify({
+      const resp = await postProvider(target, key, {
           model: 'meta/llama-3.2-11b-vision-instruct',
           messages: [{ role: 'user', content: 'Ping' }],
           max_tokens: 10,
-        }),
-      });
+        });
       if (!resp.ok) {
-        const text = await resp.text();
-        return res.status(resp.status).json({ success: false, error: `Error NVIDIA: ${text.slice(0, 200)}` });
+        return res.status(resp.status).json({ success: false, error: `Error NVIDIA (${resp.status}).` });
       }
       return res.json({ success: true, message: 'NVIDIA NIM API Key verificada con éxito' });
     }
 
     if (provider === 'custom') {
-      if (!endpoint) return res.status(400).json({ success: false, error: 'Endpoint URL requerido' });
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
-      const resp = await fetch(endpoint, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
+      const target = providers.select('custom', req.body);
+      const key = providerKey(target, apiKey);
+      const resp = await postProvider(target, key, {
           model: model || 'test',
           messages: [{ role: 'user', content: 'Ping' }],
           max_tokens: 10,
-        }),
-      });
+        });
       if (!resp.ok) {
-        const text = await resp.text();
-        return res.status(resp.status).json({ success: false, error: `Error Endpoint: ${text.slice(0, 200)}` });
+        return res.status(resp.status).json({ success: false, error: `Error proveedor (${resp.status}).` });
       }
       return res.json({ success: true, message: 'Endpoint personalizado verificado con éxito' });
     }
 
     return res.status(400).json({ success: false, error: 'Proveedor no soportado' });
   } catch (err: any) {
-    return res.status(500).json({ success: false, error: err?.message || 'Fallo de verificación de clave' });
+    return egressFailure(res, err);
   }
 });
+
+app.use(resourceErrorHandler);
 
 // Setup Vite middleware in dev or static files in production
 async function startServer() {

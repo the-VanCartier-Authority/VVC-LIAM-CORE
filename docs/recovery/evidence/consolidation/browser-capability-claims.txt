@@ -1,0 +1,1 @@
+{"browser":"154.0.8037.57","vaultE2eeLinks":0,"templateMarked":true,"fictionalCertification":false,"gmailE2eeBadges":0,"calendarE2eeBadges":0,"realExternalCalls":0}

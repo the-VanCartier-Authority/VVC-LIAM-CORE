@@ -1,0 +1,80 @@
+
+> vvc-liam-core@1.0.0 test
+> node --test --test-timeout=15000 tests/*.test.mjs
+
+✔ F01 blocks unregistered destination: NVIDIA primary / server key (640.76321ms)
+✔ F01 blocks unregistered destination: NVIDIA retry / server key (13.769639ms)
+✔ F01 blocks unregistered destination: custom chat / BYOK (23.695904ms)
+✔ F01 blocks unregistered destination: NVIDIA key test / server key (5.482107ms)
+✔ F01 blocks unregistered destination: custom key test / BYOK (5.318546ms)
+✔ Gemini SDK keeps fixed Google origin for server key, BYOK, key test and NVIDIA fallback (mock only) (712.545968ms)
+✔ Gemini client cannot replace the registered origin or select another provider (20.555542ms)
+✔ review: local DNS cannot move a provider to another address in the private ranges (5.352348ms)
+✔ review: a local DNS exception must enumerate exact IP addresses (0.852046ms)
+✔ registry alone defines destinations; legacy endpoints select an exact registered URL (6.782005ms)
+✔ registry rejects malformed URLs, duplicate IDs/targets, unscoped exceptions and reused default secrets (2.928385ms)
+✔ keys are bound to the selected provider and BYOK permission; placeholders never leave (0.459777ms)
+✔ blocks non-public address 0.0.0.0 (0.757176ms)
+✔ blocks non-public address 10.0.0.1 (1.680396ms)
+✔ blocks non-public address 100.64.0.1 (0.198913ms)
+✔ blocks non-public address 127.0.0.1 (2.412665ms)
+✔ blocks non-public address 169.254.169.254 (0.153706ms)
+✔ blocks non-public address 172.16.0.1 (0.418807ms)
+✔ blocks non-public address 192.0.0.1 (0.728664ms)
+✔ blocks non-public address 192.0.2.1 (0.460418ms)
+✔ blocks non-public address 192.88.99.1 (0.241195ms)
+✔ blocks non-public address 192.168.1.1 (0.240454ms)
+✔ blocks non-public address 198.18.0.1 (0.127658ms)
+✔ blocks non-public address 198.51.100.1 (0.08844ms)
+✔ blocks non-public address 203.0.113.1 (0.086557ms)
+✔ blocks non-public address 224.0.0.1 (0.073859ms)
+✔ blocks non-public address 255.255.255.255 (0.104654ms)
+✔ blocks non-public address :: (3.246074ms)
+✔ blocks non-public address ::1 (1.162273ms)
+✔ blocks non-public address ::ffff:127.0.0.1 (0.102ms)
+✔ blocks non-public address ::ffff:7f00:1 (0.410695ms)
+✔ blocks non-public address ::ffff:8.8.8.8 (0.100228ms)
+✔ blocks non-public address fe80::1 (0.091695ms)
+✔ blocks non-public address fc00::1 (0.087248ms)
+✔ blocks non-public address ff02::1 (0.168027ms)
+✔ blocks non-public address 64:ff9b::a00:1 (0.216309ms)
+✔ blocks non-public address 2001::1 (0.10848ms)
+✔ blocks non-public address 2001:db8::1 (0.25121ms)
+✔ blocks non-public address 2002:7f00:1::1 (0.164813ms)
+✔ blocks non-public address 3fff::1 (0.417575ms)
+✔ blocks non-public address not-an-ip (0.206264ms)
+✔ public IPv4 and IPv6 remain eligible; every DNS answer must pass (2.908576ms)
+✔ URL-normalized numeric IPv4 aliases cannot bypass IP checks (2.08301ms)
+✔ local exceptions are exact and exclude metadata, unspecified, mapped and multicast addresses (7.87877ms)
+✔ connected peer must equal the validated IP and port before HTTP headers are sent (0.527577ms)
+✔ transport pins DNS once per connection and rejects changed DNS on the next attempt (96.506299ms)
+✔ DNS errors/timeouts and body timeouts produce sanitized errors and no retries (93.168991ms)
+✔ network address fallback uses only validated IPs and never duplicates a transmitted request (10.516418ms)
+✔ NVIDIA primary, retry and key test use only the registered NIM and its own key (517.637398ms)
+✔ preserves openai OpenAI chat contract, BYOK and key test (45.532821ms)
+✔ preserves ollama OpenAI chat contract, BYOK and key test (17.322988ms)
+✔ preserves vllm OpenAI chat contract, BYOK and key test (14.580797ms)
+✔ preserves ipv6 OpenAI chat contract, BYOK and key test (8.356755ms)
+✔ legacy exact registered endpoint works; credential-free Ollama never inherits NVIDIA key (13.602586ms)
+✔ request cannot enlarge local exceptions, switch provider keys, disable TLS or change registered paths (46.154367ms)
+✔ rejects HTTP 301 without forwarding server keys or BYOK (20.882634ms)
+✔ rejects HTTP 302 without forwarding server keys or BYOK (16.380679ms)
+✔ rejects HTTP 303 without forwarding server keys or BYOK (17.90703ms)
+✔ rejects HTTP 307 without forwarding server keys or BYOK (30.018247ms)
+✔ rejects HTTP 308 without forwarding server keys or BYOK (10.033476ms)
+✔ NVIDIA policy error stops retry and fallback; secret test rejects redirects too (15.937106ms)
+✔ HTTPS verifies CA and hostname and preserves SNI before sending credentials (40.843771ms)
+✔ provider error bodies cannot echo keys; oversized bodies fail without exposing them (87.132145ms)
+ℹ tests 63
+ℹ suites 0
+ℹ pass 63
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3871.757317
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

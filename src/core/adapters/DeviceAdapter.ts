@@ -7,11 +7,6 @@ import type { DeviceCapabilities, DeviceBatteryInfo, PlatformType } from './type
 export class DeviceAdapter implements DeviceCapabilities {
   private platform: PlatformType;
   private activeTorchTrack: MediaStreamTrack | null = null;
-  private fallbackBatteryState = {
-    level: 0.88,
-    charging: false,
-    lastUpdate: Date.now(),
-  };
 
   constructor() {
     this.platform = this.detectPlatform();
@@ -22,12 +17,8 @@ export class DeviceAdapter implements DeviceCapabilities {
   }
 
   public isNativeApp(): boolean {
-    return (
-      this.platform === 'android' ||
-      this.platform === 'ios' ||
-      this.platform === 'windows' ||
-      (typeof window !== 'undefined' && (window as any).Capacitor !== undefined)
-    );
+    return typeof window !== 'undefined' && typeof (window as any).Capacitor?.isNativePlatform === 'function'
+      && (window as any).Capacitor.isNativePlatform() === true;
   }
 
   private detectPlatform(): PlatformType {
@@ -56,53 +47,31 @@ export class DeviceAdapter implements DeviceCapabilities {
   }
 
   public async getBatteryInfo(): Promise<DeviceBatteryInfo> {
-    if (typeof window === 'undefined') {
-      return {
-        level: 1.0,
-        charging: true,
-        chargingTime: 0,
-        dischargingTime: Infinity,
-        temperatureEstimatedC: 28.5,
-        healthProfile: 'OPTIMAL',
-      };
-    }
+    const unavailable: DeviceBatteryInfo = { level: null, charging: null, chargingTime: null,
+      dischargingTime: null, temperatureEstimatedC: null, source: 'unavailable' };
+    if (typeof window === 'undefined') return unavailable;
 
     try {
       // 1. Try real Web Battery API
       if ('getBattery' in navigator && typeof (navigator as any).getBattery === 'function') {
         const battery = await (navigator as any).getBattery();
-        const level = typeof battery.level === 'number' ? battery.level : 0.85;
-        const charging = Boolean(battery.charging);
-        const temp = charging ? 32.4 : 27.8 + (1 - level) * 4;
+        const level = typeof battery.level === 'number' && battery.level >= 0 && battery.level <= 1 ? battery.level : null;
+        const charging = typeof battery.charging === 'boolean' ? battery.charging : null;
 
         return {
           level,
           charging,
-          chargingTime: battery.chargingTime ?? (charging ? 2400 : Infinity),
-          dischargingTime: battery.dischargingTime ?? (charging ? Infinity : 18000),
-          temperatureEstimatedC: Number(temp.toFixed(1)),
-          healthProfile: level < 0.2 && !charging ? 'LOW_POWER' : 'OPTIMAL',
+          chargingTime: Number.isFinite(battery.chargingTime) ? battery.chargingTime : null,
+          dischargingTime: Number.isFinite(battery.dischargingTime) ? battery.dischargingTime : null,
+          temperatureEstimatedC: null,
+          source: 'browser',
         };
       }
     } catch {
       // Ignore API security errors in sandboxed iframes
     }
 
-    // 2. Realistic Fallback for Desktop & Restricted Environments
-    const elapsedMinutes = (Date.now() - this.fallbackBatteryState.lastUpdate) / 60000;
-    if (elapsedMinutes > 5) {
-      this.fallbackBatteryState.level = Math.max(0.15, this.fallbackBatteryState.level - 0.01);
-      this.fallbackBatteryState.lastUpdate = Date.now();
-    }
-
-    return {
-      level: this.fallbackBatteryState.level,
-      charging: this.fallbackBatteryState.charging,
-      chargingTime: this.fallbackBatteryState.charging ? 3200 : Infinity,
-      dischargingTime: this.fallbackBatteryState.charging ? Infinity : 14400,
-      temperatureEstimatedC: 29.2,
-      healthProfile: 'OPTIMAL',
-    };
+    return unavailable;
   }
 
   public vibrate(pattern: number | number[] = 50): boolean {

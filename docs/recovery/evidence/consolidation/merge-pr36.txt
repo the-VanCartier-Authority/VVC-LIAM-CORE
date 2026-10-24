@@ -1,0 +1,7 @@
+Auto-merging src/components/TelemetryPanel.tsx
+CONFLICT (content): Merge conflict in src/components/TelemetryPanel.tsx
+Auto-merging src/core/adapters/ApiClientAdapter.ts
+Auto-merging src/core/adapters/types.ts
+Auto-merging src/server/vaosOrchestrator.ts
+CONFLICT (content): Merge conflict in src/server/vaosOrchestrator.ts
+Automatic merge failed; fix conflicts and then commit the result.

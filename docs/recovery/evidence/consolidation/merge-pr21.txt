@@ -1,0 +1,22 @@
+Merge made by the 'ort' strategy.
+ docs/recovery/B05.md                    |  17 ++++
+ docs/recovery/evidence/b05-before.txt   |  96 ++++++++++++++++++
+ server.ts                               |  99 +++++--------------
+ src/core/pushSession.ts                 |  43 ++++++++
+ src/server/providerEgress.ts            |  31 +++++-
+ src/server/pushDelivery.ts              | 168 ++++++++++++++++++++++++++++++++
+ src/services/googleAuth.ts              |   4 +
+ src/services/pushNotificationService.ts |  91 ++++++++++-------
+ tests/fixtures/capture-push.mjs         |   7 ++
+ tests/push-delivery.test.mjs            | 134 +++++++++++++++++++++++++
+ tests/push-ownership.test.mjs           |  46 +++++++++
+ tests/push-session.test.mjs             |  47 +++++++++
+ 12 files changed, 668 insertions(+), 115 deletions(-)
+ create mode 100644 docs/recovery/B05.md
+ create mode 100644 docs/recovery/evidence/b05-before.txt
+ create mode 100644 src/core/pushSession.ts
+ create mode 100644 src/server/pushDelivery.ts
+ create mode 100644 tests/fixtures/capture-push.mjs
+ create mode 100644 tests/push-delivery.test.mjs
+ create mode 100644 tests/push-ownership.test.mjs
+ create mode 100644 tests/push-session.test.mjs

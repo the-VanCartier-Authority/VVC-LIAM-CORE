@@ -4,6 +4,12 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { inferenceFailureText } from './shared/executionOutcome';
+import { catalogModelProvider, cloudModelProvider } from './shared/modelRouting';
+import { backendFetch } from './services/backendApi';
+import { createConfirmationGate, needsSensitiveConfirmation, sensitiveActionSummary } from './core/actionConfirmation';
+import { SensitiveActionDialog } from './components/SensitiveActionDialog';
+import { localCalendarDate, addCalendarDays, taskDueInMinute, snoozeTaskTiming } from './utils/temporal';
 import { Header } from './components/Header';
 import { VoiceOrbVisualizer } from './components/VoiceOrbVisualizer';
 import { QuickCommandChips } from './components/QuickCommandChips';
@@ -29,7 +35,7 @@ import { ModelAgentControlBar } from './components/ModelAgentControlBar';
 import { SecretsService, type SecretKeyId } from './services/secretsService';
 import { TelemetryPanel } from './components/TelemetryPanel';
 import { platformService } from './core/adapters/PlatformService';
-import { initAuth, googleSignIn } from './services/googleAuth';
+import { auth, initAuth, googleSignIn } from './services/googleAuth';
 import {
   syncUserProfileToFirestore,
   saveTaskToFirestore,
@@ -75,7 +81,8 @@ import {
 
 import { 
   parseNaturalVoiceCommand, 
-  generateRTLiteResponse 
+  generateRTLiteResponse,
+  type CommandExecutionResult
 } from './utils/rtLiteEngine';
 
 import { 
@@ -107,7 +114,7 @@ const INITIAL_TASKS: TaskItem[] = [
   {
     id: 't-1',
     title: 'Comprobar telemetría de inferencia NVIDIA',
-    dueDate: new Date().toISOString().split('T')[0],
+    dueDate: localCalendarDate(),
     timeDue: '14:30',
     priority: 'alta',
     category: 'trabajo',
@@ -124,7 +131,7 @@ const INITIAL_TASKS: TaskItem[] = [
   {
     id: 't-2',
     title: 'Respaldar claves de cifrado E2EE',
-    dueDate: new Date().toISOString().split('T')[0],
+    dueDate: localCalendarDate(),
     timeDue: '18:00',
     priority: 'critica',
     category: 'urgente',
@@ -141,7 +148,7 @@ const INITIAL_TASKS: TaskItem[] = [
   {
     id: 't-3',
     title: 'Sincronizar agenda semanal con VVC LIAM CORE',
-    dueDate: new Date().toISOString().split('T')[0],
+    dueDate: localCalendarDate(),
     timeDue: '20:00',
     priority: 'media',
     category: 'proyecto',
@@ -159,7 +166,7 @@ const INITIAL_EVENTS: CalendarEvent[] = [
   {
     id: 'e1',
     title: 'Reunión de Arquitectura Neuronal & Cloud',
-    date: new Date().toISOString().split('T')[0],
+    date: localCalendarDate(),
     time: '11:00',
     endTime: '12:00',
     location: 'Virtual Terminal VVC LIAM CORE',
@@ -169,8 +176,8 @@ const INITIAL_EVENTS: CalendarEvent[] = [
   },
   {
     id: 'e2',
-    title: 'Revisión de Seguridad Zero-Knowledge',
-    date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+    title: 'Revisión de privacidad local',
+    date: addCalendarDays(localCalendarDate(), 1),
     time: '16:00',
     endTime: '17:00',
     location: 'Laboratorio Cifrado',
@@ -344,7 +351,7 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          return parsed.map((message) => ({ ...message, isE2EE: false }));
         }
       }
     } catch (e) {
@@ -354,10 +361,10 @@ export default function App() {
       {
         id: 'm-init',
         sender: 'system',
-        text: 'VVC LIAM CORE v1.0.0 activo (Control // Analyze // Execute). Orquestador VAOS con Policy Engine, agentes exclusivos (Vladimir, Valentina, Victoria) y telemetría D3.js en tiempo real.',
+        text: 'VVC LIAM CORE v1.0.0 activo (Control // Analyze // Execute). Conversación, acciones locales y generación de texto según el proveedor disponible.',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
         modelUsed: 'VVC LIAM CORE // VAOS Orchestrator',
-        isE2EE: true,
+        isE2EE: false,
       },
     ];
   });
@@ -426,11 +433,20 @@ export default function App() {
 
   // Google Auth User State
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const confirmationGate = useRef(createConfirmationGate<CommandExecutionResult>());
+  const confirmationIdentity = useRef({ user: auth.currentUser, epoch: 0 });
+  const [pendingAction, setPendingAction] = useState<{ nonce: string; text: string; summary: string } | null>(null);
 
   useEffect(() => {
+    const identityChanged = (user: User | null) => {
+      confirmationIdentity.current = { user: auth.currentUser, epoch: confirmationIdentity.current.epoch + 1 };
+      confirmationGate.current.cancel(); setPendingAction(null);
+      setStatusLabel(previous => previous === 'CONFIRMACIÓN PENDIENTE' ? 'LISTO' : previous);
+      setCurrentUser(user);
+    };
     const unsubscribe = initAuth(
-      (user) => setCurrentUser(user),
-      () => setCurrentUser(null)
+      identityChanged,
+      () => identityChanged(null)
     );
     return () => unsubscribe();
   }, []);
@@ -442,7 +458,7 @@ export default function App() {
         setCurrentUser(res.user);
         playCyberTone('confirm');
         speakKokoro(
-          `Google Workspace y Firebase sincronizados con éxito para ${res.user.displayName || res.user.email}.`,
+          `Sesión iniciada. Las integraciones requieren permisos y una operación explícita.`,
           selectedVoiceId
         );
       }
@@ -591,16 +607,13 @@ export default function App() {
   useEffect(() => {
     const checkTasksInterval = setInterval(() => {
       const now = new Date();
-      const currentDateStr = now.toISOString().split('T')[0];
-      const currentTimeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const minuteKey = Math.floor(now.getTime() / 60000);
 
       tasks.forEach((task) => {
-        if (!task.isCompleted && task.timeDue === currentTimeStr) {
-          // Check if due today or snoozed until current time
-          const isDueNow = !task.dueDate || task.dueDate === currentDateStr || task.snoozedUntil === currentTimeStr;
-          const triggerKey = `${task.id}-${currentTimeStr}-${currentDateStr}`;
+        if (taskDueInMinute(task, now)) {
+          const triggerKey = `${task.id}-${minuteKey}`;
 
-          if (isDueNow && !notifiedTaskTimestampsRef.current[triggerKey]) {
+          if (!notifiedTaskTimestampsRef.current[triggerKey]) {
             notifiedTaskTimestampsRef.current[triggerKey] = true;
 
             // 1. Play cybernetic alert tone
@@ -671,11 +684,14 @@ export default function App() {
 
   // Convert Task to Calendar Event
   const handleConvertTaskToEvent = (task: TaskItem) => {
+    if (!task.dueDate) { setIsCalendarOpen(true); return; }
     const newEvent: CalendarEvent = {
       id: `e-task-${task.id}`,
       title: task.title,
-      date: task.dueDate || new Date().toISOString().split('T')[0],
-      time: task.timeDue || '10:00',
+      date: task.dueDate,
+      time: task.timeDue,
+      allDay: !task.timeDue,
+      timeZone: task.timeZone,
       description: `Tarea vinculada de VVC LIAM CORE [Prioridad: ${task.priority.toUpperCase()}]`,
       location: 'Virtual Hub VVC LIAM CORE',
       category: 'tarea',
@@ -692,10 +708,31 @@ export default function App() {
     speakKokoro(`Tarea "${task.title}" vinculada con éxito al calendario.`, selectedVoiceId);
   };
 
+  const confirmationData = useRef('');
+  confirmationData.current = JSON.stringify({ contacts, tasks,
+    events: calendarEvents, cloud: currentCloudIntegration, webhook: thirdPartyWebhookUrl });
+  const readConfirmationContext = useCallback(() => {
+    const user = auth.currentUser;
+    if (confirmationIdentity.current.user !== user)
+      confirmationIdentity.current = { user, epoch: confirmationIdentity.current.epoch + 1 };
+    return JSON.stringify({ uid: user?.uid || null, epoch: confirmationIdentity.current.epoch, data: confirmationData.current });
+  }, []);
+
   // Process User Command (via Voice or Text)
   const handleProcessCommand = useCallback(
-    async (commandText: string) => {
+    async (commandText: string, confirmationNonce?: string) => {
       if (!commandText.trim()) return;
+
+      const confirmedIntent = confirmationNonce
+        ? confirmationGate.current.take(confirmationNonce, readConfirmationContext()) : undefined;
+      setPendingAction(null);
+      if (confirmationNonce && !confirmedIntent) {
+        setMessages(prev => [...prev, { id: `a-${Date.now()}`, sender: 'assistant',
+          text: 'La confirmación caducó o cambió la sesión o el estado. No se ha ejecutado ninguna acción. Repite la orden.',
+          timestamp: new Date().toLocaleTimeString(), modelUsed: 'Confirmación local', isE2EE: false }]);
+        setStatusLabel('LISTO'); return;
+      }
+      if (!confirmationNonce) confirmationGate.current.cancel();
 
       const userTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       const userMsg: ConsoleMessage = {
@@ -705,13 +742,20 @@ export default function App() {
         timestamp: userTime,
       };
 
-      setMessages((prev) => [...prev, userMsg]);
+      if (!confirmationNonce) setMessages((prev) => [...prev, userMsg]);
       setIsProcessing(true);
       setStatusLabel('PROCESANDO');
 
       try {
         // Step 1: Run through upgraded RT-Lite Local Intent Parser with existing tasks and calendar events
-        const intentResult = parseNaturalVoiceCommand(commandText, deviceState, contacts, tasks, calendarEvents);
+        const intentResult = confirmedIntent || parseNaturalVoiceCommand(commandText, deviceState, contacts, tasks, calendarEvents);
+
+        if (!confirmationNonce && needsSensitiveConfirmation(intentResult, Boolean(thirdPartyWebhookUrl))) {
+          const nonce = confirmationGate.current.request(intentResult, readConfirmationContext());
+          const title = tasks.find(task => task.id === intentResult.taskToDeleteId)?.title;
+          setPendingAction({ nonce, text: commandText, summary: sensitiveActionSummary(intentResult, title, thirdPartyWebhookUrl) });
+          return;
+        }
 
         if (intentResult.isHandled) {
           playCyberTone('confirm');
@@ -963,7 +1007,7 @@ export default function App() {
             actionType: intentResult.actionType,
             actionDetails: intentResult.actionDetails,
             modelUsed: `${activeAgent ? activeAgent.name.split(' ')[0] : 'VVC LIAM'} (RT-Lite)`,
-            isE2EE: true,
+            isE2EE: false,
           };
           setMessages((prev) => [...prev, assistantMsg]);
           setIsProcessing(false);
@@ -995,7 +1039,7 @@ export default function App() {
               text: directText,
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
               modelUsed: 'Modo Directo (Sin IA)',
-              isE2EE: true,
+              isE2EE: false,
             },
           ]);
           setIsProcessing(false);
@@ -1004,7 +1048,7 @@ export default function App() {
         }
 
         // --- NIVEL 2: MOTORES LOCALES ON-DEVICE RT-LITE (100% OFFLINE) ---
-        if (isOffline || currentModel.startsWith('rt-lite')) {
+        if (isOffline || catalogModelProvider(currentModel) === 'local') {
           const localAnswer = generateRTLiteResponse(commandText, currentModel);
           if (!deviceState.isMuted) {
             setIsSpeaking(true);
@@ -1028,7 +1072,7 @@ export default function App() {
               text: localAnswer,
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
               modelUsed: `${currentModelMeta?.name || 'RT-Lite On-Device'}${activeAgent ? ` · ${activeAgent.name.split(' ')[0]}` : ' · Modo Neutro'}`,
-              isE2EE: true,
+              isE2EE: false,
             },
           ]);
           setIsProcessing(false);
@@ -1038,14 +1082,6 @@ export default function App() {
 
         // --- NIVEL 3: MODELOS EN LA NUBE (GEMINI, NVIDIA NIM, CUSTOM LLM) ---
         const cloudInfo = CLOUD_INTEGRATIONS.find((c) => c.id === currentCloudIntegration) || CLOUD_INTEGRATIONS[0];
-
-        // Dispatch to VAOS Policy Engine & Telemetry Gateway in background
-        platformService.api.dispatchVaos({
-          command: commandText,
-          agentId: activeAgent ? activeAgent.id : 'neutral-core',
-          isExclusiveAgent: activeAgent ? Boolean(activeAgent.isExclusivePrivate) : false,
-          injectedSkills: activeAgent ? (activeAgent.injectedSkills || []) : [],
-        }).catch((err) => console.warn('[VAOS Gateway]', err));
 
         // Construct System Prompt according to whether an Agent is selected or No Agent (Neutral Mode)
         let systemPrompt = '';
@@ -1062,7 +1098,7 @@ export default function App() {
             ? `\nSKILLS INYECTADOS DINÁMICAMENTE (VAOS): ${activeAgent.injectedSkills.join(', ')}`
             : '';
 
-          systemPrompt = `[IDENTIDAD DE AGENTE ACTIVO: ${activeAgent.name.toUpperCase()} // ${activeAgent.role.toUpperCase()}]\n${activeAgent.systemPrompt}${agentRulesSection}${agentCapabilitiesSection}${agentSkillsSection}\n\n[CONTEXTO OPERATIVO]:\nVVC LIAM CORE (Control // Analyze // Execute). Orquestador VAOS de alta velocidad con Policy Engine. Integración activa con ${cloudInfo.name}. Control de calendario, tareas y funciones del teléfono. Responde de forma concisa, clara y ejecutiva en español (máximo 3 oraciones) sin fricción ("Más control. Menos ruido.").`;
+          systemPrompt = `[IDENTIDAD DE AGENTE ACTIVO: ${activeAgent.name.toUpperCase()} // ${activeAgent.role.toUpperCase()}]\n${activeAgent.systemPrompt}${agentRulesSection}${agentCapabilitiesSection}${agentSkillsSection}\n\n[CONTEXTO OPERATIVO]:\nVVC LIAM CORE (Control // Analyze // Execute). Orquestador VAOS de alta velocidad con Policy Engine. Integración activa con ${cloudInfo.name}. Sólo generas texto; no tienes herramientas para ejecutar acciones externas. No afirmes efectos sin evidencia. Responde de forma concisa, clara y ejecutiva en español (máximo 3 oraciones) sin fricción ("Más control. Menos ruido.").`;
         } else {
           systemPrompt = `[MODO NEUTRO DIRECTO // SIN AGENTE ACTIVO]:\nEres el asistente operativo central de VVC LIAM CORE actuando en Modo Neutro Directo sin sesgos de personalidad ni roles predeterminados. Responde con neutralidad, concisión, rigor técnico y claridad ejecutiva en español (máximo 3 oraciones) sin fricción ("Más control. Menos ruido.").`;
         }
@@ -1072,16 +1108,17 @@ export default function App() {
 
         let responseText = '';
         let modelTag = currentModel as string;
+        const selectedProvider = cloudModelProvider(currentModel);
 
         // Route A: Google Gemini Cloud
-        if (currentModel.startsWith('google/')) {
+        if (selectedProvider === 'gemini') {
           const gemKey = SecretsService.getSecret('gemini_api_key');
           if (!gemKey) {
             promptSecret('gemini_api_key', 'Configura tu Google Gemini API Key secreta para utilizar este modelo.');
             throw new Error('Se requiere tu API Key de Google Gemini guardada como secreto para continuar.');
           }
 
-          const res = await fetch('/api/chat/gemini', {
+          const res = await backendFetch('/api/chat/gemini', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1089,6 +1126,8 @@ export default function App() {
               apiKey: gemKey,
               prompt: commandText,
               systemInstruction: systemPrompt,
+              temperature: agentTemperature,
+              max_tokens: agentMaxTokens,
               messages: [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: commandText },
@@ -1102,11 +1141,12 @@ export default function App() {
           }
 
           const data = await res.json();
-          responseText = data.choices?.[0]?.message?.content || data.text || 'Comando procesado por Gemini.';
+          responseText = data.choices?.[0]?.message?.content || data.text || '';
+          if (!responseText.trim()) throw new Error('Respuesta vacía del proveedor.');
           modelTag = data.model_used || currentModel;
         } 
         // Route B: Custom LLM (OpenAI-compatible / Groq / Ollama)
-        else if (currentModel === 'custom-llm') {
+        else if (selectedProvider === 'custom') {
           const custEndpoint = SecretsService.getSecret('custom_endpoint');
           const custKey = SecretsService.getSecret('custom_api_key');
           const custModel = SecretsService.getSecret('custom_model') || 'llama-3.3-70b-versatile';
@@ -1116,7 +1156,7 @@ export default function App() {
             throw new Error('Se requiere configurar el Endpoint URL del LLM en la Bóveda de Secretos.');
           }
 
-          const res = await fetch('/api/chat/custom', {
+          const res = await backendFetch('/api/chat/custom', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1138,7 +1178,8 @@ export default function App() {
           }
 
           const data = await res.json();
-          responseText = data.choices?.[0]?.message?.content || data.text || 'Comando procesado por Custom LLM.';
+          responseText = data.choices?.[0]?.message?.content || data.text || '';
+          if (!responseText.trim()) throw new Error('Respuesta vacía del proveedor.');
           modelTag = data.model_used || `${custModel} (Custom)`;
         }
         // Route C: NVIDIA NIM Catalog
@@ -1149,7 +1190,7 @@ export default function App() {
             throw new Error('Se requiere tu API Key de NVIDIA NIM guardada como secreto para continuar.');
           }
 
-          const res = await fetch('/api/chat/nvidia', {
+          const res = await backendFetch('/api/chat/nvidia', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1171,7 +1212,8 @@ export default function App() {
           }
 
           const data = await res.json();
-          responseText = data.choices?.[0]?.message?.content || data.text || 'Comando procesado.';
+          responseText = data.choices?.[0]?.message?.content || data.text || '';
+          if (!responseText.trim()) throw new Error('Respuesta vacía del proveedor.');
           modelTag = data.model_used || currentModel;
         }
 
@@ -1196,12 +1238,12 @@ export default function App() {
             text: responseText,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
             modelUsed: `${modelTag}${activeAgent ? ` · ${activeAgent.name.split(' ')[0]}` : ' · Modo Neutro'}`,
-            isE2EE: true,
+            isE2EE: false,
           },
         ]);
       } catch (err: any) {
-        console.warn('Inference error, falling back to RT-Lite local:', err);
-        const fallbackText = generateRTLiteResponse(commandText);
+        console.warn('Inference request failed; no action was executed.');
+        const fallbackText = inferenceFailureText();
         if (!deviceState.isMuted) {
           setIsSpeaking(true);
           speakKokoro(fallbackText, selectedVoiceId, {
@@ -1217,15 +1259,15 @@ export default function App() {
           {
             id: `a-${Date.now()}`,
             sender: 'assistant',
-            text: `${fallbackText}\n\n[Nota: Servicio Cloud (${err.message}). Ejecutado con RT-Lite On-Device].`,
+            text: fallbackText,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-            modelUsed: 'RT-Lite Local (Fallback)',
-            isE2EE: true,
+            modelUsed: 'Proveedor no disponible',
+            isE2EE: false,
           },
         ]);
       } finally {
         setIsProcessing(false);
-        setStatusLabel('LISTO');
+        setStatusLabel(confirmationGate.current.isPending() ? 'CONFIRMACIÓN PENDIENTE' : 'LISTO');
       }
     },
     [
@@ -1246,6 +1288,7 @@ export default function App() {
       selectedVoiceId,
       pitchModifier,
       rateModifier,
+      readConfirmationContext,
     ]
   );
 
@@ -1329,16 +1372,18 @@ export default function App() {
   const pendingTasksCount = tasks.filter((t) => !t.isCompleted).length;
 
   const handleSelectModel = (model: ModelType) => {
+    const provider = catalogModelProvider(model);
+    if (!provider) return;
     setCurrentModel(model);
     localStorage.setItem('vvc_liam_model', model);
     playCyberTone('confirm');
 
     // Prompt for secret API key if required and not set
-    if (model.startsWith('google/') && !SecretsService.hasSecret('gemini_api_key')) {
+    if (provider === 'gemini' && !SecretsService.hasSecret('gemini_api_key')) {
       promptSecret('gemini_api_key', 'Configura tu Google Gemini API Key secreta para utilizar este modelo.');
-    } else if (model === 'custom-llm' && (!SecretsService.hasSecret('custom_endpoint') || !SecretsService.hasSecret('custom_api_key'))) {
+    } else if (provider === 'custom' && (!SecretsService.hasSecret('custom_endpoint') || !SecretsService.hasSecret('custom_api_key'))) {
       promptSecret('custom_endpoint', 'Configura tu Endpoint URL y API Key para el LLM Personalizado.');
-    } else if (!model.startsWith('rt-lite') && model !== 'direct-no-ai' && !model.startsWith('google/') && model !== 'custom-llm') {
+    } else if (provider === 'nvidia') {
       if (!SecretsService.hasSecret('nvidia_api_key')) {
         promptSecret('nvidia_api_key', 'Ingresa tu NVIDIA NIM API Key secreta para utilizar este modelo en la nube.');
       }
@@ -1463,12 +1508,7 @@ export default function App() {
           playCyberTone('confirm');
         }}
         onSnooze={(taskId, minutes) => {
-          const now = new Date();
-          now.setMinutes(now.getMinutes() + minutes);
-          const nextTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          setTasks((prev) =>
-            prev.map((t) => (t.id === taskId ? { ...t, timeDue: nextTime, snoozedUntil: nextTime } : t))
-          );
+          setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, ...snoozeTaskTiming(t.timeZone, minutes) } : t));
           playCyberTone('confirm');
         }}
         onDismiss={(alertId) => {
@@ -1542,7 +1582,7 @@ export default function App() {
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
               actionType: 'message',
               actionDetails: `${channel} a ${recipient}`,
-              isE2EE: true,
+              isE2EE: false,
             },
           ]);
         }}
@@ -1559,6 +1599,10 @@ export default function App() {
         isTorchActive={deviceState.flashlight}
       />
 
+      {pendingAction && <SensitiveActionDialog summary={pendingAction.summary}
+        onCancel={() => { confirmationGate.current.cancel(); setPendingAction(null); setStatusLabel('LISTO'); }}
+        onConfirm={() => { void handleProcessCommand(pendingAction.text, pendingAction.nonce); }} />}
+
       {/* Phone Controls Drawer */}
       <DeviceControlsDrawer
         isOpen={isDeviceControlsOpen}
@@ -1572,14 +1616,17 @@ export default function App() {
         }}
         contacts={contacts}
         onCallContact={(contact) => {
+          if (!contact.phone) return;
           setIsDeviceControlsOpen(false);
-          handleProcessCommand(`Llamar a ${contact.name}`);
+          setActiveCall({ inCall: true, contactName: contact.name, phoneNumber: contact.phone,
+            durationSeconds: 0, isMuted: false, isSpeaker: false, state: 'calling' });
         }}
         onMessageContact={(contact) => {
+          if (!contact.phone) return;
           setIsDeviceControlsOpen(false);
           setMessagingState({
             isOpen: true,
-            recipient: contact.name,
+            recipient: contact.phone,
             initialMessage: '',
             channel: 'WhatsApp',
           });
@@ -1800,14 +1847,17 @@ export default function App() {
         contacts={contacts}
         onUpdateContacts={(updated) => setContacts(updated)}
         onInitiateCall={(contact) => {
+          if (!contact.phone) return;
           setIsContactsOpen(false);
-          handleProcessCommand(`Llamar a ${contact.name}`);
+          setActiveCall({ inCall: true, contactName: contact.name, phoneNumber: contact.phone,
+            durationSeconds: 0, isMuted: false, isSpeaker: false, state: 'calling' });
         }}
         onInitiateMessage={(contact) => {
+          if (!contact.phone) return;
           setIsContactsOpen(false);
           setMessagingState({
             isOpen: true,
-            recipient: contact.phone || contact.name,
+            recipient: contact.phone,
             initialMessage: '',
             channel: 'SMS',
           });

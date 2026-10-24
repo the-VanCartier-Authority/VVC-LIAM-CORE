@@ -1,0 +1,17 @@
+Merge made by the 'ort' strategy.
+ .env.example                              |   3 +
+ docs/recovery/B02.md                      |  15 ++++
+ docs/recovery/evidence/b02-before.txt     |  56 ++++++++++++++
+ server.ts                                 |  62 +++++++++-------
+ src/server/backendLimits.ts               | 117 ++++++++++++++++++++++++++++++
+ src/server/vaosOrchestrator.ts            |  31 +++++---
+ tests/fixtures/slow-gemini.mjs            |   6 ++
+ tests/resource-limits-regression.test.mjs |  19 +++++
+ tests/resource-limits.test.mjs            |  92 +++++++++++++++++++++++
+ 9 files changed, 367 insertions(+), 34 deletions(-)
+ create mode 100644 docs/recovery/B02.md
+ create mode 100644 docs/recovery/evidence/b02-before.txt
+ create mode 100644 src/server/backendLimits.ts
+ create mode 100644 tests/fixtures/slow-gemini.mjs
+ create mode 100644 tests/resource-limits-regression.test.mjs
+ create mode 100644 tests/resource-limits.test.mjs

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { backendFetch } from '../services/backendApi';
 import { 
   X, 
   Key, 
@@ -106,7 +107,7 @@ export const ApiSecretsModal: React.FC<ApiSecretsModalProps> = ({
         return;
       }
 
-      const res = await fetch('/api/secrets/test', {
+      const res = await backendFetch('/api/secrets/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider, apiKey, endpoint, model }),
@@ -157,7 +158,7 @@ export const ApiSecretsModal: React.FC<ApiSecretsModalProps> = ({
                 </h2>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-semibold flex items-center gap-1">
                   <ShieldCheck className="w-3 h-3" />
-                  Zero-Knowledge Local
+                  Claves locales
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">
@@ -179,7 +180,7 @@ export const ApiSecretsModal: React.FC<ApiSecretsModalProps> = ({
           <Lock className="w-4 h-4 text-[#00f0ff] shrink-0 mt-0.5" />
           <div>
             <span className="text-[#00f0ff] font-semibold">Privacidad & Libertad de Proveedor: </span>
-            Las claves se almacenan exclusivamente como secretos locales en tu dispositivo. No dependes de ninguna API key predeterminada: si no deseas usar APIs cloud, puedes operar 100% offline con los motores <strong className="text-white">RT-Lite On-Device</strong> o el <strong className="text-white">Modo Directo</strong>.
+            Las claves se guardan en texto en el navegador y el servidor las recibe al usarlas. El modo local dispone de un parser y acciones limitadas; no garantiza voz ni todas las funciones sin conexión.
           </div>
         </div>
 
@@ -359,7 +360,7 @@ export const ApiSecretsModal: React.FC<ApiSecretsModalProps> = ({
         {/* Footer */}
         <div className="flex items-center justify-between px-5 py-3 border-t border-[#1e2638] bg-[#0c101a]">
           <span className="text-[10px] text-slate-500">
-            Almacenamiento Zero-Knowledge: AES-GCM local en navegador
+            Las claves se guardan en texto en este navegador y se transmiten al servidor al usarlas.
           </span>
           <button
             onClick={onClose}

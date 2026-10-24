@@ -1,4 +1,5 @@
 import { KOKORO_VOICES, type KokoroVoiceId } from '../types';
+import { backendFetch } from '../services/backendApi';
 
 // Web Speech API Types
 type SpeechRecognitionInstance = any;
@@ -524,7 +525,7 @@ export async function speakKokoro(
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-    const res = await fetch('/api/tts', {
+    const res = await backendFetch('/api/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: cleanText, voiceId }),

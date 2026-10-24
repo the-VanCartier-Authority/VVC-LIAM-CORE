@@ -1,0 +1,15 @@
+Merge made by the 'ort' strategy.
+ docs/recovery/D02.md                  | 11 ++++
+ docs/recovery/evidence/d02-before.txt | 78 ++++++++++++++++++++++++++++
+ src/components/TelemetryPanel.tsx     | 96 +++++++++++++++++++----------------
+ src/core/adapters/ApiClientAdapter.ts |  6 +--
+ src/core/adapters/DeviceAdapter.ts    | 47 ++++-------------
+ src/core/adapters/types.ts            | 25 +++++----
+ src/server/vaosOrchestrator.ts        | 64 ++++++++++++++---------
+ tests/fixtures/mock-gemini-usage.mjs  |  4 ++
+ tests/metric-provenance.test.mjs      | 67 ++++++++++++++++++++++++
+ 9 files changed, 280 insertions(+), 118 deletions(-)
+ create mode 100644 docs/recovery/D02.md
+ create mode 100644 docs/recovery/evidence/d02-before.txt
+ create mode 100644 tests/fixtures/mock-gemini-usage.mjs
+ create mode 100644 tests/metric-provenance.test.mjs

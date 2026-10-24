@@ -1,0 +1,17 @@
+Auto-merging server.ts
+Auto-merging src/App.tsx
+Merge made by the 'ort' strategy.
+ docs/recovery/I11a.md                     |  17 +++++
+ docs/recovery/evidence/i11a-before.txt    | 115 ++++++++++++++++++++++++++++++
+ server.ts                                 |  28 +++-----
+ src/App.tsx                               |   2 +
+ src/server/geminiConversation.ts          |  44 ++++++++++++
+ tests/chat-decision-browser.mjs           |  22 ++++++
+ tests/fixtures/capture-gemini-content.mjs |   7 ++
+ tests/gemini-context-regression.test.mjs  |  51 +++++++++++++
+ 8 files changed, 268 insertions(+), 18 deletions(-)
+ create mode 100644 docs/recovery/I11a.md
+ create mode 100644 docs/recovery/evidence/i11a-before.txt
+ create mode 100644 src/server/geminiConversation.ts
+ create mode 100644 tests/fixtures/capture-gemini-content.mjs
+ create mode 100644 tests/gemini-context-regression.test.mjs

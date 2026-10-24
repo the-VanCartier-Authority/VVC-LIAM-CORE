@@ -1,0 +1,9 @@
+Merge made by the 'ort' strategy.
+ docs/recovery/B03.md                  |  11 ++
+ docs/recovery/evidence/b03-before.txt | 211 ++++++++++++++++++++++++++++++++++
+ src/server/vaosOrchestrator.ts        |  36 +++---
+ tests/vaos-ownership.test.mjs         |  41 +++++++
+ 4 files changed, 286 insertions(+), 13 deletions(-)
+ create mode 100644 docs/recovery/B03.md
+ create mode 100644 docs/recovery/evidence/b03-before.txt
+ create mode 100644 tests/vaos-ownership.test.mjs

@@ -1,0 +1,283 @@
+[
+  {
+    "pr": 3,
+    "head": "0be6e86a0099c2c6f4947695b69522a2ba5e864f",
+    "base_ref": "main",
+    "base_sha_observed": "2ffadf44c2c09bbc8dcde47046ee7d5c08a039f7",
+    "merge_base": "2ffadf44c2c09bbc8dcde47046ee7d5c08a039f7",
+    "dependencies_in_head": {
+      "F01": true,
+      "E01": false,
+      "B01": false,
+      "B03": false,
+      "B02": false,
+      "E02": false,
+      "B05": false,
+      "I02": false
+    },
+    "commits": [
+      {
+        "sha": "ba253050b0972c0683d72658ce503bcf2602fd91",
+        "subject": "test: reproduce F01 credential forwarding at five HTTP sinks",
+        "category": "tests",
+        "files": [
+          "tests/f01-regression.test.mjs",
+          "tests/fixtures/capture-fetch.mjs",
+          "tests/server-helper.mjs"
+        ]
+      },
+      {
+        "sha": "2adf45eb85b39d925b32e7dbbc07beebf9258bc9",
+        "subject": "fix: bind F01 HTTP egress and credentials to server providers",
+        "category": "functional (with tests/docs where present)",
+        "files": [
+          ".env.example",
+          "package.json",
+          "server.ts",
+          "src/server/providerEgress.ts",
+          "tests/fixtures/mock-gemini.mjs",
+          "tests/gemini-compat.test.mjs",
+          "tests/provider-egress.test.mjs",
+          "tests/provider-http.test.mjs",
+          "tests/smoke-production.mjs"
+        ]
+      },
+      {
+        "sha": "0a25525a406436c177962887eb335fd5d5488df3",
+        "subject": "docs: publish recovery backlog and F01 validation evidence",
+        "category": "documentation",
+        "files": [
+          "docs/recovery/BACKLOG.md",
+          "docs/recovery/F01-EGRESS.md",
+          "docs/recovery/MAIN-ISSUE.md",
+          "docs/recovery/VALIDATION.md",
+          "docs/recovery/evidence/after.txt",
+          "docs/recovery/evidence/before.txt",
+          "docs/recovery/evidence/build.txt",
+          "docs/recovery/evidence/smoke.txt",
+          "docs/recovery/evidence/typescript.txt"
+        ]
+      },
+      {
+        "sha": "7d278f8d1ecf4b29875de42dcf6b6117a072c001",
+        "subject": "test: reject local DNS exceptions that authorize private ranges",
+        "category": "tests",
+        "files": [
+          "tests/local-exception-review.test.mjs"
+        ]
+      },
+      {
+        "sha": "0be6e86a0099c2c6f4947695b69522a2ba5e864f",
+        "subject": "fix: bind local provider exceptions to exact IP addresses",
+        "category": "functional (with tests/docs where present)",
+        "files": [
+          "docs/recovery/F01-EGRESS.md",
+          "docs/recovery/PR3-REVIEW.md",
+          "docs/recovery/evidence/review-local-before.txt",
+          "src/server/providerEgress.ts",
+          "tests/provider-egress.test.mjs",
+          "tests/provider-http.test.mjs"
+        ]
+      }
+    ]
+  },
+  {
+    "pr": 34,
+    "head": "2e256477e02e255c6664ed660ff055054c7458f9",
+    "base_ref": "fix/p1-i07-intent-confirmation",
+    "base_sha_observed": "159817d7eb49b3b8e88256c501097655ed805b23",
+    "merge_base": "159817d7eb49b3b8e88256c501097655ed805b23",
+    "dependencies_in_head": {
+      "F01": true,
+      "E01": true,
+      "B01": false,
+      "B03": false,
+      "B02": false,
+      "E02": false,
+      "B05": false,
+      "I02": false
+    },
+    "commits": [
+      {
+        "sha": "699f99e5904435b7c44454cfa9b6da9bfa9ae13c",
+        "subject": "test: reproduce AM PM calendar day DST and timezone corruption",
+        "category": "tests",
+        "files": [
+          "tests/temporal-regression.test.mjs"
+        ]
+      },
+      {
+        "sha": "905870ff8c7b18696b2c8d842fb8fa4b073a95c4",
+        "subject": "test(i08): reproduce lost time zone in Firestore projection",
+        "category": "tests",
+        "files": [
+          "tests/temporal-firestore.test.mjs"
+        ]
+      },
+      {
+        "sha": "2e256477e02e255c6664ed660ff055054c7458f9",
+        "subject": "fix(i08): validate civil dates and preserve explicit time zone intervals",
+        "category": "functional (with tests/docs where present)",
+        "files": [
+          "docs/recovery/I08.md",
+          "docs/recovery/evidence/i08-before.txt",
+          "docs/recovery/evidence/i08-firestore-before.txt",
+          "src/App.tsx",
+          "src/components/CalendarRemindersModal.tsx",
+          "src/services/firestoreSyncService.ts",
+          "src/types/index.ts",
+          "src/utils/calendarSync.ts",
+          "src/utils/ical.ts",
+          "src/utils/rtLiteEngine.ts",
+          "src/utils/temporal.ts",
+          "tests/temporal-adapters.test.mjs",
+          "tests/temporal-browser.mjs",
+          "tests/temporal-core.test.mjs",
+          "tests/temporal-regression.test.mjs"
+        ]
+      }
+    ]
+  },
+  {
+    "pr": 36,
+    "head": "7ab086e878e27e53fd58ef0b1280bbcd264deb3d",
+    "base_ref": "fix/p1-i02-single-decision",
+    "base_sha_observed": "947e0357c56fa66a502bf44248b3afc8f24f174a",
+    "merge_base": "947e0357c56fa66a502bf44248b3afc8f24f174a",
+    "dependencies_in_head": {
+      "F01": true,
+      "E01": true,
+      "B01": true,
+      "B03": true,
+      "B02": true,
+      "E02": false,
+      "B05": false,
+      "I02": true
+    },
+    "commits": [
+      {
+        "sha": "2198ca23b6ccf5cd1126343b27b04b5b587aed62",
+        "subject": "test(i10): reproduce task loss, duplicate dispatch and missing cancellation",
+        "category": "tests",
+        "files": [
+          "tests/vaos-durable-regression.test.mjs"
+        ]
+      },
+      {
+        "sha": "7ab086e878e27e53fd58ef0b1280bbcd264deb3d",
+        "subject": "fix(i10): persist owned VAOS tasks and prevent silent duplicate generation",
+        "category": "functional (with tests/docs where present)",
+        "files": [
+          ".gitignore",
+          "docs/recovery/I10.md",
+          "docs/recovery/evidence/i10-before.txt",
+          "src/components/TelemetryPanel.tsx",
+          "src/core/adapters/ApiClientAdapter.ts",
+          "src/core/adapters/types.ts",
+          "src/core/vaosTaskView.ts",
+          "src/server/backendLimits.ts",
+          "src/server/vaosOrchestrator.ts",
+          "src/server/vaosStore.ts",
+          "tests/fixtures/holding-gemini.mjs",
+          "tests/server-helper.mjs",
+          "tests/vaos-client.test.mjs",
+          "tests/vaos-durable-unit.test.mjs",
+          "tests/vaos-poll-browser.mjs",
+          "tests/vaos-recovery-http.test.mjs"
+        ]
+      }
+    ]
+  },
+  {
+    "pr": 38,
+    "head": "a462cfbdee3bda796bb8dca7e65a64f5d3637eae",
+    "base_ref": "fix/p1-i02-single-decision",
+    "base_sha_observed": "947e0357c56fa66a502bf44248b3afc8f24f174a",
+    "merge_base": "947e0357c56fa66a502bf44248b3afc8f24f174a",
+    "dependencies_in_head": {
+      "F01": true,
+      "E01": true,
+      "B01": true,
+      "B03": true,
+      "B02": true,
+      "E02": false,
+      "B05": false,
+      "I02": true
+    },
+    "commits": [
+      {
+        "sha": "57c6ba29a9520acb05b88ed9035f746fe2d0db16",
+        "subject": "test(i11a): reproduce lost Gemini history and ignored generation settings",
+        "category": "tests",
+        "files": [
+          "tests/fixtures/capture-gemini-content.mjs",
+          "tests/gemini-context-regression.test.mjs"
+        ]
+      },
+      {
+        "sha": "a462cfbdee3bda796bb8dca7e65a64f5d3637eae",
+        "subject": "fix(i11a): preserve explicit Gemini conversation and generation settings",
+        "category": "functional (with tests/docs where present)",
+        "files": [
+          "docs/recovery/I11a.md",
+          "docs/recovery/evidence/i11a-before.txt",
+          "server.ts",
+          "src/App.tsx",
+          "src/server/geminiConversation.ts",
+          "tests/chat-decision-browser.mjs",
+          "tests/gemini-context-regression.test.mjs"
+        ]
+      }
+    ]
+  },
+  {
+    "pr": 40,
+    "head": "5934384efab7010bd0d436bb9234df64f1960551",
+    "base_ref": "fix/p1-i11a-gemini-context",
+    "base_sha_observed": "a462cfbdee3bda796bb8dca7e65a64f5d3637eae",
+    "merge_base": "a462cfbdee3bda796bb8dca7e65a64f5d3637eae",
+    "dependencies_in_head": {
+      "F01": true,
+      "E01": true,
+      "B01": true,
+      "B03": true,
+      "B02": true,
+      "E02": false,
+      "B05": false,
+      "I02": true
+    },
+    "commits": [
+      {
+        "sha": "8c2faa7c767bdb50f4d827a1f67c40f29cf32075",
+        "subject": "test(i11b): reproduce provider work after client disconnect (CI recovery)",
+        "category": "tests",
+        "files": [
+          "tests/chat-cancellation-regression.test.mjs",
+          "tests/fixtures/cancellable-gemini.mjs"
+        ]
+      },
+      {
+        "sha": "3a04048bf3b2e2a2692c6b61bbc23203daed7d62",
+        "subject": "fix(i11b): propagate chat disconnect and stop provider fallback after cancellation",
+        "category": "functional (with tests/docs where present)",
+        "files": [
+          "docs/recovery/I11b.md",
+          "docs/recovery/evidence/i11b-before-ci.txt",
+          "server.ts",
+          "src/server/providerEgress.ts",
+          "src/server/requestCancellation.ts",
+          "tests/provider-cancellation.test.mjs"
+        ]
+      },
+      {
+        "sha": "5934384efab7010bd0d436bb9234df64f1960551",
+        "subject": "docs(i11b): record passing CI and remaining integration boundary",
+        "category": "documentation",
+        "files": [
+          "docs/recovery/I11b.md",
+          "docs/recovery/evidence/i11b-after-ci.txt"
+        ]
+      }
+    ]
+  }
+]

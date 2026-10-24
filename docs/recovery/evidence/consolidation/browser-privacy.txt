@@ -1,0 +1,1 @@
+{"browser":"154.0.8037.57","plaintextFixtureRendered":true,"encryptionBadges":0,"externalHostsBlocked":["fonts.googleapis.com","apis.google.com"],"realProviderCalls":0}

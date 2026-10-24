@@ -1,3 +1,4 @@
+import { backendFetch } from '../../services/backendApi';
 import type {
   ApiClient,
   VaosDispatchPayload,
@@ -15,7 +16,7 @@ export class ApiClientAdapter implements ApiClient {
 
   public async get<T>(url: string, headers: Record<string, string> = {}): Promise<T> {
     const fullUrl = `${this.baseUrl}${url}`;
-    const res = await fetch(fullUrl, {
+    const res = await backendFetch(fullUrl, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -33,7 +34,7 @@ export class ApiClientAdapter implements ApiClient {
 
   public async post<T>(url: string, body: unknown, headers: Record<string, string> = {}): Promise<T> {
     const fullUrl = `${this.baseUrl}${url}`;
-    const res = await fetch(fullUrl, {
+    const res = await backendFetch(fullUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -50,11 +51,11 @@ export class ApiClientAdapter implements ApiClient {
     return res.json() as Promise<T>;
   }
 
-  public async dispatchVaos(payload: VaosDispatchPayload): Promise<VaosDispatchResult> {
+  public async dispatchVaos(payload: VaosDispatchPayload, idempotencyKey = crypto.randomUUID()): Promise<VaosDispatchResult> {
     return this.post<VaosDispatchResult>('/api/vaos/dispatch', {
       ...payload,
       callerTimestamp: payload.callerTimestamp || Date.now(),
-    });
+    }, { 'Idempotency-Key': idempotencyKey });
   }
 
   public async getVaosTask(taskId: string): Promise<VaosTaskDetail> {
@@ -64,9 +65,9 @@ export class ApiClientAdapter implements ApiClient {
   public async getVaosTelemetry(): Promise<{
     points: VaosTelemetryPoint[];
     stats: {
-      avgFastPathLatencyMs: number;
-      avgAsyncDurationMs: number;
-      avgTokensPerSec: number;
+      avgFastPathLatencyMs: number | null;
+      avgAsyncDurationMs: number | null;
+      avgTokensPerSec: number | null;
       totalDispatched: number;
       fastPathCount: number;
       asyncCount: number;

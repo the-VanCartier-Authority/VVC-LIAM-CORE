@@ -1,0 +1,104 @@
+TAP version 13
+# Subtest: F11: fast path reports simulation and never verifies a requested action
+not ok 1 - F11: fast path reports simulation and never verifies a requested action
+  ---
+  duration_ms: 562.028364
+  type: 'test'
+  location: '/workspace/vvc-d01/tests/truthfulness-http.test.mjs:7:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    true !== false
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/vvc-d01/tests/truthfulness-http.test.mjs:11:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# Subtest: F11: asynchronous request without a provider is unavailable, never completed/executed
+not ok 2 - F11: asynchronous request without a provider is unavailable, never completed/executed
+  ---
+  duration_ms: 292.523932
+  type: 'test'
+  location: '/workspace/vvc-d01/tests/truthfulness-http.test.mjs:16:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'COMPLETED'
+    - 'UNAVAILABLE'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'UNAVAILABLE'
+  actual: 'COMPLETED'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/vvc-d01/tests/truthfulness-http.test.mjs:26:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: F09: failed Gemini fallback returns failure instead of synthetic success
+not ok 3 - F09: failed Gemini fallback returns failure instead of synthetic success
+  ---
+  duration_ms: 297.335914
+  type: 'test'
+  location: '/workspace/vvc-d01/tests/truthfulness-http.test.mjs:32:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    200 !== 502
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 502
+  actual: 200
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/vvc-d01/tests/truthfulness-http.test.mjs:36:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: F09: failed NVIDIA retries and empty custom output cannot become local execution success
+not ok 4 - F09: failed NVIDIA retries and empty custom output cannot become local execution success
+  ---
+  duration_ms: 351.593039
+  type: 'test'
+  location: '/workspace/vvc-d01/tests/truthfulness-http.test.mjs:41:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    200 !== 502
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 502
+  actual: 200
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/vvc-d01/tests/truthfulness-http.test.mjs:56:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 0
+# fail 4
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1669.760256

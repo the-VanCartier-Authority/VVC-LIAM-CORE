@@ -127,6 +127,10 @@ export const setCachedAccessToken = (token: string | null) => {
  * Sign out from Google Auth and purge in-memory token
  */
 export const googleSignOut = async () => {
+  try {
+    const { revokePushForSignOut } = await import('./pushNotificationService');
+    await revokePushForSignOut();
+  } catch { console.warn('[VVC LIAM Push] Revocación push incompleta; revisar el permiso del navegador.'); }
   await signOut(auth);
   cachedAccessToken = null;
 };

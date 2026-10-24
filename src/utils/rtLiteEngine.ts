@@ -16,6 +16,8 @@ import {
   type ConflictAnalysis 
 } from './calendarSync';
 
+import { TemporalInputError, clockTime, clockPrefix, zoneFromText, dateFromText, timeFromText, stripTemporalText, zonedInstant, zonedParts, eventInterval, snoozeTaskTiming, taskTiming } from './temporal.ts';
+
 export interface CommandExecutionResult {
   isHandled: boolean;
   spokenResponse: string;
@@ -75,23 +77,120 @@ export interface CommandExecutionResult {
   openHelp?: boolean;
 }
 
-export function parseNaturalVoiceCommand(
+export function parseNaturalVoiceCommand(rawInput: string, deviceState: DeviceState, contacts: PhoneContact[],
+  existingTasks: TaskItem[] = [], existingEvents: CalendarEvent[] = []): CommandExecutionResult {
+  try { return parseIntent(rawInput, deviceState, contacts, existingTasks, existingEvents); }
+  catch (error) {
+    if (!(error instanceof TemporalInputError)) throw error;
+    return { isHandled: true, spokenResponse: error.message + ' No se ha ejecutado ninguna acción.',
+      actionDetails: 'Fecha, hora o zona pendientes de aclaración.' };
+  }
+}
+
+function parseIntent(
   rawInput: string,
   deviceState: DeviceState,
   contacts: PhoneContact[],
   existingTasks: TaskItem[] = [],
   existingEvents: CalendarEvent[] = []
 ): CommandExecutionResult {
-  const query = rawInput.trim().toLowerCase();
+  const query = rawInput.normalize('NFKC').trim().toLowerCase().replace(/^por favor[,\s]+/, '');
+  const starts = (phrase: string) => query === phrase || query.startsWith(phrase + ' ') || query.startsWith(phrase + ',');
+  const clarify = (message: string): CommandExecutionResult => ({ isHandled: true,
+    spokenResponse: message + ' No se ha ejecutado ninguna acción.', actionDetails: 'Se necesita una orden o referencia inequívoca.' });
+  if (/^(?:no\b|nunca\b|jam[aá]s\b|evita\b|cancel(?:a|ar)\b|det[eé]n\b)/.test(query))
+    return clarify('Solicitud cancelada o negada.');
+  if (/^(?:[¿\"'«“]|c[oó]mo\b|qu[eé]\b|explica\b|describe\b|ejemplo\b|texto\b|cita\b|dime\b|la frase\b|si\b)/.test(query))
+    return { isHandled: false, spokenResponse: 'Consulta informativa; no se ha ejecutado ninguna acción.' };
+  const createsTask = /^(?:crear tarea|nueva tarea|recordatorio|recuérdame|anotar tarea|tarea)\b/.test(query);
+  const literalBody = createsTask || /^(?:enviar mensaje a|envía mensaje a|mandar mensaje a|mensaje a|whatsapp a|escribir a|(?:enviar|redactar|mandar)(?: un)? correo a)\b/.test(query);
+  if (!literalBody && /(?:\bmejor no\b|\bno lo hagas\b|[,;]\s*no\b)/.test(query)) return clarify('La solicitud contiene una cancelación o corrección.');
+  if (!literalBody && (/\s+o\s+/.test(query) || /\s+y\s+(?:wifi|bluetooth|linterna|b[oó]veda|calendario|alarma)\b/.test(query)))
+    return clarify('Hay alternativas o varios objetivos. Indica uno concreto.');
+  if (!literalBody && /(?:\s+(?:o|y)\s+|;\s*)(?:llama(?:r)?|borr(?:a|ar)|elimin(?:a|ar)|enciende|encender|apagar|desactiva(?:r)?|activa(?:r)?|subir|bajar|crear|modificar|completar|posponer|aplazar|sincroniza(?:r)?|env[ií]a(?:r)?)\b/.test(query))
+    return clarify('Indica una sola acción y su objetivo.');
+  if (/^tarea\b.*\b(?:completada|terminada|eliminada)\b/.test(query))
+    return clarify('Indica si quieres crear o modificar una tarea concreta.');
+
+  // 13. CREACIÓN AVANZADA DE TAREAS Y RECORDATORIOS
+  // e.g.: "crear tarea urgente revisar informe para mañana a las 15:00"
+  // e.g.: "recuérdame comprar café a las 18:00"
+  const isCreateTask = /^(?:crear tarea|nueva tarea|recordatorio|recuérdame|anotar tarea|tarea)(?::|\s+de|\s+que)?\s*(.+)/i.test(query);
+  if (isCreateTask) {
+    const match = query.match(/^(?:crear tarea|nueva tarea|recordatorio|recuérdame|anotar tarea|tarea)(?::|\s+de|\s+que)?\s*(.+)/i);
+    const fullBody = match ? match[1] : query;
+
+    const temporalZone = zoneFromText(fullBody).timeZone;
+    const dueDate = dateFromText(fullBody, temporalZone);
+    const requestedTime = timeFromText(fullBody);
+    const timeDue = requestedTime?.time || '';
+    if (timeDue && !dueDate) throw new TemporalInputError('DATE_REQUIRED', 'Indica una fecha para esa hora.');
+    const dueAt = timeDue ? zonedInstant(dueDate, timeDue, temporalZone).toISOString() : undefined;
+
+    // Detect priority
+    let priority: 'baja' | 'media' | 'alta' | 'critica' = 'alta';
+    if (fullBody.includes('urgente') || fullBody.includes('critica') || fullBody.includes('crítica')) {
+      priority = 'critica';
+    } else if (fullBody.includes('baja') || fullBody.includes('secundaria')) {
+      priority = 'baja';
+    } else if (fullBody.includes('media')) {
+      priority = 'media';
+    }
+
+    // Detect recurrence
+    let recurrence: 'none' | 'daily' | 'weekly' | 'weekdays' | 'monthly' = 'none';
+    if (fullBody.includes('diario') || fullBody.includes('todos los días')) {
+      recurrence = 'daily';
+    } else if (fullBody.includes('semanal') || fullBody.includes('cada semana')) {
+      recurrence = 'weekly';
+    }
+
+    // Extract title cleaned
+    const title = stripTemporalText(fullBody)
+      .replace(/(?:a las|para las)\s*\d{1,2}(?::\d{2})?/gi, '')
+      .replace(/urgente|crítica|critica|prioridad alta|prioridad baja/gi, '')
+      .replace(/para hoy|para mañana/gi, '')
+      .replace(/diario|todos los días|semanal/gi, '')
+      .trim() || 'Tarea sin título';
+
+    return {
+      isHandled: true,
+      spokenResponse: `Tarea "${title}" creada con prioridad ${priority} ${timeDue ? 'para las ' + timeDue : 'sin hora de aviso'}. Guardada en la lista local; sincronización y notificación no verificadas.`,
+      actionType: 'task',
+      actionDetails: `Tarea registrada: "${title}" [${priority.toUpperCase()}] Fecha: ${dueDate} ${timeDue}`,
+      newTask: {
+        title,
+        dueDate,
+        timeDue,
+        timeZone: dueDate ? temporalZone : undefined,
+        dueAt,
+        priority,
+        category: priority === 'critica' ? 'urgente' : 'trabajo',
+        isCompleted: false,
+        recurrence,
+        subtasks: [],
+        syncedToThirdParty: {
+          googleCalendar: false,
+          notion: false,
+          todoist: false,
+          slackWebhook: false,
+        },
+      },
+    };
+  }
+
+
 
   // 1. COMPLETAR / MARCAR TAREA REALIZADA
   // e.g.: "completar tarea informe", "marcar como hecha la tarea comprar café", "tarea café completada"
-  const completeMatch = query.match(/(?:completar(?: tarea| recordatorio)?|marcar como (?:hecha|completada|terminada)(?: la tarea)?|finalizar tarea)\s+(.+)/i);
+  const completeMatch = query.match(/^(?:completar(?: tarea| recordatorio)?|marcar como (?:hecha|completada|terminada)(?: la tarea)?|finalizar tarea)\s+(.+)/i);
   if (completeMatch) {
     const targetTitle = completeMatch[1].trim();
-    const matched = existingTasks.find(
-      (t) => t.title.toLowerCase().includes(targetTitle) || targetTitle.includes(t.title.toLowerCase())
+    const matches = existingTasks.filter(
+      (t) => typeof t.title === 'string' && (t.title.toLowerCase().includes(targetTitle) || targetTitle.includes(t.title.toLowerCase()))
     );
+    if (matches.length !== 1) return clarify(matches.length ? 'Hay varias tareas coincidentes. Elige una en la agenda.' : 'No encuentro una tarea coincidente.');
+    const matched = matches[0];
 
     if (matched) {
       return {
@@ -106,18 +205,19 @@ export function parseNaturalVoiceCommand(
 
   // 2. POSPONER / SNOOZE RECORDATORIO
   // e.g.: "posponer recordatorio café 15 minutos", "posponer tarea 10 min", "aplazar recordatorio"
-  const snoozeMatch = query.match(/(?:posponer|aplazar)(?: recordatorio| tarea)?\s+(.+?)(?:\s+(\d+)\s*(?:minutos?|min))?$/i);
+  const snoozeMatch = query.match(/^(?:posponer|aplazar)(?: recordatorio| tarea)?\s+(.+?)(?:\s+(\d+)\s*(?:minutos?|min))?$/i);
   if (snoozeMatch) {
     const targetTitle = snoozeMatch[1].trim();
     const minutes = parseInt(snoozeMatch[2] || '10', 10);
-    const matched = existingTasks.find(
-      (t) => t.title.toLowerCase().includes(targetTitle) || targetTitle.includes(t.title.toLowerCase())
+    const matches = existingTasks.filter(
+      (t) => typeof t.title === 'string' && (t.title.toLowerCase().includes(targetTitle) || targetTitle.includes(t.title.toLowerCase()))
     );
+    if (matches.length !== 1) return clarify(matches.length ? 'Hay varias tareas coincidentes. Elige una en la agenda.' : 'No encuentro una tarea coincidente.');
+    const matched = matches[0];
 
     if (matched) {
-      const now = new Date();
-      now.setMinutes(now.getMinutes() + minutes);
-      const newTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const timing = snoozeTaskTiming(matched.timeZone, minutes);
+      const newTime = `${timing.dueDate} ${timing.timeDue} (${timing.timeZone})`;
 
       return {
         isHandled: true,
@@ -126,7 +226,7 @@ export function parseNaturalVoiceCommand(
         actionDetails: `Pospuesto ${minutes} min: "${matched.title}" -> ${newTime}`,
         taskToModify: {
           id: matched.id,
-          updates: { timeDue: newTime, snoozedUntil: newTime },
+          updates: timing,
         },
       };
     }
@@ -134,13 +234,15 @@ export function parseNaturalVoiceCommand(
 
   // 3. MODIFICAR RECORDATORIO O TAREA EXISTENTE
   // e.g.: "modificar recordatorio café: cambiar hora a las 19:30", "cambiar hora de tarea café a las 18:00"
-  const modifyTimeMatch = query.match(/(?:modificar (?:recordatorio|tarea)|cambiar hora (?:de|del) (?:recordatorio|tarea))\s+(.+?)(?::\s*cambiar hora a las|\s+a las|\s+para las)\s*(\d{1,2}:\d{2})/i);
+  const modifyTimeMatch = query.match(/^(?:modificar (?:recordatorio|tarea)|cambiar hora (?:de|del) (?:recordatorio|tarea))\s+(.+?)(?::\s*cambiar hora a las|\s+a las|\s+para las)\s*(.+)$/i);
   if (modifyTimeMatch) {
     const targetTitle = modifyTimeMatch[1].trim();
-    const newTime = modifyTimeMatch[2].trim();
-    const matched = existingTasks.find(
-      (t) => t.title.toLowerCase().includes(targetTitle) || targetTitle.includes(t.title.toLowerCase())
+    const newTime = clockTime(modifyTimeMatch[2].trim());
+    const matches = existingTasks.filter(
+      (t) => typeof t.title === 'string' && (t.title.toLowerCase().includes(targetTitle) || targetTitle.includes(t.title.toLowerCase()))
     );
+    if (matches.length !== 1) return clarify(matches.length ? 'Hay varias tareas coincidentes. Elige una en la agenda.' : 'No encuentro una tarea coincidente.');
+    const matched = matches[0];
 
     if (matched) {
       return {
@@ -150,7 +252,7 @@ export function parseNaturalVoiceCommand(
         actionDetails: `Hora modificada: "${matched.title}" -> ${newTime}`,
         taskToModify: {
           id: matched.id,
-          updates: { timeDue: newTime },
+          updates: taskTiming(matched.dueDate, newTime, matched.timeZone),
         },
       };
     }
@@ -158,15 +260,17 @@ export function parseNaturalVoiceCommand(
 
   // 4. CAMBIAR PRIORIDAD DE TAREA
   // e.g.: "cambiar prioridad de café a crítica", "prioridad alta para informe"
-  const priorityMatch = query.match(/(?:cambiar prioridad (?:de|del)?\s*(.+?)\s+a\s+(critica|crítica|alta|media|baja)|prioridad\s+(critica|crítica|alta|media|baja)\s+para\s+(.+))/i);
+  const priorityMatch = query.match(/^(?:cambiar prioridad (?:de|del)?\s*(.+?)\s+a\s+(critica|crítica|alta|media|baja)|prioridad\s+(critica|crítica|alta|media|baja)\s+para\s+(.+))/i);
   if (priorityMatch) {
     const targetTitle = (priorityMatch[1] || priorityMatch[4] || '').trim();
     const rawPriority = (priorityMatch[2] || priorityMatch[3] || 'alta').toLowerCase();
     const finalPriority = rawPriority.includes('crit') ? 'critica' : (rawPriority as any);
 
-    const matched = existingTasks.find(
-      (t) => t.title.toLowerCase().includes(targetTitle) || targetTitle.includes(t.title.toLowerCase())
+    const matches = existingTasks.filter(
+      (t) => typeof t.title === 'string' && (t.title.toLowerCase().includes(targetTitle) || targetTitle.includes(t.title.toLowerCase()))
     );
+    if (matches.length !== 1) return clarify(matches.length ? 'Hay varias tareas coincidentes. Elige una en la agenda.' : 'No encuentro una tarea coincidente.');
+    const matched = matches[0];
 
     if (matched) {
       return {
@@ -184,12 +288,14 @@ export function parseNaturalVoiceCommand(
 
   // 5. ELIMINAR RECORDATORIO O TAREA
   // e.g.: "eliminar tarea café", "borrar recordatorio informe"
-  const deleteMatch = query.match(/(?:eliminar|borrar|quitar)(?: tarea| recordatorio)\s+(.+)/i);
+  const deleteMatch = query.match(/^(?:eliminar|borrar|quitar)(?: tarea| recordatorio)\s+(.+)/i);
   if (deleteMatch) {
     const targetTitle = deleteMatch[1].trim();
-    const matched = existingTasks.find(
-      (t) => t.title.toLowerCase().includes(targetTitle) || targetTitle.includes(t.title.toLowerCase())
+    const matches = existingTasks.filter(
+      (t) => typeof t.title === 'string' && (t.title.toLowerCase().includes(targetTitle) || targetTitle.includes(t.title.toLowerCase()))
     );
+    if (matches.length !== 1) return clarify(matches.length ? 'Hay varias tareas coincidentes. Elige una en la agenda.' : 'No encuentro una tarea coincidente.');
+    const matched = matches[0];
 
     if (matched) {
       return {
@@ -204,7 +310,7 @@ export function parseNaturalVoiceCommand(
 
   // 6. SINCRONIZACIÓN CON TERCEROS & EXPORTACIÓN iCAL
   // e.g.: "sincronizar con google calendar", "exportar calendario a ical", "descargar ics"
-  if (query.includes('exportar a ical') || query.includes('descargar ics') || query.includes('exportar agenda')) {
+  if (starts('exportar a ical') || starts('descargar ics') || starts('exportar agenda')) {
     return {
       isHandled: true,
       spokenResponse: 'Generando archivo estándar iCalendar RFC 5545 para Google Calendar y Apple Calendar.',
@@ -214,40 +320,46 @@ export function parseNaturalVoiceCommand(
     };
   }
 
-  if (query.includes('sincronizar calendario') || query.includes('sincronizar tareas') || query.includes('sync google') || query.includes('sincronizar con notion')) {
+  if (starts('sincronizar calendario') || starts('sincronizar tareas') || starts('sync google') || starts('sincronizar con notion')) {
     return {
       isHandled: true,
-      spokenResponse: 'Sincronización en tiempo real completada con servicios en la nube y calendario.',
+      spokenResponse: 'Este comando no dispone de un ejecutor de sincronización verificado. No se ha sincronizado ningún dato.',
       actionType: 'sync',
-      actionDetails: 'Sincronización Cloud: Google Calendar & Notion en vivo',
-      triggerThirdPartySync: true,
+      actionDetails: 'Sincronización no disponible mediante este comando.',
     };
   }
 
   // 7. LLAMADAS TELEFÓNICAS
-  const callRegex = /(?:llamar a|llama a|haz una llamada a|marcar a|marcar al|marca a|comunícame con)\s+([a-záéíóúñ0-9\s+]+)/i;
+  const callRegex = /^(?:llamar a|llama a|haz una llamada a|marcar a|marcar al|marca a|comunícame con)\s+([a-záéíóúñ0-9\s+]+)/i;
   const callMatch = query.match(callRegex);
 
-  if (callMatch || query.includes('emergencia') || query.includes('llamar al 911')) {
+  if (/^(?:emergencia|emergencias)$/.test(query)) return clarify('Indica el número de emergencias de tu ubicación.');
+  if (callMatch || query === 'llamar al 911') {
     const rawTarget = callMatch ? callMatch[1].trim() : (query.includes('911') ? '911' : 'Emergencias');
-    const contact = contacts.find(
-      (c) => c.name.toLowerCase().includes(rawTarget.toLowerCase()) || c.phone.includes(rawTarget)
+    const matchingContacts = contacts.filter(
+      (c) => c.name.toLowerCase().includes(rawTarget.toLowerCase()) || (c.phone || '').includes(rawTarget)
     );
+    if (matchingContacts.length > 1) return clarify('Hay varios contactos coincidentes. Elige uno en el directorio.');
+    const contact = matchingContacts[0];
 
     const name = contact ? contact.name : rawTarget;
-    const number = contact ? contact.phone : (/\d+/.test(rawTarget) ? rawTarget : '+1 (555) 019-2831');
+    const number = contact ? contact.phone : (/^[+\d\s]+$/.test(rawTarget) ? rawTarget : '');
+    if (!number) return {
+      isHandled: true, spokenResponse: `No hay un número de teléfono disponible para ${name}.`,
+      actionDetails: 'No se preparó ninguna llamada: falta un teléfono.',
+    };
 
     return {
       isHandled: true,
-      spokenResponse: `Iniciando llamada segura a ${name}. Enlace encriptado.`,
+      spokenResponse: `Preparando el marcador para ${name}. Confirma la llamada en el teléfono.`,
       actionType: 'call',
-      actionDetails: `Llamada saliente iniciada: ${name} (${number})`,
+      actionDetails: `Número preparado para el marcador: ${name} (${number})`,
       callContact: { name, number },
     };
   }
 
   // 8. MENSAJES Y COMUNICACIÓN (SMS / WHATSAPP)
-  const msgRegex = /(?:enviar mensaje a|envía mensaje a|mandar mensaje a|mensaje a|whatsapp a|escribir a)\s+([^:]+)(?::\s*|\s+que\s+)(.+)/i;
+  const msgRegex = /^(?:enviar mensaje a|envía mensaje a|mandar mensaje a|mensaje a|whatsapp a|escribir a)\s+([^:]+)(?::\s*|\s+que\s+)(.+)/i;
   const msgMatch = query.match(msgRegex);
 
   if (msgMatch) {
@@ -255,8 +367,15 @@ export function parseNaturalVoiceCommand(
     const messageContent = msgMatch[2].trim();
     const isWhatsApp = query.includes('whatsapp');
 
-    const contact = contacts.find((c) => c.name.toLowerCase().includes(recipientRaw.toLowerCase()));
-    const finalRecipient = contact ? contact.name : recipientRaw;
+    const matchingContacts = contacts.filter((c) => c.name.toLowerCase().includes(recipientRaw.toLowerCase()));
+    if (matchingContacts.length > 1) return clarify('Hay varios destinatarios coincidentes. Elige uno en el directorio.');
+    const contact = matchingContacts[0];
+    if (contact && !contact.phone) return {
+      isHandled: true, spokenResponse: `No hay un número de teléfono disponible para ${contact.name}.`,
+      actionDetails: 'No se preparó ningún SMS/WhatsApp: falta un teléfono.',
+    };
+    if (!contact && !/^\+?[\d ()-]{5,}$/.test(recipientRaw)) return clarify('No encuentro un destinatario único con teléfono. Indica su número o elígelo en el directorio.');
+    const finalRecipient = contact ? contact.phone : recipientRaw;
 
     return {
       isHandled: true,
@@ -272,7 +391,7 @@ export function parseNaturalVoiceCommand(
   }
 
   // 9. LINTERNA / TORCH
-  if (query.includes('encender linterna') || query.includes('activa la linterna') || query.includes('prender linterna') || query.includes('luz de emergencia') || query.includes('linterna on')) {
+  if (starts('encender linterna') || starts('activa la linterna') || starts('prender linterna') || starts('luz de emergencia') || starts('linterna on')) {
     return {
       isHandled: true,
       spokenResponse: 'Linterna de alta intensidad activada.',
@@ -282,7 +401,7 @@ export function parseNaturalVoiceCommand(
     };
   }
 
-  if (query.includes('apagar linterna') || query.includes('desactiva la linterna') || query.includes('linterna off')) {
+  if (starts('apagar linterna') || starts('desactiva la linterna') || starts('linterna off')) {
     return {
       isHandled: true,
       spokenResponse: 'Linterna desactivada.',
@@ -293,7 +412,7 @@ export function parseNaturalVoiceCommand(
   }
 
   // 10. BRILLO DE PANTALLA
-  const brightnessPercentMatch = query.match(/brillo(?: al| a)?\s*(\d+)(?:%| por ciento)?/i);
+  const brightnessPercentMatch = query.match(/^(?:(?:ajustar|poner|cambiar)\s+)?brillo(?: al| a)?\s*(\d+)(?:%| por ciento)?/i);
   if (brightnessPercentMatch) {
     const val = Math.min(100, Math.max(10, parseInt(brightnessPercentMatch[1], 10)));
     return {
@@ -305,7 +424,7 @@ export function parseNaturalVoiceCommand(
     };
   }
 
-  if (query.includes('subir brillo') || query.includes('aumentar brillo')) {
+  if (starts('subir brillo') || starts('aumentar brillo')) {
     const newVal = Math.min(100, deviceState.brightness + 25);
     return {
       isHandled: true,
@@ -316,7 +435,7 @@ export function parseNaturalVoiceCommand(
     };
   }
 
-  if (query.includes('bajar brillo') || query.includes('reducir brillo')) {
+  if (starts('bajar brillo') || starts('reducir brillo')) {
     const newVal = Math.max(15, deviceState.brightness - 25);
     return {
       isHandled: true,
@@ -328,7 +447,7 @@ export function parseNaturalVoiceCommand(
   }
 
   // 11. VOLUMEN Y AUDIO
-  const volumePercentMatch = query.match(/volumen(?: al| a)?\s*(\d+)(?:%| por ciento)?/i);
+  const volumePercentMatch = query.match(/^(?:(?:ajustar|poner|cambiar)\s+)?volumen(?: al| a)?\s*(\d+)(?:%| por ciento)?/i);
   if (volumePercentMatch) {
     const val = Math.min(100, Math.max(0, parseInt(volumePercentMatch[1], 10)));
     return {
@@ -340,7 +459,7 @@ export function parseNaturalVoiceCommand(
     };
   }
 
-  if (query.includes('subir volumen') || query.includes('aumenta volumen')) {
+  if (starts('subir volumen') || starts('aumenta volumen')) {
     const newVal = Math.min(100, deviceState.volume + 20);
     return {
       isHandled: true,
@@ -351,7 +470,7 @@ export function parseNaturalVoiceCommand(
     };
   }
 
-  if (query.includes('bajar volumen') || query.includes('disminuye volumen')) {
+  if (starts('bajar volumen') || starts('disminuye volumen')) {
     const newVal = Math.max(0, deviceState.volume - 20);
     return {
       isHandled: true,
@@ -362,7 +481,7 @@ export function parseNaturalVoiceCommand(
     };
   }
 
-  if (query.includes('silenciar') || query.includes('modo silencio') || query.includes('mute')) {
+  if (starts('silenciar') || starts('modo silencio') || starts('mute')) {
     return {
       isHandled: true,
       spokenResponse: 'Modo silencio activado.',
@@ -373,27 +492,32 @@ export function parseNaturalVoiceCommand(
   }
 
   // 12. ALARMAS Y TEMPORIZADORES
-  const alarmMatch = query.match(/(?:alarma|despiértame|despertador)(?: a las| para las| a la)?\s*(\d{1,2})(?::(\d{2}))?/i);
+  const alarmMatch = query.match(/^(?:(?:poner|crear|programar|configurar)\s+)?(?:alarma|despiértame|despertador)(?: a las| para las| a la)?\s*(\d{1,2})(?::(\d{2}))?/i);
   if (alarmMatch) {
-    const hours = alarmMatch[1].padStart(2, '0');
-    const minutes = alarmMatch[2] ? alarmMatch[2] : '00';
-    const timeFormatted = `${hours}:${minutes}`;
+    const alarmBody = query.replace(/^(?:(?:poner|crear|programar|configurar)\s+)?(?:alarma|despiértame|despertador)(?: a las| para las| a la)?\s*/i, '');
+    const timeFormatted = clockPrefix(alarmBody).time;
+    const alarmZone = zoneFromText(query).timeZone;
+    const alarmDate = dateFromText(query, alarmZone);
+    const dueAt = zonedInstant(alarmDate, timeFormatted, alarmZone).toISOString();
 
     return {
       isHandled: true,
-      spokenResponse: `Alarma programada para las ${timeFormatted}.`,
+      spokenResponse: `Alarma guardada en la sesión para el ${alarmDate} a las ${timeFormatted} (${alarmZone}). La activación persistente o del dispositivo no está disponible.`,
       actionType: 'alarm',
       actionDetails: `Nueva alarma guardada: ${timeFormatted}`,
       newAlarm: {
         time: timeFormatted,
+        date: alarmDate,
+        dueAt,
+        timeZone: alarmZone,
         label: 'Alarma de voz VVC LIAM CORE',
         enabled: true,
-        days: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'],
+        days: [],
       },
     };
   }
 
-  const timerMatch = query.match(/temporizador de\s*(\d+)\s*(minutos?|segundos?|horas?)/i);
+  const timerMatch = query.match(/^(?:(?:poner|crear|iniciar)\s+)?temporizador de\s*(\d+)\s*(minutos?|segundos?|horas?)/i);
   if (timerMatch) {
     const qty = parseInt(timerMatch[1], 10);
     const unit = timerMatch[2].toLowerCase();
@@ -417,120 +541,23 @@ export function parseNaturalVoiceCommand(
     };
   }
 
-  // 13. CREACIÓN AVANZADA DE TAREAS Y RECORDATORIOS
-  // e.g.: "crear tarea urgente revisar informe para mañana a las 15:00"
-  // e.g.: "recuérdame comprar café a las 18:00"
-  const isCreateTask = /(?:crear tarea|nueva tarea|recordatorio|recuérdame|anotar tarea|tarea)(?::|\s+de|\s+que)?\s*(.+)/i.test(query);
-  if (isCreateTask && !query.includes('calendario') && !query.includes('reunión') && !query.includes('evento')) {
-    const match = query.match(/(?:crear tarea|nueva tarea|recordatorio|recuérdame|anotar tarea|tarea)(?::|\s+de|\s+que)?\s*(.+)/i);
-    const fullBody = match ? match[1] : query;
-
-    // Detect time (e.g. "a las 18:00")
-    const timeMatch = fullBody.match(/(?:a las|para las)\s*(\d{1,2}:\d{2}|\d{1,2}\s*(?:de la tarde|de la mañana|am|pm)?)/i);
-    let timeDue = '18:00';
-    if (timeMatch) {
-      const rawT = timeMatch[1].trim();
-      if (rawT.includes(':')) {
-        timeDue = rawT;
-      } else {
-        const h = parseInt(rawT, 10);
-        timeDue = `${h.toString().padStart(2, '0')}:00`;
-      }
-    }
-
-    // Detect date (hoy, mañana, fecha)
-    let dueDate = new Date().toISOString().split('T')[0];
-    if (fullBody.includes('mañana')) {
-      const d = new Date();
-      d.setDate(d.getDate() + 1);
-      dueDate = d.toISOString().split('T')[0];
-    }
-
-    // Detect priority
-    let priority: 'baja' | 'media' | 'alta' | 'critica' = 'alta';
-    if (fullBody.includes('urgente') || fullBody.includes('critica') || fullBody.includes('crítica')) {
-      priority = 'critica';
-    } else if (fullBody.includes('baja') || fullBody.includes('secundaria')) {
-      priority = 'baja';
-    } else if (fullBody.includes('media')) {
-      priority = 'media';
-    }
-
-    // Detect recurrence
-    let recurrence: 'none' | 'daily' | 'weekly' | 'weekdays' | 'monthly' = 'none';
-    if (fullBody.includes('diario') || fullBody.includes('todos los días')) {
-      recurrence = 'daily';
-    } else if (fullBody.includes('semanal') || fullBody.includes('cada semana')) {
-      recurrence = 'weekly';
-    }
-
-    // Extract title cleaned
-    const title = fullBody
-      .replace(/(?:a las|para las)\s*\d{1,2}(?::\d{2})?/gi, '')
-      .replace(/urgente|crítica|critica|prioridad alta|prioridad baja/gi, '')
-      .replace(/para hoy|para mañana/gi, '')
-      .replace(/diario|todos los días|semanal/gi, '')
-      .trim() || 'Tarea sin título';
-
-    return {
-      isHandled: true,
-      spokenResponse: `Tarea "${title}" creada con prioridad ${priority} para las ${timeDue}. Notificación en tiempo real y sincronización listas.`,
-      actionType: 'task',
-      actionDetails: `Tarea registrada: "${title}" [${priority.toUpperCase()}] Fecha: ${dueDate} ${timeDue}`,
-      newTask: {
-        title,
-        dueDate,
-        timeDue,
-        priority,
-        category: priority === 'critica' ? 'urgente' : 'trabajo',
-        isCompleted: false,
-        recurrence,
-        subtasks: [],
-        syncedToThirdParty: {
-          googleCalendar: true,
-          notion: true,
-          todoist: true,
-          slackWebhook: true,
-        },
-      },
-    };
-  }
-
   // 14.1 COMPROBACIÓN EXPLICITA DE CONFLICTOS EN EL CALENDARIO
   if (
-    query.includes('comprobar conflicto') || 
-    query.includes('verificar conflicto') || 
-    query.includes('hay conflicto') || 
-    query.includes('solapamiento') ||
-    query.includes('choque de horario')
+    starts('comprobar conflicto') ||
+    starts('verificar conflicto') ||
+    starts('hay conflicto') ||
+    starts('solapamiento') ||
+    starts('choque de horario')
   ) {
-    // Check conflicts across existingEvents
     const conflicts: Array<{ a: CalendarEvent; b: CalendarEvent }> = [];
     for (let i = 0; i < existingEvents.length; i++) {
-      for (let j = i + 1; j < existingEvents.length; j++) {
-        const ev1 = existingEvents[i];
-        const ev2 = existingEvents[j];
-        if (ev1.date === ev2.date) {
-          const s1 = parseInt(ev1.time.split(':')[0] || '0') * 60 + parseInt(ev1.time.split(':')[1] || '0');
-          const e1 = ev1.endTime ? parseInt(ev1.endTime.split(':')[0] || '0') * 60 + parseInt(ev1.endTime.split(':')[1] || '0') : s1 + 60;
-          const s2 = parseInt(ev2.time.split(':')[0] || '0') * 60 + parseInt(ev2.time.split(':')[1] || '0');
-          const e2 = ev2.endTime ? parseInt(ev2.endTime.split(':')[0] || '0') * 60 + parseInt(ev2.endTime.split(':')[1] || '0') : s2 + 60;
-          if (s1 < e2 && s2 < e1) {
-            conflicts.push({ a: ev1, b: ev2 });
-          }
-        }
-      }
+      const analysis = detectEventConflicts(existingEvents[i], existingEvents.slice(i + 1));
+      if (analysis.status === 'unavailable') return clarify(analysis.message);
+      for (const event of analysis.conflictingEvents) conflicts.push({ a: existingEvents[i], b: event });
     }
-
-    if (conflicts.length === 0) {
-      return {
-        isHandled: true,
-        spokenResponse: 'Excelente. No se detectaron conflictos de programación en tu calendario. Todos los eventos disponen de franjas horarias libres.',
-        actionType: 'calendar',
-        actionDetails: 'Diagnóstico de Agenda: 0 conflictos detectados.',
-        openCalendar: true,
-      };
-    }
+    if (!conflicts.length) return { isHandled: true,
+      spokenResponse: 'No hay solapamientos en la lista local válida. No he comprobado calendarios externos.',
+      actionType: 'calendar', actionDetails: 'Lista local: 0 solapamientos.', openCalendar: true };
 
     const firstPair = conflicts[0];
     return {
@@ -544,25 +571,21 @@ export function parseNaturalVoiceCommand(
 
   // 14.2 RESOLUCIÓN AUTOMÁTICA DE CONFLICTOS EN EL CALENDARIO
   if (
-    query.includes('resolver conflicto') ||
-    query.includes('solucionar conflicto') ||
-    query.includes('reajustar evento') ||
-    query.includes('arreglar solapamiento')
+    starts('resolver conflicto') ||
+    starts('solucionar conflicto') ||
+    starts('reajustar evento') ||
+    starts('arreglar solapamiento')
   ) {
-    const updatedList: CalendarEvent[] = [];
+    const updatedList: CalendarEvent[] = [...existingEvents];
     let resolvedCount = 0;
-
-    for (let i = 0; i < existingEvents.length; i++) {
-      const current = existingEvents[i];
-      const others = existingEvents.filter((_, idx) => idx !== i);
+    for (let i = 0; i < updatedList.length; i++) {
+      const current = updatedList[i], others = updatedList.filter((_, idx) => idx !== i);
       const conflict = detectEventConflicts(current, others);
-
-      if (conflict.hasConflict && conflict.suggestedSlots.length > 0) {
+      if (conflict.status === 'unavailable') return clarify(conflict.message);
+      if (conflict.hasConflict) {
         const resolution = resolveEventConflict(current, others);
-        updatedList.push(resolution.resolvedEvent);
+        updatedList[i] = resolution.resolvedEvent;
         resolvedCount++;
-      } else {
-        updatedList.push(current);
       }
     }
 
@@ -579,7 +602,7 @@ export function parseNaturalVoiceCommand(
 
     return {
       isHandled: true,
-      spokenResponse: 'Tu calendario ya se encuentra libre de conflictos y optimizado.',
+      spokenResponse: 'No hay solapamientos en la lista local válida. No se han comprobado calendarios externos.',
       actionType: 'calendar',
       actionDetails: 'Calendario optimizado: sin solapamientos pendientes.',
       openCalendar: true,
@@ -588,52 +611,52 @@ export function parseNaturalVoiceCommand(
 
   // 14.3 SINCRONIZACIÓN BIDIRECCIONAL CON PROVEEDORES (GOOGLE / OUTLOOK / APPLE)
   if (
-    query.includes('sincronizar con google') ||
-    query.includes('sync google calendar') ||
-    query.includes('google calendar') && (query.includes('sincronizar') || query.includes('exportar'))
+    starts('sincronizar con google') ||
+    starts('sync google calendar') ||
+    starts('google calendar') && (starts('sincronizar') || starts('exportar'))
   ) {
     return {
       isHandled: true,
-      spokenResponse: 'Sincronización bidireccional con Google Calendar iniciada. Generando enlaces y exportación RFC 5545 iCal.',
+      spokenResponse: 'Abriendo el calendario. Los enlaces y exportaciones no verifican sincronización con Google.',
       actionType: 'calendar',
-      actionDetails: 'Sync Bidireccional: Google Calendar',
+      actionDetails: 'Opciones de calendario; sincronización no verificada',
       triggerCalendarSync: 'google',
       openCalendar: true,
     };
   }
 
   if (
-    query.includes('sincronizar con outlook') ||
-    query.includes('sync outlook') ||
-    query.includes('outlook calendar')
+    starts('sincronizar con outlook') ||
+    starts('sync outlook') ||
+    starts('outlook calendar')
   ) {
     return {
       isHandled: true,
-      spokenResponse: 'Sincronización con Microsoft Outlook Calendar preparada. Plantilla de enlace y archivo .ICS listos.',
+      spokenResponse: 'Abriendo el calendario. La sincronización con Outlook no está verificada.',
       actionType: 'calendar',
-      actionDetails: 'Sync Bidireccional: Microsoft Outlook',
+      actionDetails: 'Opciones de Outlook; sincronización no verificada',
       triggerCalendarSync: 'outlook',
       openCalendar: true,
     };
   }
 
   if (
-    query.includes('sincronizar con apple') ||
-    query.includes('apple calendar') ||
-    query.includes('icalendar') ||
-    query.includes('mac calendar')
+    starts('sincronizar con apple') ||
+    starts('apple calendar') ||
+    starts('icalendar') ||
+    starts('mac calendar')
   ) {
     return {
       isHandled: true,
-      spokenResponse: 'Sincronización con Apple Calendar generada con cabeceras WebCal específicas para macOS e iOS.',
+      spokenResponse: 'Abriendo el calendario. La sincronización con Apple no está verificada.',
       actionType: 'calendar',
-      actionDetails: 'Sync Bidireccional: Apple Calendar (.ics)',
+      actionDetails: 'Opciones de Apple; sincronización no verificada',
       triggerCalendarSync: 'apple',
       openCalendar: true,
     };
   }
 
-  if (query.includes('abrir calendario') || query.includes('abre el calendario') || query.includes('ver calendario') || query.includes('mostrar agenda') || query.includes('mi agenda')) {
+  if (starts('abrir calendario') || starts('abre el calendario') || starts('ver calendario') || starts('mostrar agenda') || starts('mi agenda')) {
     return {
       isHandled: true,
       spokenResponse: 'Desplegando la matriz de calendario, tareas y sincronización de VVC LIAM CORE.',
@@ -647,80 +670,31 @@ export function parseNaturalVoiceCommand(
   // e.g.: "agendar reunión de arquitectura con carlos mañana a las 11:00 hasta las 12:30 en sala virtual"
   // e.g.: "programar evento cita médica para el 15 de octubre a las 16:00 en clínica central"
   // e.g.: "nuevo evento reunión de equipo hoy a las 17:00 por 2 horas"
-  const isCalendarEventCommand = /(?:agendar|programar|nuevo evento|nueva reunión|nueva cita|crear evento|evento|reunión|cita)(?::|\s+de|\s+para)?\s*(.+)/i.test(query);
+  const isCalendarEventCommand = /^(?:agendar|programar|nuevo evento|nueva reunión|nueva cita|crear evento|evento|reunión|cita)(?::|\s+de|\s+para)?\s*(.+)/i.test(query);
 
   if (isCalendarEventCommand && !query.includes('tarea') && !query.includes('recordatorio')) {
     const rawMatch = query.match(/(?:agendar|programar|nuevo evento|nueva reunión|nueva cita|crear evento|evento|reunión|cita)(?::|\s+de|\s+para)?\s*(.+)/i);
     const body = rawMatch ? rawMatch[1] : query;
 
-    // 1. Detect Date
-    let dateStr = new Date().toISOString().split('T')[0];
-    if (body.includes('mañana') && !body.includes('pasado mañana')) {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      dateStr = tomorrow.toISOString().split('T')[0];
-    } else if (body.includes('pasado mañana')) {
-      const dayAfter = new Date();
-      dayAfter.setDate(dayAfter.getDate() + 2);
-      dateStr = dayAfter.toISOString().split('T')[0];
-    } else {
-      // Check explicit day of month e.g. "15 de octubre" or "2026-10-15"
-      const specificDateMatch = body.match(/(\d{1,2})\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)/i);
-      if (specificDateMatch) {
-        const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-        const mIdx = monthNames.indexOf(specificDateMatch[2].toLowerCase());
-        const dayNum = parseInt(specificDateMatch[1], 10);
-        const y = new Date().getFullYear();
-        const dObj = new Date(y, mIdx, dayNum);
-        dateStr = dObj.toISOString().split('T')[0];
-      }
+    const temporalZone = zoneFromText(body).timeZone;
+    const dateStr = dateFromText(body, temporalZone);
+    const requestedStart = timeFromText(body);
+    if (!requestedStart) throw new TemporalInputError('TIME_REQUIRED', 'Indica una hora de inicio para el evento.');
+    const startTime = requestedStart.time;
+    const requestedEnd = timeFromText(body, true);
+    let timing;
+    if (requestedEnd) timing = eventInterval({ date: dateStr, time: startTime, endTime: requestedEnd.time, timeZone: temporalZone });
+    else {
+      const duration = /(?:por|durante)\s*(\d+)\s*(horas?|hrs?|minutos?|min)\b/i.exec(body);
+      const quantity = duration ? Number(duration[1]) : 60;
+      const durationMinutes = duration && duration[2].toLowerCase().startsWith('h') ? quantity * 60 : quantity;
+      if (!Number.isSafeInteger(durationMinutes) || durationMinutes <= 0 || durationMinutes > 10080)
+        throw new TemporalInputError('INVALID_DURATION', 'Indica una duración de 1 a 10080 minutos.');
+      const end = zonedParts(zonedInstant(dateStr, startTime, temporalZone).getTime() + durationMinutes * 60000, temporalZone);
+      timing = eventInterval({ date: dateStr, time: startTime, endDate: end.date, endTime: end.time, timeZone: temporalZone });
     }
-
-    // 2. Detect Start Time
-    let startTime = '10:00';
-    const startTimeMatch = body.match(/(?:a las|para las|desde las|inicio a las)\s*(\d{1,2}:\d{2}|\d{1,2}(?:\s*(?:am|pm|de la mañana|de la tarde))?)/i);
-    if (startTimeMatch) {
-      const tRaw = startTimeMatch[1].trim();
-      if (tRaw.includes(':')) {
-        startTime = tRaw;
-      } else {
-        let h = parseInt(tRaw, 10);
-        if (tRaw.includes('tarde') || tRaw.includes('pm')) {
-          if (h < 12) h += 12;
-        }
-        startTime = `${h.toString().padStart(2, '0')}:00`;
-      }
-    }
-
-    // 3. Detect End Time or Duration
-    let endTime = '';
-    const endTimeMatch = body.match(/(?:hasta las|fin a las|hasta)\s*(\d{1,2}:\d{2}|\d{1,2}(?:\s*(?:am|pm|de la mañana|de la tarde))?)/i);
-    if (endTimeMatch) {
-      const endRaw = endTimeMatch[1].trim();
-      if (endRaw.includes(':')) {
-        endTime = endRaw;
-      } else {
-        let h = parseInt(endRaw, 10);
-        if (endRaw.includes('tarde') || endRaw.includes('pm')) {
-          if (h < 12) h += 12;
-        }
-        endTime = `${h.toString().padStart(2, '0')}:00`;
-      }
-    } else {
-      // Check duration like "por 2 horas" or "por 90 minutos"
-      const durationMatch = body.match(/(?:por|durante)\s*(\d+)\s*(horas?|hrs?|minutos?|min)/i);
-      const [startH, startM] = startTime.split(':').map((v) => parseInt(v, 10) || 0);
-      let durationMinutes = 60;
-      if (durationMatch) {
-        const qty = parseInt(durationMatch[1], 10);
-        const unit = durationMatch[2].toLowerCase();
-        durationMinutes = unit.startsWith('h') ? qty * 60 : qty;
-      }
-      const totalEndMinutes = startH * 60 + startM + durationMinutes;
-      const endH = Math.floor(totalEndMinutes / 60) % 24;
-      const endM = totalEndMinutes % 60;
-      endTime = `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`;
-    }
+    const endTime = timing.endTime;
+    const endDate = timing.endDate;
 
     // 4. Detect Location
     let location = 'Virtual / VVC LIAM CORE Hub';
@@ -739,7 +713,7 @@ export function parseNaturalVoiceCommand(
     }
 
     // 6. Clean Title
-    let cleanTitle = body
+    let cleanTitle = stripTemporalText(body)
       .replace(/(?:a las|para las|desde las|hasta las|hasta|fin a las)\s*\d{1,2}(?::\d{2})?(?:\s*(?:am|pm|de la mañana|de la tarde))?/gi, '')
       .replace(/(?:por|durante)\s*\d+\s*(?:horas?|hrs?|minutos?|min)/gi, '')
       .replace(/hoy|mañana|pasado mañana|\d{1,2}\s+de\s+[a-z]+/gi, '')
@@ -761,17 +735,20 @@ export function parseNaturalVoiceCommand(
       date: dateStr,
       time: startTime,
       endTime: endTime,
+      endDate,
+      timeZone: temporalZone,
       location,
       description: attendees.length > 0 ? `Participantes: ${attendees.join(', ')}` : 'Programado por voz con VVC LIAM CORE',
       category: 'reunion',
       attendees: attendees.length > 0 ? attendees : undefined,
       isAutomated: true,
       source: 'vvc_liam',
-      syncStatus: 'synced',
+      syncStatus: 'local',
     };
 
     // 7. INTELLIGENT CONFLICT DETECTION & RESOLUTION
     const conflictResult = detectEventConflicts(candidateEvent, existingEvents);
+    if (conflictResult.status === 'unavailable') return clarify(conflictResult.message);
     let finalEvent = candidateEvent;
     let spoken = '';
 
@@ -786,18 +763,18 @@ export function parseNaturalVoiceCommand(
           date: bestSlot.date,
           time: bestSlot.time,
           endTime: bestSlot.endTime,
+          endDate: bestSlot.endDate,
+          timeZone: bestSlot.timeZone,
           syncStatus: 'conflict_resolved',
           conflictNote: `Horario ajustado de ${startTime} a ${bestSlot.time} para resolver solapamiento con "${conflictWith}".`,
         };
 
-        spoken = `Atención: El horario de las ${startTime} entraba en conflicto con "${conflictWith}". He resuelto el conflicto programando "${cleanTitle}" en la franja libre de las ${bestSlot.time} a las ${bestSlot.endTime}. Sincronización con Google, Outlook y Apple Calendar activada.`;
+        spoken = `El horario solicitado entraba en conflicto con "${conflictWith}". Tras tu confirmación, el evento local queda preparado de ${bestSlot.time} a ${bestSlot.endTime}. Sincronización externa no verificada.`;
       } else {
-        spoken = `Aviso: Conflicto detectado con "${conflictWith}" a las ${startTime}. Evento guardado con etiqueta de advertencia.`;
-        finalEvent.syncStatus = 'conflict_resolved';
-        finalEvent.conflictNote = `Conflicto detectado con "${conflictWith}".`;
+        return clarify(`Hay un conflicto con "${conflictWith}" y no se encontró una alternativa. Elige otro horario en el calendario.`);
       }
     } else {
-      spoken = `Evento "${cleanTitle}" programado con éxito para el ${dateStr} de ${startTime} a ${endTime} en ${location}. Sin conflictos detectados; sincronización bidireccional lista.`;
+      spoken = `Evento local "${cleanTitle}" preparado para el ${dateStr} de ${startTime} a ${endTime} en ${location}. Sincronización y entrega de notificaciones no verificadas.`;
     }
 
     return {
@@ -810,6 +787,8 @@ export function parseNaturalVoiceCommand(
         date: finalEvent.date,
         time: finalEvent.time,
         endTime: finalEvent.endTime,
+        endDate: finalEvent.endDate,
+        timeZone: finalEvent.timeZone,
         location: finalEvent.location,
         description: finalEvent.description,
         category: finalEvent.category,
@@ -825,7 +804,7 @@ export function parseNaturalVoiceCommand(
   }
 
   // 15. CONECTIVIDAD: WI-FI & BLUETOOTH
-  if (query.includes('activar wifi') || query.includes('encender wifi')) {
+  if (starts('activar wifi') || starts('encender wifi')) {
     return {
       isHandled: true,
       spokenResponse: 'Wi-Fi activado. Escaneando redes seguras.',
@@ -835,7 +814,7 @@ export function parseNaturalVoiceCommand(
     };
   }
 
-  if (query.includes('desactivar wifi') || query.includes('apagar wifi')) {
+  if (starts('desactivar wifi') || starts('apagar wifi')) {
     return {
       isHandled: true,
       spokenResponse: 'Wi-Fi desactivado.',
@@ -846,7 +825,7 @@ export function parseNaturalVoiceCommand(
   }
 
   // 16. ESTADO DEL SISTEMA Y BATERÍA
-  if (query.includes('batería') || query.includes('bateria') || query.includes('nivel de carga')) {
+  if (starts('batería') || starts('bateria') || starts('nivel de carga')) {
     return {
       isHandled: true,
       spokenResponse: `La batería se encuentra al ${deviceState.batteryLevel} por ciento ${deviceState.isCharging ? 'y está cargando' : 'con autonomía óptima'}.`,
@@ -856,7 +835,7 @@ export function parseNaturalVoiceCommand(
   }
 
   // 17. GMAIL WORKSPACE
-  if (query.includes('abrir gmail') || query.includes('abre gmail') || query.includes('ver correos') || query.includes('revisar correos') || query.includes('bandeja de entrada') || query.includes('leer correos')) {
+  if (starts('abrir gmail') || starts('abre gmail') || starts('ver correos') || starts('revisar correos') || starts('bandeja de entrada') || starts('leer correos')) {
     return {
       isHandled: true,
       spokenResponse: 'Abriendo tu bandeja de entrada de Gmail.',
@@ -866,7 +845,7 @@ export function parseNaturalVoiceCommand(
     };
   }
 
-  const gmailSendMatch = query.match(/(?:enviar|redactar|mandar)(?: un)? correo a (.+?)(?:\s+(?:con asunto|asunto)\s+(.+?))?(?:\s+(?:con mensaje|mensaje|diciendo)\s+(.+))?$/i);
+  const gmailSendMatch = query.match(/^(?:enviar|redactar|mandar)(?: un)? correo a (.+?)(?:\s+(?:con asunto|asunto)\s+(.+?))?(?:\s+(?:con mensaje|mensaje|diciendo)\s+(.+))?$/i);
   if (gmailSendMatch) {
     const to = gmailSendMatch[1].trim();
     const subj = gmailSendMatch[2] ? gmailSendMatch[2].trim() : 'Mensaje desde VVC LIAM CORE';
@@ -882,7 +861,7 @@ export function parseNaturalVoiceCommand(
   }
 
   // 18. GOOGLE PICKER & DRIVE
-  if (query.includes('abrir picker') || query.includes('abre picker') || query.includes('google picker') || query.includes('adjuntar de drive') || query.includes('seleccionar archivo') || query.includes('archivos de drive') || query.includes('abrir drive')) {
+  if (starts('abrir picker') || starts('abre picker') || starts('google picker') || starts('adjuntar de drive') || starts('seleccionar archivo') || starts('archivos de drive') || starts('abrir drive')) {
     return {
       isHandled: true,
       spokenResponse: 'Iniciando Google Picker para explorar tus archivos en Google Drive.',
@@ -893,7 +872,7 @@ export function parseNaturalVoiceCommand(
   }
 
   // 19. GOOGLE MAPS
-  if (query.includes('abrir mapa') || query.includes('abre el mapa') || query.includes('ver mapa') || query.includes('mostrar mapa') || query.includes('google maps') || query.includes('radar de mapa')) {
+  if (starts('abrir mapa') || starts('abre el mapa') || starts('ver mapa') || starts('mostrar mapa') || starts('google maps') || starts('radar de mapa')) {
     const searchMatch = query.match(/(?:buscar en (?:el )?mapa|buscar en google maps|ubicar en el mapa|dónde está|donde queda)\s+(.+)/i);
     const place = searchMatch ? searchMatch[1].trim() : '';
     return {
@@ -908,11 +887,11 @@ export function parseNaturalVoiceCommand(
 
   // 19.1 GOOGLE CONTACTS & PEOPLE API
   if (
-    query.includes('contactos') ||
-    query.includes('abrir contactos') ||
-    query.includes('google contacts') ||
-    query.includes('directorio') ||
-    query.includes('libreta de direcciones')
+    starts('contactos') ||
+    starts('abrir contactos') ||
+    starts('google contacts') ||
+    starts('directorio') ||
+    starts('libreta de direcciones')
   ) {
     return {
       isHandled: true,
@@ -925,10 +904,10 @@ export function parseNaturalVoiceCommand(
 
   // 19.2 FIREBASE FIRESTORE SYNC
   if (
-    query.includes('firebase') ||
-    query.includes('firestore') ||
-    query.includes('sincronizar nube') ||
-    query.includes('cloud sync')
+    starts('firebase') ||
+    starts('firestore') ||
+    starts('sincronizar nube') ||
+    starts('cloud sync')
   ) {
     return {
       isHandled: true,
@@ -940,15 +919,15 @@ export function parseNaturalVoiceCommand(
 
   // 19.3 CENTRO DE AYUDA, FAQS Y GUÍA OPERATIVA
   if (
-    query.includes('ayuda') ||
-    query.includes('centro de ayuda') ||
-    query.includes('preguntas frecuentes') ||
-    query.includes('atajos de voz') ||
-    query.includes('manual') ||
-    query.includes('guía') ||
-    query.includes('guia') ||
-    query.includes('cómo funciona') ||
-    query.includes('como funciona')
+    starts('ayuda') ||
+    starts('centro de ayuda') ||
+    starts('preguntas frecuentes') ||
+    starts('atajos de voz') ||
+    starts('manual') ||
+    starts('guía') ||
+    starts('guia') ||
+    starts('cómo funciona') ||
+    starts('como funciona')
   ) {
     return {
       isHandled: true,
@@ -961,18 +940,18 @@ export function parseNaturalVoiceCommand(
 
   // 20. ESQUEMAS DE COLOR Y TEMAS VISUALES (VARIABLES CSS)
   const isThemeCommand =
-    query.includes('tema') ||
-    query.includes('esquema de color') ||
-    query.includes('color de interfaz') ||
-    query.includes('modo visual') ||
-    query.includes('cambiar color') ||
-    query.includes('amber terminal') ||
-    query.includes('emerald matrix') ||
-    query.includes('cyberpunk neon') ||
-    query.includes('blood tactical') ||
-    query.includes('cobalt stealth') ||
-    query.includes('obsidian cyan') ||
-    query.includes('paleta');
+    starts('tema') ||
+    starts('esquema de color') ||
+    starts('color de interfaz') ||
+    starts('modo visual') ||
+    starts('cambiar color') ||
+    starts('amber terminal') ||
+    starts('emerald matrix') ||
+    starts('cyberpunk neon') ||
+    starts('blood tactical') ||
+    starts('cobalt stealth') ||
+    starts('obsidian cyan') ||
+    starts('paleta');
 
   if (isThemeCommand) {
     if (query.includes('amber') || query.includes('ámbar') || query.includes('ambar') || query.includes('amarillo') || query.includes('terminal')) {
@@ -1031,36 +1010,17 @@ export function parseNaturalVoiceCommand(
     }
   }
 
-  // 21. NOTIFICACIONES PUSH NATIVAS Y SERVICE WORKER EN SEGUNDO PLANO
-  if (
-    query.includes('notificación') ||
-    query.includes('notificacion') ||
-    query.includes('segundo plano') ||
-    query.includes('service worker') ||
-    query.includes('push')
-  ) {
-    if (query.includes('probar') || query.includes('test') || query.includes('alerta') || query.includes('enviar')) {
-      return {
-        isHandled: true,
-        spokenResponse: 'Disparando notificación push nativa en segundo plano mediante Service Worker.',
-        actionType: 'security',
-        actionDetails: 'Alerta push nativa disparada',
-        triggerPushTest: true,
-      };
-    }
-    if (query.includes('activar') || query.includes('habilitar') || query.includes('configurar') || query.includes('abrir')) {
-      return {
-        isHandled: true,
-        spokenResponse: 'Abriendo panel de configuración de Service Worker y notificaciones en segundo plano.',
-        actionType: 'security',
-        actionDetails: 'Ajustes de Service Worker y Push desplegados',
-        openSettings: true,
-      };
-    }
-  }
+  // 21. NOTIFICACIONES: sólo órdenes explícitas; describir un push no lo envía.
+  if (/^(?:probar|prueba|test|enviar)\s+(?:una?\s+)?(?:notificaci[oó]n|alerta|push|service worker)\b/.test(query)) return {
+    isHandled: true, spokenResponse: 'Solicitando la prueba de notificación; entrega al dispositivo no verificada.',
+    actionType: 'security', actionDetails: 'Prueba solicitada, pendiente del navegador.', triggerPushTest: true,
+  };
+  if (/^(?:activar|habilitar|configurar|abrir)\s+(?:las?\s+)?(?:notificaciones?|push|service worker|segundo plano)\b/.test(query)) return {
+    isHandled: true, spokenResponse: 'Abriendo los ajustes de notificaciones.', actionType: 'security', openSettings: true,
+  };
 
   // 22. GENERACIÓN DE ARCHIVOS DE TEXTO Y HOJAS DE CÁLCULO CON EXPORTACIÓN A PDF
-  const isDocCommand =
+  const isDocCommand = /^(?:crear|crea|generar|genera|redactar|redacta|exportar|descargar|abrir|abre|estudio de documentos|documento|informe|reporte|minuta|hoja de c[aá]lculo|planilla|presupuesto|balance)\b/.test(query) && (
     query.includes('documento') ||
     query.includes('hoja de cálculo') ||
     query.includes('hoja de calculo') ||
@@ -1070,7 +1030,7 @@ export function parseNaturalVoiceCommand(
     query.includes('descargar en pdf') ||
     query.includes('informe') ||
     query.includes('reporte') ||
-    query.includes('minuta');
+    query.includes('minuta'));
 
   if (isDocCommand) {
     // 22.1 HOJA DE CÁLCULO & TABLAS
@@ -1256,7 +1216,7 @@ export function generateRTLiteResponse(prompt: string, activeEngine: ModelType =
     '[RT-Lite Master Omni-Engine]';
 
   if (p.includes('quién eres') || p.includes('quien eres') || p.includes('tu nombre') || p.includes('vvc liam') || p.includes('liam core')) {
-    return `${enginePrefix} Soy VVC LIAM CORE, tu estación de inteligencia artificial autónoma de vanguardia con arquitectura VAOS. Opero con todos los motores integrados: control físico de actuadores del teléfono, telecomunicaciones y llamadas directas, matriz de calendario con detección y resolución de conflictos, sincronización con Google, Outlook y Apple Calendar, y estudio de documentos y hojas de cálculo exportables a PDF.`;
+    return `${enginePrefix} Soy VVC LIAM CORE. RT-Lite interpreta comandos locales; los modelos cloud generan texto. Las acciones del navegador dependen de permisos y los servicios externos requieren configuración y validación.`;
   }
 
   if (p.includes('hora') || p.includes('qué hora es')) {
@@ -1268,13 +1228,7 @@ export function generateRTLiteResponse(prompt: string, activeEngine: ModelType =
   }
 
   if (p.includes('motores') || p.includes('rt lite') || p.includes('rt-lite')) {
-    return `${enginePrefix} Todos los motores RT-Lite están disponibles y activos en el dispositivo:
-1. RT-Lite Hardware: Linterna, linterna de pantalla, volumen, brillo, Wi-Fi, Bluetooth y batería.
-2. RT-Lite Telephony: Llamadas directas, mensajería SMS, WhatsApp y libreta de contactos.
-3. RT-Lite Agenda: Programación compleja, detección/resolución de conflictos y sync Google/Outlook/Apple.
-4. RT-Lite Docs: Generación de documentos de texto, hojas de cálculo y exportación a PDF.
-5. RT-Lite Security: Bóveda E2EE AES-GCM-256, service worker y notificaciones push nativas.
-6. RT-Lite Master Omni-Engine: Control global coordinado en el dispositivo.`;
+    return `${enginePrefix} RT-Lite interpreta comandos y modifica estado local. El volumen afecta a la aplicación; linterna, telefonía y voz dependen de APIs, permisos o aplicaciones externas. Wi-Fi y Bluetooth son estados visuales. La bóveda y la sincronización tienen limitaciones pendientes.`;
   }
 
   if (p.includes('ayuda') || p.includes('comandos') || p.includes('que puedes hacer')) {
@@ -1290,5 +1244,5 @@ export function generateRTLiteResponse(prompt: string, activeEngine: ModelType =
 • "Probar notificación push en segundo plano"`;
   }
 
-  return `${enginePrefix} Procesado localmente en el dispositivo: "${prompt}". Operación ejecutada con cero latencia, cifrado total y control completo del teléfono.`;
+  return `${enginePrefix} Solicitud no reconocida por el motor local. No se ha ejecutado ninguna acción.`;
 }

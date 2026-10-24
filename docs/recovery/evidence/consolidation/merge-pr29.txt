@@ -1,0 +1,20 @@
+Auto-merging server.ts
+Auto-merging src/App.tsx
+Auto-merging src/server/vaosOrchestrator.ts
+Merge made by the 'ort' strategy.
+ docs/recovery/I02.md                          |  13 +++
+ docs/recovery/evidence/i02-before-browser.txt |  19 ++++
+ docs/recovery/evidence/i02-before-http.txt    | 120 ++++++++++++++++++++++++++
+ server.ts                                     |   2 +
+ src/App.tsx                                   |   8 --
+ src/server/chatPolicy.ts                      |  22 +++++
+ src/server/vaosOrchestrator.ts                |   9 +-
+ tests/chat-decision-browser.mjs               |  79 +++++++++++++++++
+ tests/chat-policy.test.mjs                    |  57 ++++++++++++
+ 9 files changed, 317 insertions(+), 12 deletions(-)
+ create mode 100644 docs/recovery/I02.md
+ create mode 100644 docs/recovery/evidence/i02-before-browser.txt
+ create mode 100644 docs/recovery/evidence/i02-before-http.txt
+ create mode 100644 src/server/chatPolicy.ts
+ create mode 100644 tests/chat-decision-browser.mjs
+ create mode 100644 tests/chat-policy.test.mjs

@@ -47,29 +47,34 @@ interface DocumentSpreadsheetModalProps {
 const SAMPLE_DOCS: TextDocumentData[] = [
   {
     id: 'doc-1',
-    title: 'Informe de Telemetría y Rendimiento VVC LIAM CORE',
-    author: 'VVC LIAM CORE Executive Core',
+    title: 'EJEMPLO: plantilla de telemetría VVC LIAM CORE',
+    author: 'Plantilla de ejemplo',
     date: new Date().toISOString().split('T')[0],
     category: 'informe',
-    content: `1. RESUMEN EJECUTIVO
-El sistema de asistencia de voz VVC LIAM CORE ha operado con un índice de disponibilidad del 99.98% durante el presente ciclo. Los motores de inferencia NVIDIA NIM y los algoritmos RT-Lite han mantenido una latencia media de respuesta inferior a 45ms en operaciones locales.
+    content: `EJEMPLO DE PLANTILLA
+No contiene mediciones ni certificaciones del sistema.
 
-2. DIAGNÓSTICO DE CONTROL DE HARDWARE
-• Linterna y módulos ópticos: 100% calibrados.
-• Monitoreo de batería y administración térmica: Óptimo.
-• Cifrado E2EE y Bóveda Segura: Protocolo AES-GCM-256 verificado sin anomalías.
-• Sincronización de Agenda: Compatibilidad multi-plataforma Google, Outlook y Apple Calendar activa.
+1. DATOS A RECOPILAR
+• Disponibilidad: no medida.
+• Latencia y rendimiento: registrar fuente, periodo y método antes de informar cifras.
+• Batería/temperatura: sólo datos disponibles de la API del dispositivo; temperatura no medida.
 
-3. CONCLUSIONES Y ACCIONES SUGERIDAS
-Se recomienda mantener activadas las alertas en segundo plano mediante Service Worker para garantizar la recepción de notificaciones críticas. Todos los subsistemas permanecen sincronizados.`
+2. LÍMITES CONOCIDOS
+• Chat sin E2EE; bóveda experimental, custodia y recuperación pendientes.
+• Integraciones de calendario parciales; exportar iCal no prueba sincronización.
+• Programación y notificaciones sin garantía de entrega al dispositivo.
+
+3. CONCLUSIONES
+Completar con evidencia reproducible antes de emitir un informe real.`
   },
   {
     id: 'doc-2',
-    title: 'Minuta de Reunión de Planificación y Asignación de Tareas',
+    title: 'EJEMPLO: minuta de planificación y tareas',
     author: 'Coordinación de Proyecto',
     date: new Date().toISOString().split('T')[0],
     category: 'minuta',
-    content: `ASISTENTES: Carlos Méndez, María García, Alex Rivera, VVC LIAM CORE OS
+    content: `EJEMPLO DE PLANTILLA · Datos ficticios, sin reunión ni acuerdos reales.
+ASISTENTES DE EJEMPLO: Carlos Méndez, María García, Alex Rivera
 OBJETIVO: Revisión de hitos trimestrales y resolución de conflictos de calendario.
 
 ACUERDOS ALCANZADOS:
@@ -83,7 +88,7 @@ ACUERDOS ALCANZADOS:
 const SAMPLE_SHEETS: SpreadsheetData[] = [
   {
     id: 'sheet-1',
-    title: 'Presupuesto Operativo y Asignación de Recursos',
+    title: 'EJEMPLO (datos ficticios): presupuesto operativo',
     date: new Date().toISOString().split('T')[0],
     columns: ['Partida', 'Categoría', 'Presupuesto ($)', 'Ejecutado ($)', 'Diferencia ($)'],
     hasTotals: true,
@@ -97,7 +102,7 @@ const SAMPLE_SHEETS: SpreadsheetData[] = [
   },
   {
     id: 'sheet-2',
-    title: 'Registro de Tareas y Control Horario de Dispositivo',
+    title: 'EJEMPLO (datos ficticios): registro de tareas y horas',
     date: new Date().toISOString().split('T')[0],
     columns: ['ID Tarea', 'Descripción', 'Responsable', 'Horas Estimadas', 'Horas Reales', 'Estado'],
     hasTotals: false,

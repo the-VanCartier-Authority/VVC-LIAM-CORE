@@ -6,3 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Server-private durable VAOS queue (never publish user commands/results)
+.data/
+*.sqlite
+*.sqlite-journal

@@ -1,5 +1,27 @@
 // VVC LIAM CORE // Native Push Notification & Service Worker Service
 // Enables native background notifications and Web Push even when app is minimized or closed
+import { backendFetch } from './backendApi';
+import { auth } from './googleAuth';
+import { onAuthStateChanged } from 'firebase/auth';
+import { createPushSessionGuard } from '../core/pushSession';
+
+const pushSession = createPushSessionGuard(() => auth.currentUser?.uid || null, localStorage,
+  async () => isServiceWorkerSupported() ? navigator.serviceWorker.getRegistration('/') : undefined);
+onAuthStateChanged(auth, () => {
+  void pushSession.reset().catch(() => console.warn('[VVC LIAM Push] No se pudo revocar la suscripción del dispositivo.'));
+});
+
+export async function revokePushForSignOut(): Promise<void> {
+  // Delete the server record while the old ID token is still available; local
+  // unsubscribe must still run if the server is unreachable.
+  try {
+    const reg = isServiceWorkerSupported() ? await navigator.serviceWorker.getRegistration('/') : undefined;
+    const sub = await reg?.pushManager.getSubscription();
+    if (sub) await backendFetch('/api/push/unsubscribe', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: sub.endpoint }),
+      signal: AbortSignal.timeout(5000) });
+  } finally { await pushSession.revoke(); }
+}
 
 export interface PushSubscriptionStatus {
   isSupported: boolean;
@@ -159,7 +181,7 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
  */
 export async function fetchVapidPublicKey(): Promise<string | null> {
   try {
-    const response = await fetch('/api/push/vapid-public-key');
+    const response = await backendFetch('/api/push/vapid-public-key');
     if (!response.ok) return null;
     const data = await response.json();
     return data.publicKey || null;
@@ -187,40 +209,44 @@ export async function subscribeToPushNotifications(): Promise<{
   }
 
   try {
-    const reg = await registerServiceWorker();
-    if (!reg) {
-      return { success: false, error: 'Service Worker no disponible.' };
-    }
-
-    // Check existing subscription
-    let subscription = await reg.pushManager.getSubscription();
-
-    if (!subscription) {
-      const vapidKey = await fetchVapidPublicKey();
-      if (!vapidKey) {
-        return { success: false, error: 'No se pudo contactar el servidor para obtener la clave VAPID.' };
+    return await pushSession.withAccount(async () => {
+      const reg = await registerServiceWorker();
+      if (!reg) {
+        throw new Error('Service Worker no disponible.');
       }
 
-      const convertedKey = urlBase64ToUint8Array(vapidKey);
-      subscription = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: convertedKey as unknown as BufferSource,
-      });
-    }
+      // Check existing subscription
+      let subscription = await reg.pushManager.getSubscription();
 
-    // Register subscription on backend
-    if (subscription) {
-      await fetch('/api/push/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(subscription.toJSON()),
-      });
-      localStorage.setItem('vvc_liam_push_active', 'true');
-      console.log('[VVC LIAM CORE SW] Suscripción Push nativa sincronizada con el servidor.');
-      return { success: true, subscription };
-    }
+      if (!subscription) {
+        const vapidKey = await fetchVapidPublicKey();
+        if (!vapidKey) {
+          throw new Error('No se pudo obtener la clave VAPID.');
+        }
 
-    return { success: false, error: 'No se pudo generar la suscripción push.' };
+        const convertedKey = urlBase64ToUint8Array(vapidKey);
+        subscription = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: convertedKey as unknown as BufferSource,
+        });
+      }
+
+      // Register subscription on backend
+      if (subscription) {
+        const response = await backendFetch('/api/push/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(subscription.toJSON()),
+          signal: AbortSignal.timeout(5000),
+        });
+        if (!response.ok) throw new Error('PUSH_REGISTRATION_REJECTED');
+        localStorage.setItem('vvc_liam_push_active', 'true');
+        console.log('[VVC LIAM CORE SW] Suscripción Push nativa sincronizada con el servidor.');
+        return { success: true, subscription };
+      }
+
+      throw new Error('No se pudo generar la suscripción push.');
+    });
   } catch (error: any) {
     console.error('[VVC LIAM CORE SW] Error suscribiendo a notificaciones Push:', error);
     return { success: false, error: error?.message || 'Fallo de suscripción Push.' };
@@ -238,13 +264,13 @@ export async function unsubscribeFromPushNotifications(): Promise<boolean> {
 
     const sub = await reg.pushManager.getSubscription();
     if (sub) {
-      await fetch('/api/push/unsubscribe', {
+      const response = await backendFetch('/api/push/unsubscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ endpoint: sub.endpoint }),
       });
-      await sub.unsubscribe();
-      localStorage.removeItem('vvc_liam_push_active');
+      if (!response.ok && response.status !== 404) throw new Error('PUSH_UNSUBSCRIBE_REJECTED');
+      await pushSession.revoke();
       return true;
     }
     return true;
@@ -346,7 +372,7 @@ export async function sendBackgroundAlert(
 
   // 3. Trigger server Web Push
   try {
-    await fetch('/api/push/send', {
+    await backendFetch('/api/push/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -393,9 +419,9 @@ export async function scheduleBackgroundAlert(
     });
   }
 
-  // Also schedule on backend via Web Push for guaranteed OS delivery
+  // Volatile server scheduling; service acceptance does not guarantee OS delivery.
   try {
-    await fetch('/api/push/send', {
+    await backendFetch('/api/push/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

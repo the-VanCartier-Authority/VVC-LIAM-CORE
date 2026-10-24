@@ -1,0 +1,94 @@
+▶ I03a/F08: Gemma and DiffusionGemma cannot be silently replaced by Gemini Flash
+  ✖ google/gemma-4-31b-it (55.606801ms)
+  ✖ google/diffusiongemma-26b-a4b-it (15.88238ms)
+  ✖ another provider is never used implicitly when NVIDIA has no key (11.320289ms)
+✖ I03a/F08: Gemma and DiffusionGemma cannot be silently replaced by Gemini Flash (616.65113ms)
+✖ I03a: a failed chosen NIM never invokes a replacement model without explicit fallback (426.80298ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 0
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1314.369888
+
+✖ failing tests:
+
+test at tests/model-routing-regression.test.mjs:17:13
+✖ google/gemma-4-31b-it (55.606801ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 400
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-i03a/tests/model-routing-regression.test.mjs:19:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/vvc-i03a/tests/model-routing-regression.test.mjs:17:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 400,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/model-routing-regression.test.mjs:17:13
+✖ google/diffusiongemma-26b-a4b-it (15.88238ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 400
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-i03a/tests/model-routing-regression.test.mjs:19:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/vvc-i03a/tests/model-routing-regression.test.mjs:17:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 400,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/model-routing-regression.test.mjs:23:11
+✖ another provider is never used implicitly when NVIDIA has no key (11.320289ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 401
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-i03a/tests/model-routing-regression.test.mjs:25:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/vvc-i03a/tests/model-routing-regression.test.mjs:23:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 401,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/model-routing-regression.test.mjs:29:1
+✖ I03a: a failed chosen NIM never invokes a replacement model without explicit fallback (426.80298ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 502
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-i03a/tests/model-routing-regression.test.mjs:45:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 502,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
