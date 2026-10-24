@@ -243,6 +243,7 @@ export const DeviceControlsDrawer: React.FC<DeviceControlsDrawerProps> = ({
 
                 <div className="flex items-center gap-1.5">
                   <button
+                    disabled={!contact.phone}
                     onClick={() => onCallContact(contact)}
                     className="p-1.5 rounded bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-black transition-colors"
                     title={`Llamar a ${contact.name}`}
@@ -251,6 +252,7 @@ export const DeviceControlsDrawer: React.FC<DeviceControlsDrawerProps> = ({
                   </button>
 
                   <button
+                    disabled={!contact.phone}
                     onClick={() => onMessageContact(contact)}
                     className="p-1.5 rounded bg-[#00f0ff]/10 text-[#00f0ff] hover:bg-[#00f0ff] hover:text-black transition-colors"
                     title={`Enviar mensaje a ${contact.name}`}

@@ -1573,14 +1573,17 @@ export default function App() {
         }}
         contacts={contacts}
         onCallContact={(contact) => {
+          if (!contact.phone) return;
           setIsDeviceControlsOpen(false);
-          handleProcessCommand(`Llamar a ${contact.name}`);
+          setActiveCall({ inCall: true, contactName: contact.name, phoneNumber: contact.phone,
+            durationSeconds: 0, isMuted: false, isSpeaker: false, state: 'calling' });
         }}
         onMessageContact={(contact) => {
+          if (!contact.phone) return;
           setIsDeviceControlsOpen(false);
           setMessagingState({
             isOpen: true,
-            recipient: contact.name,
+            recipient: contact.phone,
             initialMessage: '',
             channel: 'WhatsApp',
           });
@@ -1801,14 +1804,17 @@ export default function App() {
         contacts={contacts}
         onUpdateContacts={(updated) => setContacts(updated)}
         onInitiateCall={(contact) => {
+          if (!contact.phone) return;
           setIsContactsOpen(false);
-          handleProcessCommand(`Llamar a ${contact.name}`);
+          setActiveCall({ inCall: true, contactName: contact.name, phoneNumber: contact.phone,
+            durationSeconds: 0, isMuted: false, isSpeaker: false, state: 'calling' });
         }}
         onInitiateMessage={(contact) => {
+          if (!contact.phone) return;
           setIsContactsOpen(false);
           setMessagingState({
             isOpen: true,
-            recipient: contact.phone || contact.name,
+            recipient: contact.phone,
             initialMessage: '',
             channel: 'SMS',
           });
