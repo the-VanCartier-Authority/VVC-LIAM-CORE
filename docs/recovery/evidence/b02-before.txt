@@ -1,0 +1,56 @@
+TAP version 13
+# Subtest: B02: authenticated requests have per-user rate limits independent of another user
+not ok 1 - B02: authenticated requests have per-user rate limits independent of another user
+  ---
+  duration_ms: 503.539384
+  type: 'test'
+  location: '/workspace/vvc-b02/tests/resource-limits-regression.test.mjs:5:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    200 !== 429
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 429
+  actual: 200
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/vvc-b02/tests/resource-limits-regression.test.mjs:10:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# Subtest: B02: excessive generation and JSON payloads fail before a provider is called
+not ok 2 - B02: excessive generation and JSON payloads fail before a provider is called
+  ---
+  duration_ms: 411.950264
+  type: 'test'
+  location: '/workspace/vvc-b02/tests/resource-limits-regression.test.mjs:15:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    401 !== 400
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 400
+  actual: 401
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/vvc-b02/tests/resource-limits-regression.test.mjs:17:10)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 0
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1034.177208
