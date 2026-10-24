@@ -62,62 +62,14 @@ interface SystemFeature {
 }
 
 const FAQ_ITEMS: FaqItem[] = [
-  {
-    id: 'faq-1',
-    category: 'general',
-    question: '¿Qué es VVC LIAM CORE y cómo funciona la arquitectura VAOS?',
-    answer: 'VVC LIAM CORE es una estación operativa de inteligencia artificial autónoma con arquitectura VAOS (Voice Autonomous Operating System). Integra reconocimiento y síntesis de voz Kokoro de baja latencia, un motor de intención contextual en el dispositivo (RT-Lite) y un enrutador inteligente capaz de alternar entre procesamiento local sin conexión y modelos en la nube (Gemini, NVIDIA NIM, DeepSeek, Llama).',
-    tags: ['vaos', 'arquitectura', 'general', 'kokoro', 'rt-lite'],
-  },
-  {
-    id: 'faq-2',
-    category: 'agents',
-    question: '¿Cuál es la diferencia entre los agentes exclusivos y los públicos?',
-    answer: 'El sistema implementa una bifurcación estricta de políticas. Los agentes exclusivos privados (Vladimir: Director de Inteligencia y OSINT, Valentina: Análisis Criptográfico y Defensa Táctica, Victoria: Estrategia y Operaciones Ejecutivas) cuentan con aislamiento de memoria de contexto, encriptación AES-GCM local y protocolos de validación de tokens prioritarios. Los agentes públicos realizan tareas generales y pueden modificarse o clonarse libremente.',
-    tags: ['agentes', 'vladimir', 'valentina', 'victoria', 'privacidad', 'vaos'],
-  },
-  {
-    id: 'faq-3',
-    category: 'workspace',
-    question: '¿Cómo se conecta Google Workspace y qué permisos requiere?',
-    answer: 'Al pulsar el botón "Google" en la barra superior, se inicia el flujo de autenticación seguro de Google OAuth. El sistema utiliza alcances oficiales para acceder a tu bandeja de Gmail (lectura y redacción de borradores), Google Drive y Picker para explorar archivos, Google Calendar para agendar citas, Google Docs para redactar documentos en la nube, y Google Contacts para sincronizar tu libreta de contactos. Todas las operaciones destructivas (como borrar eventos o contactos) requieren confirmación explícita previa.',
-    tags: ['google', 'workspace', 'oauth', 'gmail', 'drive', 'calendar', 'docs', 'contacts'],
-  },
-  {
-    id: 'faq-4',
-    category: 'workspace',
-    question: '¿Dónde se almacenan mis datos con Firebase Firestore?',
-    answer: 'Los perfiles, temas, tareas y citas sincronizadas se almacenan de forma segura en una base de datos Firebase Firestore aprovisionada en la región us-east1. La base de datos cuenta con reglas de seguridad estrictas (firestore.rules) que validan que cada usuario solo pueda leer o modificar sus propios registros basándose en su ID de autenticación (isOwner(userId)). Si no tienes conexión, el sistema almacena todo en localStorage y sincroniza automáticamente al reconectarse.',
-    tags: ['firebase', 'firestore', 'persistencia', 'seguridad', 'sincronizacion'],
-  },
-  {
-    id: 'faq-5',
-    category: 'security',
-    question: '¿Cómo funciona la Bóveda E2EE y qué nivel de cifrado tiene?',
-    answer: 'La Bóveda E2EE utiliza cifrado simétrico AES-GCM de 256 bits mediante la Web Cryptography API nativa del navegador. La clave maestra nunca se transmite por internet ni se almacena en texto plano; se deriva utilizando PBKDF2 con sal criptográfica única y 100,000 iteraciones SHA-256. Ningún servidor ni tercero puede descifrar los datos almacenados.',
-    tags: ['boveda', 'cifrado', 'e2ee', 'aes-gcm', 'seguridad', 'passphrase'],
-  },
-  {
-    id: 'faq-6',
-    category: 'device',
-    question: '¿Cómo interactúa la aplicación con el hardware del teléfono?',
-    answer: 'A través de Web APIs estandarizadas e integraciones móviles, el sistema controla la linterna física (usando el control de antorcha de la cámara trasera con fallback a pantalla ultra-blanca), volumen de audio sintetizado, vibración háptica, telemetría de batería y enlaces directos a aplicaciones nativas de teléfono (tel:) y mensajería (sms: / WhatsApp).',
-    tags: ['telefono', 'hardware', 'linterna', 'bateria', 'volumen', 'vibracion'],
-  },
-  {
-    id: 'faq-7',
-    category: 'offline',
-    question: '¿Puedo utilizar VVC LIAM CORE sin conexión a Internet?',
-    answer: 'Sí. Al activar el conmutador "OFFLINE" o perder la conexión de red, el motor local RT-Lite asume el control del 100% de los comandos del sistema. Puede procesar alarmas, temporizadores, tareas, eventos de calendario, consultas de contactos, controles de hardware y exportaciones de documentos sin requerir conectividad externa.',
-    tags: ['offline', 'rt-lite', 'sin conexion', 'pwa', 'local'],
-  },
-  {
-    id: 'faq-8',
-    category: 'general',
-    question: '¿Cómo instalo la aplicación en Android o como PWA de escritorio?',
-    answer: 'Haz clic en el botón "Instalar App / APK" en la barra superior. En navegadores compatibles (Chrome, Edge, Samsung Internet) verás un botón para instalar la aplicación directamente como PWA con soporte completo de pantalla completa y trabajo sin conexión. También se incluye una guía detallada para empaquetar el código como APK nativo mediante Bubblewrap o Capacitor CLI.',
-    tags: ['instalar', 'apk', 'pwa', 'android', 'escritorio'],
-  },
+  {"id": "faq-1", "category": "general", "question": "¿Qué implementa VVC LIAM CORE?", "answer": "Aplicación web con conversación, parser RT-Lite y generación de texto mediante proveedores configurados. VAOS clasifica solicitudes y mantiene tareas de generación en memoria; no dispone de herramientas autónomas para ejecutar acciones externas.", "tags": ["general"]},
+  {"id": "faq-2", "category": "agents", "question": "¿Qué representan los perfiles Vladimir, Valentina y Victoria?", "answer": "Son perfiles de instrucciones y preferencias de modelo. Sus nombres y roles definen la personalidad, no prueban ejecución de herramientas, memoria cifrada por agente ni aislamiento especial adicional.", "tags": ["agents"]},
+  {"id": "faq-3", "category": "workspace", "question": "¿Qué cobertura tiene Google Workspace?", "answer": "Hay adaptadores parciales para Gmail, Calendar, Drive/Docs y Contacts. Requieren sesión, permisos y acciones explícitas. No hay implementación de Sheets, Slides, Tasks o Meet como APIs. La integración real y el ciclo de renovación de permisos siguen pendientes de validación.", "tags": ["workspace"]},
+  {"id": "faq-4", "category": "workspace", "question": "¿Qué límites tiene Firestore?", "answer": "El cliente contiene sincronización parcial y reglas fuente por UID. La reconciliación de cambios y borrados es incompleta y no se ha verificado el despliegue de las reglas. No debe asumirse sincronización completa o recuperación garantizada.", "tags": ["workspace"]},
+  {"id": "faq-5", "category": "security", "question": "¿Qué protección tiene la bóveda actual?", "answer": "La utilidad usa AES-GCM y PBKDF2 en el navegador, pero la bóveda actual tiene contraseña predeterminada y datos sólo en memoria. No ofrece todavía custodia segura ni recuperación probada. Las claves API se guardan aparte en texto; el chat no tiene E2EE.", "tags": ["security"]},
+  {"id": "faq-6", "category": "device", "question": "¿Qué control del dispositivo está disponible?", "answer": "La linterna depende de permisos y compatibilidad de la cámara, con alternativa de pantalla. El volumen afecta al audio de la aplicación. Wi-Fi, Bluetooth y brillo son estados visuales, sin control general del sistema. Telefonía y mensajes usan enlaces a otras aplicaciones.", "tags": ["device"]},
+  {"id": "faq-7", "category": "offline", "question": "¿Qué funciona sin conexión?", "answer": "Se verificó la interfaz con caché previamente cargada y acciones locales básicas. No se garantiza arranque en frío ni voz offline. STT/TTS dependen del navegador/proveedor y las alarmas no tienen todavía un scheduler persistente.", "tags": ["offline"]},
+  {"id": "faq-8", "category": "general", "question": "¿Hay aplicaciones nativas listas para distribuir?", "answer": "La entrega actual es web/PWA. Los scripts de plataforma generan web, sin APK/IPA ni binario de escritorio firmados y verificados. La instalación PWA depende del navegador; no equivale a una aplicación nativa certificada.", "tags": ["general"]}
 ];
 
 const VOICE_SHORTCUTS: VoiceShortcut[] = [
@@ -224,7 +176,7 @@ const VOICE_SHORTCUTS: VoiceShortcut[] = [
     phrase: 'Vladimir ejecutar análisis OSINT y reconocimiento táctico',
     category: 'agents',
     description: 'Activa las directivas operativas especializadas del agente Vladimir.',
-    actionOutput: 'Selecciona agente, aplica modelo preferido y confirma con voz Kokoro.',
+    actionOutput: 'Selecciona agente, aplica modelo preferido y usa el proveedor de voz disponible.',
   },
   {
     id: 'cmd-15',
@@ -308,9 +260,9 @@ const SYSTEM_FEATURES: SystemFeature[] = [
   {
     id: 'feat-2',
     icon: <Mail className="w-4 h-4 text-red-400" />,
-    title: 'Suite Google Workspace Completa',
+    title: 'Adaptadores Google parciales',
     category: 'Productividad Cloud',
-    summary: 'Integración certificada con APIs oficiales de Google: Gmail, Google Drive Picker, Google Calendar, Google Docs y Google Contacts (People API v1).',
+    summary: 'Adaptadores presentes para Gmail, Picker, Calendar, Docs y Contacts; cobertura y permisos parciales, sin certificación de extremo a extremo.',
     specs: ['OAuth 2.0 Client-Side', 'Protección contra borrado accidental', 'Lectura y escritura en tiempo real'],
     status: 'Cloud',
   },
@@ -326,19 +278,19 @@ const SYSTEM_FEATURES: SystemFeature[] = [
   {
     id: 'feat-4',
     icon: <ShieldCheck className="w-4 h-4 text-emerald-400" />,
-    title: 'Bóveda E2EE Criptográfica',
-    category: 'Seguridad Militar',
-    summary: 'Almacenamiento blindado para credenciales, notas secretas y tokens con cifrado simétrico AES-GCM 256-bit y derivación PBKDF2.',
-    specs: ['Web Crypto API nativa', '100,000 iteraciones SHA-256', 'Zero-Knowledge Architecture'],
-    status: 'E2EE',
+    title: 'Bóveda local experimental',
+    category: 'Privacidad local',
+    summary: 'Utilidad AES-GCM/PBKDF2. Contraseña predeterminada, persistencia y recuperación seguras pendientes.',
+    specs: ['Web Crypto API nativa', '100,000 iteraciones SHA-256', 'Custodia segura pendiente'],
+    status: 'Local',
   },
   {
     id: 'feat-5',
     icon: <Activity className="w-4 h-4 text-emerald-400" />,
     title: 'Telemetría D3.js en Vivo',
     category: 'Diagnóstico & Métricas',
-    summary: 'Monitor de rendimiento con gráficos D3.js dinámicos que miden latencia de respuesta, cadencia de tokens por segundo y autonomía del dispositivo.',
-    specs: ['Gráficos SVG D3 reactivos', 'Métricas de memoria y CPU', 'Historial temporal de eventos'],
+    summary: 'Gráficos de routing/proceso, contadores con procedencia y batería cuando la API del navegador está disponible.',
+    specs: ['Gráficos SVG D3 reactivos', 'Valores no disponibles indicados como N/D', 'Historial temporal de eventos'],
     status: 'Local',
   },
   {
@@ -347,7 +299,7 @@ const SYSTEM_FEATURES: SystemFeature[] = [
     title: 'Estudio de Documentos & Hojas de Cálculo',
     category: 'Generación Documental',
     summary: 'Editor de documentos estructurados (.txt, .md) y tablas de cálculo con motor de generación directa a PDF con membrete corporativo y descarga CSV.',
-    specs: ['Generador PDF vectorial jsPDF', 'Cálculo de totales', 'Exportación directa a Google Docs'],
+    specs: ['Generador PDF vectorial jsPDF', 'Cálculo de totales', 'Adaptador Docs parcial'],
     status: 'Local',
   },
   {
@@ -355,8 +307,8 @@ const SYSTEM_FEATURES: SystemFeature[] = [
     icon: <Smartphone className="w-4 h-4 text-purple-400" />,
     title: 'Hardware Phone Hub & Modo Offline',
     category: 'Control de Dispositivo',
-    summary: 'Consola táctica para activar linterna, controlar niveles de audio, programar alarmas y operar el 100% de funciones sin requerir conexión a internet.',
-    specs: ['Cámara Torch API', 'Web Speech API & Kokoro TTS', 'Service Worker PWA Offline'],
+    summary: 'Acciones sujetas a APIs y permisos del navegador; temporizadores y recordatorios con limitaciones de ciclo de vida. Wi-Fi/BT son estados visuales.',
+    specs: ['Cámara Torch API', 'Web Speech; Edge/Gemini como proveedores de voz', 'Service Worker PWA Offline'],
     status: 'Local',
   },
   {
@@ -547,7 +499,7 @@ export const HelpCenterModal: React.FC<HelpCenterModalProps> = ({
                   { id: 'general', label: 'General & VAOS' },
                   { id: 'agents', label: 'Agentes Exclusivos' },
                   { id: 'workspace', label: 'Google Workspace' },
-                  { id: 'security', label: 'Seguridad & E2EE' },
+                  { id: 'security', label: 'Privacidad y límites' },
                   { id: 'device', label: 'Dispositivo & Hardware' },
                   { id: 'offline', label: 'Modo Offline' },
                 ].map((cat) => (

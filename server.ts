@@ -42,7 +42,7 @@ app.use('/api', limits.payload());
 // Mount VAOS Smart Routing Orchestrator (Policy Engine, Fast Path & Async Queue)
 app.use('/api/vaos', createVaosRouter(limits));
 
-// Neural voice mapping for Studio-grade Kokoro profiles
+// Neural voice mapping for application voice profiles
 const VOICE_MAP: Record<string, string> = {
   es_mateo: 'Fenrir',   // Male, deep executive obsidian voice
   es_sofia: 'Kore',     // Female, warm natural articulate voice
@@ -257,7 +257,7 @@ const TTS_MODELS = [
   'gemini-3.8-flash-lite-tts',
 ];
 
-// Map Kokoro voice profiles to ultra-natural studio neural voices
+// Map application voice profiles to the Edge provider
 const EDGE_VOICE_MAP: Record<string, string> = {
   es_mateo: 'es-ES-AlvaroNeural',
   es_sofia: 'es-ES-ElviraNeural',
@@ -309,7 +309,7 @@ async function generateEdgeTTS(text: string, voiceId: string): Promise<{ audio: 
 
 /**
  * High-Fidelity Studio Neural Voice Synthesis (TTS)
- * Produces ultra-realistic neural speech with zero quota limits and instant playback
+ * Uses configured voice providers subject to quotas, network and browser availability
  */
 app.post('/api/tts', async (req: Request, res: Response) => {
   try {

@@ -322,7 +322,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 : 'text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
           >
-            🔊 Voz Kokoro (TTS)
+            🔊 Voz (Edge/Gemini/navegador)
           </button>
           <button
             type="button"
@@ -387,7 +387,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               >
                 <optgroup label="Entorno On-Device (RT-Lite)">
                   <option value="rt-lite-local||local_only">
-                    RT-Lite On-Device + Modo Local Autónomo (100% Offline / Privacidad Absoluta)
+                    RT-Lite On-Device + Modo local (funciones del navegador)
                   </option>
                   <option value="rt-lite-local||google_calendar">
                     RT-Lite On-Device + Google Calendar & Tasks Cloud Sync
@@ -467,7 +467,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </option>
                   ))}
                 </optgroup>
-                <optgroup label="🛡️ Motores Locales RT-Lite (100% Offline / Cero Latencia)">
+                <optgroup label="🛡️ Motores Locales RT-Lite (Parser y acciones locales)">
                   {AVAILABLE_MODELS.filter((m) => m.domain === 'offline_device').map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.name} · {m.bestFor}
@@ -723,7 +723,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-white flex items-center gap-1.5">
                 <Volume2 className="w-4 h-4 text-[#00f0ff]" />
-                Motor de Voz Realista Kokoro (TTS en Español)
+                Voz: Edge/Gemini con fallback del navegador
               </span>
               <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">
                 Studio Neural & Fallback Local
@@ -736,7 +736,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
             <div>
               <label className="text-[11px] text-slate-400 block mb-1.5">
-                Perfil de Voz Kokoro:
+                Perfil de voz:
               </label>
               <select
                 value={selectedVoiceId}
@@ -754,7 +754,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <div>
                 <div className="flex justify-between text-[11px] text-slate-300 mb-1">
-                  <span>Tono / Pitch Kokoro</span>
+                  <span>Tono / Pitch (voz del navegador)</span>
                   <span className="text-[#00f0ff] tabular-nums">{(pitchModifier * 100).toFixed(0)}%</span>
                 </div>
                 <input
@@ -1020,7 +1020,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
                 <div className="p-2.5 rounded-lg bg-[#07090e] border border-slate-800">
                   <div className="text-purple-400 font-bold">"Poner alarma a las [HH:MM]"</div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">Programa alarma con timbre cyber acústico.</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">Crea una alarma local; scheduler y recuperación pendientes.</div>
                 </div>
                 <div className="p-2.5 rounded-lg bg-[#07090e] border border-slate-800">
                   <div className="text-amber-400 font-bold">"Crear reunión [Título] a las [HH:MM]"</div>
@@ -1032,7 +1032,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
                 <div className="p-2.5 rounded-lg bg-[#07090e] border border-slate-800">
                   <div className="text-rose-400 font-bold">"Guardar nota secreta / Bóveda"</div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">Cifra en AES-GCM-256 en la bóveda de seguridad.</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">Abre la bóveda experimental; protección y recuperación pendientes.</div>
                 </div>
               </div>
             </div>

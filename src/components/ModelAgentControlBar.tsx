@@ -216,7 +216,7 @@ export const ModelAgentControlBar: React.FC<ModelAgentControlBarProps> = ({
                   onSelectModel(val);
                 }}
                 className="bg-transparent text-slate-200 font-mono text-xs focus:outline-none cursor-pointer max-w-[130px] sm:max-w-[170px] truncate"
-                title="Modelos On-Device RT-Lite bajo demanda (100% locales, sin API Key)"
+                title="RT-Lite: parser y acciones locales, sin modelo LLM incorporado"
               >
                 {rtLiteModels.map((m) => (
                   <option key={m.id} value={m.id} className="bg-[#0b0f19] text-slate-200">
@@ -509,7 +509,7 @@ export const ModelAgentControlBar: React.FC<ModelAgentControlBarProps> = ({
                     <span>Modelos RT-LITE On-Device (Bajo Demanda)</span>
                   </div>
                   <p className="text-[11px] text-slate-400">
-                    Se ejecutan 100% de forma local en tu navegador. Cero peticiones de red para hardware, llamadas de teléfono, agenda determinista y criptografía AES-GCM-256.
+                    RT-Lite interpreta comandos locales. Telefonía, voz y servicios externos dependen de sus aplicaciones, permisos y conectividad.
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
