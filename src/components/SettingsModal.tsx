@@ -941,9 +941,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
             <div className="flex items-center justify-between p-2 rounded bg-[#07090e] border border-[#1e2638]">
               <div>
-                <div className="text-xs text-slate-200">Sincronización en la Nube en Tiempo Real</div>
+                <div className="text-xs text-slate-200">Sincronización Firestore (parcial)</div>
                 <div className="text-[10px] text-slate-400">
-                  Sincroniza agenda, recordatorios y estado entre dispositivos mediante túnel cifrado.
+                  Reconciliación y control por esta preferencia pendientes de corrección.
                 </div>
               </div>
               <button

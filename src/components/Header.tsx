@@ -142,7 +142,7 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono text-slate-300 hover:text-[#00f0ff] hover:bg-[#0f141f] rounded transition-colors"
           >
             <Lock className="w-3.5 h-3.5 text-[#ff2a5f]" />
-            <span>Bóveda E2EE</span>
+            <span>Bóveda experimental</span>
           </button>
 
           {/* Gmail Workspace Link */}

@@ -385,7 +385,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
             </h3>
             <span className="hidden sm:flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30 font-mono">
               <ShieldCheck className="w-3 h-3" />
-              Sincronización RFC 5545 iCal & E2EE
+              Exportación iCal · sync parcial
             </span>
           </div>
 
