@@ -1,10 +1,12 @@
 import type { Request, Response, Router } from 'express';
 import express from 'express';
 import { GoogleGenAI } from '@google/genai';
+import { executionOutcome } from '../shared/executionOutcome.ts';
+import type { ExecutionOutcome } from '../shared/executionOutcome.ts';
 
 export type TaskPriority = 'P0_CRITICAL' | 'P1_HIGH' | 'P2_LOW';
 export type TaskRoute = 'FAST_PATH' | 'ASYNC_PATH';
-export type TaskStatus = 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+export type TaskStatus = 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'UNAVAILABLE';
 
 export interface VaosTask {
   taskId: string;
@@ -20,6 +22,7 @@ export interface VaosTask {
   injectedSkills: string[];
   result?: {
     text: string;
+    outcome: ExecutionOutcome;
     actionType?: string;
     tokensPerSec?: number;
     tokensGenerated?: number;
@@ -132,7 +135,7 @@ export class VaosPolicyEngine {
 
 /**
  * VAOS TASK QUEUE & TELEMETRY REGISTRY
- * Fully real execution engine with Gemini Flash integration, real duration, and real token tracking.
+ * In-memory text-generation queue. No external action executor is implemented.
  */
 export class VaosOrchestrator {
   private tasks = new Map<string, VaosTask>();
@@ -269,7 +272,7 @@ export class VaosOrchestrator {
           ? `\nHabilidades activas requeridas: ${task.injectedSkills.join(', ')}.`
           : '';
 
-        const fullPrompt = `${agentDirective}${skillsNote}\n\nComando operativo prioritario [${task.priority}]: "${task.command}". Procesa la solicitud y genera el reporte o resultado inmediato.`;
+        const fullPrompt = `${agentDirective}${skillsNote}\n\nSólo generas texto. No tienes herramientas para ejecutar acciones externas. No afirmes que has enviado, creado, borrado o completado acciones del usuario.\nSolicitud [${task.priority}]: "${task.command}".`;
 
         const candidateModels = ['gemini-2.5-flash', 'gemini-3.8-flash', 'gemini-2.5-pro'];
         let response: any = null;
@@ -281,16 +284,24 @@ export class VaosOrchestrator {
             });
             if (response?.text) break;
           } catch (modelErr: any) {
-            console.warn(`[VAOS AI] Model ${m} unavailable (${modelErr?.message}), trying next...`);
+            console.warn('[VAOS AI] Model unavailable, trying next candidate');
           }
         }
 
-        responseText = response?.text || `[VVC LIAM CORE // VAOS]: Comando "${task.command}" verificado con éxito bajo protocolo ${task.priority}.`;
+        responseText = response?.text?.trim() || '';
+        if (!responseText) throw new Error('PROVIDER_GENERATION_FAILED');
         tokenCount = response?.usageMetadata?.candidatesTokenCount || Math.ceil(responseText.length / 4);
       } else {
-        // Fallback local deterministic engine
-        responseText = `[VVC LIAM CORE // VAOS]: Comando "${task.command}" completado bajo prioridad [${task.priority}]. Protocolos y habilidades [${task.injectedSkills.join(', ') || 'CORE'}] ejecutados con éxito.`;
-        tokenCount = Math.ceil(responseText.length / 4);
+        task.status = 'UNAVAILABLE';
+        task.completedAt = Date.now();
+        task.durationMs = task.completedAt - task.startedAt;
+        task.result = { text: 'Proveedor no disponible. No se ha ejecutado ninguna acción.',
+          outcome: executionOutcome('unavailable', 'vaos'), actionType: 'not_executed',
+          data: { realExecution: false } };
+        this.recordTelemetry({ timestamp: task.completedAt, taskId: task.taskId,
+          command: task.command, priority: task.priority, route: task.route,
+          latencyMs: task.durationMs, tokensPerSec: 0, success: false, agentId: task.agentId });
+        return;
       }
 
       task.status = 'COMPLETED';
@@ -302,14 +313,15 @@ export class VaosOrchestrator {
 
       task.result = {
         text: responseText,
-        actionType: task.priority === 'P0_CRITICAL' ? 'security_operation' : 'task_pipeline',
+        outcome: executionOutcome('generated', 'gemini'),
+        actionType: 'text_generation',
         tokensGenerated: tokenCount,
         tokensPerSec: realTokensPerSec,
         data: {
           priority: task.priority,
-          executedByAgent: task.agentId,
+          generatedForAgent: task.agentId,
           skillsActive: task.injectedSkills,
-          realExecution: true,
+          realExecution: false,
         },
       };
 
@@ -329,7 +341,9 @@ export class VaosOrchestrator {
       task.status = 'FAILED';
       task.completedAt = Date.now();
       task.durationMs = task.completedAt - (task.startedAt || task.createdAt);
-      task.error = err?.message || 'Error en ejecución de tarea asíncrona.';
+      task.error = 'No se pudo generar una respuesta. No se ha ejecutado ninguna acción.';
+      task.result = { text: task.error, outcome: executionOutcome('failed', 'gemini'),
+        actionType: 'not_executed', data: { realExecution: false } };
 
       this.recordTelemetry({
         timestamp: task.completedAt,
@@ -386,7 +400,7 @@ export function createVaosRouter(): Router {
     // 2. FAST PATH EXECUTION (<200ms target)
     if (policy.route === 'FAST_PATH') {
       const latencyMs = Math.max(1, Date.now() - startTime);
-      const responseText = `[VVC LIAM CORE // FAST PATH]: ${command}. Verificado en tiempo real (${latencyMs}ms).`;
+      const responseText = 'Simulación local de enrutamiento. No se ha ejecutado ninguna acción.';
       const tokenCount = Math.ceil(responseText.length / 4);
       const tokensPerSec = Number((tokenCount / Math.max(latencyMs / 1000, 0.02)).toFixed(1));
 
@@ -396,13 +410,14 @@ export function createVaosRouter(): Router {
         policyApproved: true,
         immediateResponse: {
           text: responseText,
+          outcome: executionOutcome('simulated', 'vaos-fast-path'),
           latencyMs,
           tokensPerSec,
           handledBy: agentId,
           data: {
             sla: '<200ms',
             policyCategory: policy.category,
-            realExecution: true,
+            realExecution: false,
           },
         },
       };
