@@ -17,12 +17,8 @@ export class DeviceAdapter implements DeviceCapabilities {
   }
 
   public isNativeApp(): boolean {
-    return (
-      this.platform === 'android' ||
-      this.platform === 'ios' ||
-      this.platform === 'windows' ||
-      (typeof window !== 'undefined' && (window as any).Capacitor !== undefined)
-    );
+    return typeof window !== 'undefined' && typeof (window as any).Capacitor?.isNativePlatform === 'function'
+      && (window as any).Capacitor.isNativePlatform() === true;
   }
 
   private detectPlatform(): PlatformType {

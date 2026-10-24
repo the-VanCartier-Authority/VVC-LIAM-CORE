@@ -1256,7 +1256,7 @@ export function generateRTLiteResponse(prompt: string, activeEngine: ModelType =
     '[RT-Lite Master Omni-Engine]';
 
   if (p.includes('quién eres') || p.includes('quien eres') || p.includes('tu nombre') || p.includes('vvc liam') || p.includes('liam core')) {
-    return `${enginePrefix} Soy VVC LIAM CORE, tu estación de inteligencia artificial autónoma de vanguardia con arquitectura VAOS. Opero con todos los motores integrados: control físico de actuadores del teléfono, telecomunicaciones y llamadas directas, matriz de calendario con detección y resolución de conflictos, sincronización con Google, Outlook y Apple Calendar, y estudio de documentos y hojas de cálculo exportables a PDF.`;
+    return `${enginePrefix} Soy VVC LIAM CORE. RT-Lite interpreta comandos locales; los modelos cloud generan texto. Las acciones del navegador dependen de permisos y los servicios externos requieren configuración y validación.`;
   }
 
   if (p.includes('hora') || p.includes('qué hora es')) {
@@ -1268,13 +1268,7 @@ export function generateRTLiteResponse(prompt: string, activeEngine: ModelType =
   }
 
   if (p.includes('motores') || p.includes('rt lite') || p.includes('rt-lite')) {
-    return `${enginePrefix} Todos los motores RT-Lite están disponibles y activos en el dispositivo:
-1. RT-Lite Hardware: Linterna, linterna de pantalla, volumen, brillo, Wi-Fi, Bluetooth y batería.
-2. RT-Lite Telephony: Llamadas directas, mensajería SMS, WhatsApp y libreta de contactos.
-3. RT-Lite Agenda: Programación compleja, detección/resolución de conflictos y sync Google/Outlook/Apple.
-4. RT-Lite Docs: Generación de documentos de texto, hojas de cálculo y exportación a PDF.
-5. RT-Lite Security: Bóveda E2EE AES-GCM-256, service worker y notificaciones push nativas.
-6. RT-Lite Master Omni-Engine: Control global coordinado en el dispositivo.`;
+    return `${enginePrefix} RT-Lite interpreta comandos y modifica estado local. El volumen afecta a la aplicación; linterna, telefonía y voz dependen de APIs, permisos o aplicaciones externas. Wi-Fi y Bluetooth son estados visuales. La bóveda y la sincronización tienen limitaciones pendientes.`;
   }
 
   if (p.includes('ayuda') || p.includes('comandos') || p.includes('que puedes hacer')) {

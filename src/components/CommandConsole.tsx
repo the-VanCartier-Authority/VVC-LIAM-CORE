@@ -205,12 +205,6 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
                       </span>
                     )}
 
-                    {msg.isE2EE && (
-                      <span className="flex items-center gap-0.5 text-[10px] text-emerald-400">
-                        <ShieldCheck className="w-3 h-3 text-emerald-400" />
-                        E2EE
-                      </span>
-                    )}
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -222,7 +216,7 @@ export const CommandConsole: React.FC<CommandConsoleProps> = ({
                       <button
                         onClick={() => onSpeakMessage(msg.text)}
                         className="text-slate-400 hover:text-[var(--primary-accent)] p-0.5 transition-colors"
-                        title="Escuchar con motor Kokoro TTS"
+                        title="Escuchar con el proveedor de voz disponible"
                       >
                         <Volume2 className="w-3.5 h-3.5" />
                       </button>

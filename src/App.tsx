@@ -171,7 +171,7 @@ const INITIAL_EVENTS: CalendarEvent[] = [
   },
   {
     id: 'e2',
-    title: 'Revisión de Seguridad Zero-Knowledge',
+    title: 'Revisión de privacidad local',
     date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
     time: '16:00',
     endTime: '17:00',
@@ -346,7 +346,7 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          return parsed.map((message) => ({ ...message, isE2EE: false }));
         }
       }
     } catch (e) {
@@ -356,10 +356,10 @@ export default function App() {
       {
         id: 'm-init',
         sender: 'system',
-        text: 'VVC LIAM CORE v1.0.0 activo (Control // Analyze // Execute). Orquestador VAOS con Policy Engine, agentes exclusivos (Vladimir, Valentina, Victoria) y telemetría D3.js en tiempo real.',
+        text: 'VVC LIAM CORE v1.0.0 activo (Control // Analyze // Execute). Conversación, acciones locales y generación de texto según el proveedor disponible.',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
         modelUsed: 'VVC LIAM CORE // VAOS Orchestrator',
-        isE2EE: true,
+        isE2EE: false,
       },
     ];
   });
@@ -444,7 +444,7 @@ export default function App() {
         setCurrentUser(res.user);
         playCyberTone('confirm');
         speakKokoro(
-          `Google Workspace y Firebase sincronizados con éxito para ${res.user.displayName || res.user.email}.`,
+          `Sesión iniciada. Las integraciones requieren permisos y una operación explícita.`,
           selectedVoiceId
         );
       }
@@ -965,7 +965,7 @@ export default function App() {
             actionType: intentResult.actionType,
             actionDetails: intentResult.actionDetails,
             modelUsed: `${activeAgent ? activeAgent.name.split(' ')[0] : 'VVC LIAM'} (RT-Lite)`,
-            isE2EE: true,
+            isE2EE: false,
           };
           setMessages((prev) => [...prev, assistantMsg]);
           setIsProcessing(false);
@@ -997,7 +997,7 @@ export default function App() {
               text: directText,
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
               modelUsed: 'Modo Directo (Sin IA)',
-              isE2EE: true,
+              isE2EE: false,
             },
           ]);
           setIsProcessing(false);
@@ -1030,7 +1030,7 @@ export default function App() {
               text: localAnswer,
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
               modelUsed: `${currentModelMeta?.name || 'RT-Lite On-Device'}${activeAgent ? ` · ${activeAgent.name.split(' ')[0]}` : ' · Modo Neutro'}`,
-              isE2EE: true,
+              isE2EE: false,
             },
           ]);
           setIsProcessing(false);
@@ -1064,7 +1064,7 @@ export default function App() {
             ? `\nSKILLS INYECTADOS DINÁMICAMENTE (VAOS): ${activeAgent.injectedSkills.join(', ')}`
             : '';
 
-          systemPrompt = `[IDENTIDAD DE AGENTE ACTIVO: ${activeAgent.name.toUpperCase()} // ${activeAgent.role.toUpperCase()}]\n${activeAgent.systemPrompt}${agentRulesSection}${agentCapabilitiesSection}${agentSkillsSection}\n\n[CONTEXTO OPERATIVO]:\nVVC LIAM CORE (Control // Analyze // Execute). Orquestador VAOS de alta velocidad con Policy Engine. Integración activa con ${cloudInfo.name}. Control de calendario, tareas y funciones del teléfono. Responde de forma concisa, clara y ejecutiva en español (máximo 3 oraciones) sin fricción ("Más control. Menos ruido.").`;
+          systemPrompt = `[IDENTIDAD DE AGENTE ACTIVO: ${activeAgent.name.toUpperCase()} // ${activeAgent.role.toUpperCase()}]\n${activeAgent.systemPrompt}${agentRulesSection}${agentCapabilitiesSection}${agentSkillsSection}\n\n[CONTEXTO OPERATIVO]:\nVVC LIAM CORE (Control // Analyze // Execute). Orquestador VAOS de alta velocidad con Policy Engine. Integración activa con ${cloudInfo.name}. Sólo generas texto; no tienes herramientas para ejecutar acciones externas. No afirmes efectos sin evidencia. Responde de forma concisa, clara y ejecutiva en español (máximo 3 oraciones) sin fricción ("Más control. Menos ruido.").`;
         } else {
           systemPrompt = `[MODO NEUTRO DIRECTO // SIN AGENTE ACTIVO]:\nEres el asistente operativo central de VVC LIAM CORE actuando en Modo Neutro Directo sin sesgos de personalidad ni roles predeterminados. Responde con neutralidad, concisión, rigor técnico y claridad ejecutiva en español (máximo 3 oraciones) sin fricción ("Más control. Menos ruido.").`;
         }
@@ -1201,7 +1201,7 @@ export default function App() {
             text: responseText,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
             modelUsed: `${modelTag}${activeAgent ? ` · ${activeAgent.name.split(' ')[0]}` : ' · Modo Neutro'}`,
-            isE2EE: true,
+            isE2EE: false,
           },
         ]);
       } catch (err: any) {
@@ -1225,7 +1225,7 @@ export default function App() {
             text: fallbackText,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
             modelUsed: 'Proveedor no disponible',
-            isE2EE: true,
+            isE2EE: false,
           },
         ]);
       } finally {
@@ -1547,7 +1547,7 @@ export default function App() {
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
               actionType: 'message',
               actionDetails: `${channel} a ${recipient}`,
-              isE2EE: true,
+              isE2EE: false,
             },
           ]);
         }}

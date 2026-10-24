@@ -262,7 +262,7 @@ export const VoiceOrbVisualizer: React.FC<VoiceOrbVisualizerProps> = ({
 
           <span className="flex items-center gap-1 px-2 py-1 rounded bg-[#0a0d14] border border-[#1e2638] text-emerald-400 text-[11px]">
             <ShieldCheck className="w-3 h-3 text-emerald-400" />
-            E2EE
+            WEB
           </span>
         </div>
 

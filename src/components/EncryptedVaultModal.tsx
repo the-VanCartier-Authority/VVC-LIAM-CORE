@@ -123,7 +123,7 @@ export const EncryptedVaultModal: React.FC<EncryptedVaultModalProps> = ({
           <div className="flex items-center gap-2">
             <Lock className="w-4 h-4 text-[#ff2a5f]" />
             <h3 className="font-mono text-sm font-bold text-white tracking-wider">
-              Bóveda Privada con Cifrado de Extremo a Extremo (E2EE)
+              Bóveda de cifrado local experimental
             </h3>
           </div>
 
@@ -158,7 +158,7 @@ export const EncryptedVaultModal: React.FC<EncryptedVaultModalProps> = ({
           <div className="flex items-center gap-2 mt-2 pt-2 border-t border-[#1e2638]/60 text-[10px] font-mono text-slate-400">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
             <span>
-              Arquitectura Zero-Knowledge: Los datos se cifran en el navegador antes de cualquier sincronización o almacenamiento.
+              Bóveda experimental: contraseña predeterminada y datos sólo en memoria. No la uses para información sensible hasta completar su protección y recuperación.
             </span>
           </div>
         </div>
