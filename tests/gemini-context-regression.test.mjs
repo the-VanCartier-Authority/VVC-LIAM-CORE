@@ -42,3 +42,10 @@ test('I11a: contradictory prompt/system or invalid turn order cannot call the pr
   }
   assert.deepEqual(await fixture.calls(), []);
 });
+test('I11a: matching duplicated App fields do not duplicate the final turn or system instruction', async t => {
+  const fixture = await setup(t);
+  const response = await post(fixture.app.base, '/api/chat/gemini', { messages, prompt: 'LAST_FIXTURE', systemInstruction: 'SYSTEM_FIXTURE', temperature: 0.5, max_tokens: 123 });
+  assert.equal(response.status, 200); const result = await response.json(); assert.equal(result.outcome.realExecution, false);
+  const calls = await fixture.calls(); assert.equal(calls.length, 1); assertHistory(calls[0]);
+  assert.equal(calls[0].generationConfig.maxOutputTokens, 123);
+});

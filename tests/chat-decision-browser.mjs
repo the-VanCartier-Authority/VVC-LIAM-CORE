@@ -76,4 +76,26 @@ try {
   assert.deepEqual(errors, []);
   assert.equal(calls.filter(call => call.path.startsWith('/api/chat/')).length, 1);
   assert.equal(calls.filter(call => call.path === '/api/vaos/dispatch').length, 0, 'chat must not create a second hidden generation');
+  const geminiPage = await browser.newPage();
+  geminiPage.on('pageerror', error => errors.push(error.message));
+  await geminiPage.route('**/*', route => new URL(route.request().url()).origin === base ? route.continue() : route.abort());
+  await geminiPage.addInitScript(() => {
+    localStorage.setItem('vvc_liam_model', 'google/gemini-2.5-flash');
+    localStorage.setItem('vvc_secret_gemini_api_key', 'synthetic-gemini');
+    for (const name of ['tasks','events','contacts','chat_history']) localStorage.setItem('vvc_liam_' + name, '[]');
+  });
+  await geminiPage.goto(base); await geminiPage.waitForTimeout(300);
+  const geminiInput = geminiPage.getByPlaceholder(/^Escribe o dicta un comando/);
+  await geminiInput.fill('fixture xyzzy texto'); await geminiInput.press('Enter');
+  await geminiPage.getByText('fixture-visible-generation', { exact: true }).waitFor();
+  const geminiCalls = await geminiPage.evaluate(() => window.fixtureCalls);
+  const chat = geminiCalls.filter(call => call.path.startsWith('/api/chat/'));
+  assert.equal(chat.length, 1); assert.equal(chat[0].path, '/api/chat/gemini');
+  assert.equal(typeof chat[0].body.temperature, 'number'); assert.ok(chat[0].body.temperature >= 0 && chat[0].body.temperature <= 2);
+  assert.ok(Number.isInteger(chat[0].body.max_tokens) && chat[0].body.max_tokens >= 1 && chat[0].body.max_tokens <= 4096);
+  assert.equal(chat[0].body.messages[0].content, chat[0].body.systemInstruction);
+  assert.equal(chat[0].body.messages.at(-1).content, chat[0].body.prompt);
+  assert.deepEqual(errors, []);
+  console.log(JSON.stringify({ geminiRoute: chat[0].path, temperature: chat[0].body.temperature,
+    max_tokens: chat[0].body.max_tokens, systemAndCurrentTurnConsistent: true, realProviderCalls: 0 }));
 } finally { await browser?.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
