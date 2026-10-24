@@ -10,6 +10,7 @@ export type TaskStatus = 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'UNA
 
 export interface VaosTask {
   taskId: string;
+  readonly ownerUid: string;
   command: string;
   agentId: string;
   priority: TaskPriority;
@@ -32,6 +33,7 @@ export interface VaosTask {
 }
 
 export interface TelemetryRecord {
+  ownerUid: string | null;
   timestamp: number;
   taskId: string;
   command: string;
@@ -160,6 +162,7 @@ export class VaosOrchestrator {
     this.recordTelemetry({
       timestamp: bootTime,
       taskId: 'boot-probe-01',
+      ownerUid: null,
       command: 'Autoverificación de Arranque VAOS // Fast Path SLA',
       priority: policyResult.priority,
       route: 'FAST_PATH',
@@ -177,8 +180,8 @@ export class VaosOrchestrator {
     }
   }
 
-  public getTelemetry() {
-    const points = [...this.telemetryRing];
+  public getTelemetry(ownerUid: string) {
+    const points = this.telemetryRing.filter(point => point.ownerUid === ownerUid);
     const fastPoints = points.filter((p) => p.route === 'FAST_PATH');
     const asyncPoints = points.filter((p) => p.route === 'ASYNC_PATH');
 
@@ -214,14 +217,17 @@ export class VaosOrchestrator {
   }
 
   public enqueueTask(
+    ownerUid: string,
     command: string,
     agentId: string,
     priority: TaskPriority,
     injectedSkills: string[] = []
   ): VaosTask {
+    if (!ownerUid) throw new Error('VERIFIED_OWNER_REQUIRED');
     const taskId = `liam-task-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     const task: VaosTask = {
       taskId,
+      ownerUid,
       command,
       agentId,
       priority,
@@ -298,7 +304,7 @@ export class VaosOrchestrator {
         task.result = { text: 'Proveedor no disponible. No se ha ejecutado ninguna acción.',
           outcome: executionOutcome('unavailable', 'vaos'), actionType: 'not_executed',
           data: { realExecution: false } };
-        this.recordTelemetry({ timestamp: task.completedAt, taskId: task.taskId,
+        this.recordTelemetry({ timestamp: task.completedAt, taskId: task.taskId, ownerUid: task.ownerUid,
           command: task.command, priority: task.priority, route: task.route,
           latencyMs: task.durationMs, tokensPerSec: 0, success: false, agentId: task.agentId });
         return;
@@ -327,6 +333,7 @@ export class VaosOrchestrator {
 
       // Record to telemetry ring with real measured values
       this.recordTelemetry({
+        ownerUid: task.ownerUid,
         timestamp: task.completedAt,
         taskId: task.taskId,
         command: task.command,
@@ -346,6 +353,7 @@ export class VaosOrchestrator {
         actionType: 'not_executed', data: { realExecution: false } };
 
       this.recordTelemetry({
+        ownerUid: task.ownerUid,
         timestamp: task.completedAt,
         taskId: task.taskId,
         command: task.command,
@@ -359,12 +367,13 @@ export class VaosOrchestrator {
     }
   }
 
-  public getTask(taskId: string): VaosTask | undefined {
-    return this.tasks.get(taskId);
+  public getTask(taskId: string, ownerUid: string): VaosTask | undefined {
+    const task = this.tasks.get(taskId);
+    return task?.ownerUid === ownerUid ? task : undefined;
   }
 
-  public listTasks(): VaosTask[] {
-    return Array.from(this.tasks.values()).slice(-20).reverse();
+  public listTasks(ownerUid: string): VaosTask[] {
+    return Array.from(this.tasks.values()).filter(task => task.ownerUid === ownerUid).slice(-20).reverse();
   }
 }
 
@@ -423,6 +432,7 @@ export function createVaosRouter(): Router {
       };
 
       vaosService.recordTelemetry({
+        ownerUid: req.auth!.uid,
         timestamp: Date.now(),
         taskId: `fast-${Date.now()}`,
         command,
@@ -438,7 +448,7 @@ export function createVaosRouter(): Router {
     }
 
     // 3. ASYNC PATH EXECUTION (P0_CRITICAL / P1_HIGH Queue)
-    const task = vaosService.enqueueTask(command, agentId, policy.priority, injectedSkills);
+    const task = vaosService.enqueueTask(req.auth!.uid, command, agentId, policy.priority, injectedSkills);
 
     return res.json({
       route: 'ASYNC_PATH' as TaskRoute,
@@ -456,7 +466,7 @@ export function createVaosRouter(): Router {
   // GET /api/vaos/task/:taskId
   router.get('/task/:taskId', (req: Request, res: Response) => {
     const { taskId } = req.params;
-    const task = vaosService.getTask(taskId);
+    const task = vaosService.getTask(taskId, req.auth!.uid);
     if (!task) {
       return res.status(404).json({ error: `Tarea no encontrada: ${taskId}` });
     }
@@ -464,13 +474,13 @@ export function createVaosRouter(): Router {
   });
 
   // GET /api/vaos/tasks
-  router.get('/tasks', (_req: Request, res: Response) => {
-    return res.json(vaosService.listTasks());
+  router.get('/tasks', (req: Request, res: Response) => {
+    return res.json(vaosService.listTasks(req.auth!.uid));
   });
 
   // GET /api/vaos/telemetry
-  router.get('/telemetry', (_req: Request, res: Response) => {
-    return res.json(vaosService.getTelemetry());
+  router.get('/telemetry', (req: Request, res: Response) => {
+    return res.json(vaosService.getTelemetry(req.auth!.uid));
   });
 
   // GET /api/vaos/health
