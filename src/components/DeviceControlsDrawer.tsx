@@ -222,7 +222,7 @@ export const DeviceControlsDrawer: React.FC<DeviceControlsDrawerProps> = ({
               Contactos Rápidos
             </span>
             <span className="text-[10px] font-mono text-slate-500">
-              Cifrado E2EE
+              Datos del navegador
             </span>
           </div>
 
@@ -267,7 +267,7 @@ export const DeviceControlsDrawer: React.FC<DeviceControlsDrawerProps> = ({
         <div className="mt-4 pt-3 border-t border-[#1e2638] flex items-center justify-between text-[10px] font-mono text-slate-500">
           <span className="flex items-center gap-1 text-emerald-400">
             <ShieldCheck className="w-3 h-3 text-emerald-400" />
-            Zero-Knowledge Hardware Sandbox
+            APIs del navegador; Wi-Fi, Bluetooth y brillo visuales
           </span>
           <span>vvc-os v2.4</span>
         </div>

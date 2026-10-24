@@ -69,7 +69,7 @@ export const MessagingModal: React.FC<MessagingModalProps> = ({
               }`}
             >
               <ShieldCheck className="w-3 h-3" />
-              {channel === 'WhatsApp' ? 'WhatsApp E2EE' : 'SMS Red Móvil (sms:)'}
+              {channel === 'WhatsApp' ? 'WhatsApp (enlace externo)' : 'SMS Red Móvil (sms:)'}
             </span>
           </div>
 
@@ -110,7 +110,7 @@ export const MessagingModal: React.FC<MessagingModalProps> = ({
         {/* Footer actions */}
         <div className="flex items-center justify-between pt-2 border-t border-[#1e2638]">
           <span className="text-[10px] font-mono text-slate-500">
-            Cifrado con clave de sesión local
+            El navegador prepara un enlace; la entrega se confirma en la aplicación de destino.
           </span>
 
           <button

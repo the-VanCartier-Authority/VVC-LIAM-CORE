@@ -142,7 +142,7 @@ export const Header: React.FC<HeaderProps> = ({
             className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-mono text-slate-300 hover:text-[#00f0ff] hover:bg-[#0f141f] rounded transition-colors"
           >
             <Lock className="w-3.5 h-3.5 text-[#ff2a5f]" />
-            <span>Bóveda E2EE</span>
+            <span>Bóveda experimental</span>
           </button>
 
           {/* Gmail Workspace Link */}
@@ -250,7 +250,7 @@ export const Header: React.FC<HeaderProps> = ({
                 ? 'bg-[#ff2a5f]/20 border-[#ff2a5f] text-[#ff2a5f]'
                 : 'bg-[#0a0d14] border-[#1e2638] text-slate-300 hover:text-[#00f0ff]'
             }`}
-            title={isMuted ? 'Voz silenciada' : 'Voz activa (Kokoro)'}
+            title={isMuted ? 'Voz silenciada' : 'Voz activa (Edge/Gemini/navegador)'}
           >
             {isMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5 text-[#00f0ff]" />}
           </button>
@@ -259,7 +259,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={onOpenSettings}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono bg-[var(--primary-accent)]/15 border border-[var(--primary-accent)]/60 hover:bg-[var(--primary-accent)]/25 text-[var(--primary-accent)] font-bold transition-all shadow-[0_0_12px_rgba(0,240,255,0.2)] cursor-pointer"
-            title="Centro Unificado de Configuración (Modelos, Claves API, Voz Kokoro, Temas, PWA y Ayuda)"
+            title="Centro Unificado de Configuración (Modelos, Claves API, Voz, Temas, PWA y Ayuda)"
           >
             <Sliders className="w-3.5 h-3.5" />
             <span>Configuración</span>

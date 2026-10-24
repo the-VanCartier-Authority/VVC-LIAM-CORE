@@ -68,57 +68,57 @@ export interface CloudIntegrationInfo {
 export const CLOUD_INTEGRATIONS: CloudIntegrationInfo[] = [
   {
     id: 'local_only',
-    name: 'Modo Local Autónomo (Zero-Knowledge)',
+    name: 'Modo local (funciones del navegador)',
     provider: 'VVC LIAM CORE Sandbox',
-    description: 'Sin sincronización externa. Privacidad absoluta y cifrado en el navegador.',
-    badge: 'MÁXIMA PRIVACIDAD',
+    description: 'Preferencia de modo local; no constituye cifrado ni garantiza desconexión de todos los servicios.',
+    badge: 'MODO LOCAL',
     iconName: 'ShieldCheck',
-    features: ['Almacenamiento AES-GCM-256', 'Cero telemetría', 'Funcionamiento 100% offline'],
+    features: ['Parser local', 'Estado en navegador', 'Funciones offline limitadas'],
   },
   {
     id: 'google_calendar',
-    name: 'Google Calendar & Tasks Cloud Sync',
+    name: 'Google Calendar (cobertura parcial)',
     provider: 'Google Workspace',
-    description: 'Sincronización bidireccional de agenda, exportación iCal (.ics) y recordatorios en tiempo real.',
-    badge: 'CALENDARIO NATIVO',
+    description: 'Adaptador Calendar parcial y exportación iCal. No incluye API Google Tasks ni reconciliación completa.',
+    badge: 'COBERTURA PARCIAL',
     iconName: 'Calendar',
-    features: ['Sincronización RFC 5545 iCal', 'Eventos con alarmas automáticas', 'Compatibilidad móvil'],
+    features: ['Exportación iCal', 'Permisos requeridos', 'Sync parcial'],
   },
   {
     id: 'notion_workspace',
-    name: 'Notion Workspace Live Database',
+    name: 'Preferencia Notion (sin adaptador)',
     provider: 'Notion API',
-    description: 'Automatización de tareas en bases de datos de Notion con prioridades y subelementos.',
-    badge: 'GESTIÓN NOTION',
+    description: 'Preferencia guardada; no existe una integración Notion operativa en esta versión.',
+    badge: 'NO INTEGRADO',
     iconName: 'FileText',
-    features: ['Mapeo de propiedades', 'Subelementos automáticos', 'Registros sincronizados'],
+    features: ['Preferencia de configuración', 'Adaptador pendiente'],
   },
   {
     id: 'todoist_sync',
-    name: 'Todoist Real-Time Task Flow',
+    name: 'Preferencia Todoist (sin adaptador)',
     provider: 'Todoist Cloud',
-    description: 'Integración continua con bandejas de entrada de Todoist y proyectos automatizados.',
-    badge: 'TAREAS CLOUD',
+    description: 'Preferencia guardada; no existe una integración Todoist operativa en esta versión.',
+    badge: 'NO INTEGRADO',
     iconName: 'CheckSquare',
-    features: ['Prioridades P1-P4 sincronizadas', 'Fechas de vencimiento dinámicas', 'Notificaciones instantáneas'],
+    features: ['Preferencia de configuración', 'Adaptador pendiente'],
   },
   {
     id: 'slack_webhooks',
-    name: 'Slack / Discord Automated Webhooks',
+    name: 'Webhook externo (entrega no verificada)',
     provider: 'Slack Cloud Service',
-    description: 'Envío automático de alertas y recordatorios de tareas críticas a canales de comunicación.',
-    badge: 'WEBHOOKS EN VIVO',
+    description: 'Transporte webhook desde navegador; la respuesta opaca no verifica entrega ni acción en el servicio.',
+    badge: 'ENTREGA NO VERIFICADA',
     iconName: 'Share2',
-    features: ['Alertas a canales en tiempo real', 'Payloads JSON formateados', 'Registro de auditoría'],
+    features: ['Payload JSON', 'Configuración explícita', 'Confirmación pendiente'],
   },
   {
     id: 'enterprise_hybrid',
-    name: 'Suite Empresarial Híbrida (Google + Notion + E2EE)',
+    name: 'Preferencia híbrida (cobertura parcial)',
     provider: 'Multi-Cloud Relay',
-    description: 'Integración simultánea en la nube con Google Calendar, Notion y Webhooks con cifrado de extremo a extremo.',
-    badge: 'SUITE COMPLETA',
+    description: 'Selector de preferencias; no acredita integración simultánea, sincronización completa ni E2EE.',
+    badge: 'COBERTURA PARCIAL',
     iconName: 'Globe',
-    features: ['Sincronización unificada', 'Cifrado E2EE antes de envío', 'Respaldo automático'],
+    features: ['Configuración de servicios', 'Permisos requeridos', 'Cobertura parcial'],
   },
 ];
 
@@ -167,7 +167,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Ingeniería de software, refactorización y arquitectura (Recomendado para Código)',
     contextWindow: '128K',
     maxTokens: 4096,
-    isFreeEndpoint: true,
   },
   {
     id: 'mistralai/codestral-22b-instruct-v0.1',
@@ -180,7 +179,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Completado de código FIM, tests unitarios y scripts backend',
     contextWindow: '32K',
     maxTokens: 4096,
-    isFreeEndpoint: true,
   },
   {
     id: 'deepseek-ai/deepseek-coder-33b-instruct',
@@ -193,7 +191,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Algoritmos matemáticos complejos, optimización y estructuras de datos',
     contextWindow: '64K',
     maxTokens: 4096,
-    isFreeEndpoint: true,
   },
   {
     id: 'qwen/qwen2.5-coder-7b-instruct',
@@ -206,7 +203,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Scripts rápidos de terminal, comandos shell y consultas SQL (<1s)',
     contextWindow: '32K',
     maxTokens: 2048,
-    isFreeEndpoint: true,
   },
   {
     id: 'meta/codellama-70b-instruct',
@@ -219,7 +215,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Auditoría de código legacy y análisis estático empresarial',
     contextWindow: '100K',
     maxTokens: 4096,
-    isFreeEndpoint: true,
   },
   {
     id: 'bigcode/starcoder2-15b',
@@ -232,7 +227,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Completado de sintaxis estricta y APIs modernas',
     contextWindow: '16K',
     maxTokens: 4096,
-    isFreeEndpoint: true,
   },
   {
     id: 'poolside/laguna-xs-2.1',
@@ -245,7 +239,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Comandos técnicos y operaciones de terminal',
     contextWindow: '32K',
     maxTokens: 2048,
-    isFreeEndpoint: true,
   },
 
   // ==========================================
@@ -262,7 +255,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Razonamiento complejo de máximo nivel, arquitectura y funciones de sistema (Flagship)',
     contextWindow: '128K',
     maxTokens: 4096,
-    isFreeEndpoint: true,
   },
   {
     id: 'z-ai/glm-5-3-flash',
@@ -275,7 +267,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Respuestas inmediatas de voz, baja latencia y chat interactivo ligero (Lite)',
     contextWindow: '32K',
     maxTokens: 1024,
-    isFreeEndpoint: true,
   },
   {
     id: 'thudm/glm-4-9b-chat',
@@ -288,7 +279,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Conversación técnica equilibrada y llamadas a funciones',
     contextWindow: '128K',
     maxTokens: 2048,
-    isFreeEndpoint: true,
   },
 
   // ==========================================
@@ -305,7 +295,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Resolución de problemas de alta complejidad lógica y matemáticas avanzadas',
     contextWindow: '64K',
     maxTokens: 4096,
-    isFreeEndpoint: true,
   },
   {
     id: 'deepseek-ai/deepseek-v3',
@@ -318,7 +307,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Inteligencia general de escala masiva y análisis estratégico',
     contextWindow: '128K',
     maxTokens: 4096,
-    isFreeEndpoint: true,
   },
   {
     id: 'nvidia/llama-3.1-nemotron-70b-instruct',
@@ -331,7 +319,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Gobernanza de sistemas, síntesis de datos y precisión extrema',
     contextWindow: '128K',
     maxTokens: 4096,
-    isFreeEndpoint: true,
   },
   {
     id: 'meta/llama-3.3-70b-instruct',
@@ -344,7 +331,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Tareas empresariales, análisis holístico y redacción de alto impacto',
     contextWindow: '128K',
     maxTokens: 4096,
-    isFreeEndpoint: true,
   },
   {
     id: 'meta/llama-3.1-405b-instruct',
@@ -357,7 +343,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Investigación profunda y síntesis de conocimiento enciclopédico',
     contextWindow: '128K',
     maxTokens: 4096,
-    isFreeEndpoint: true,
   },
   {
     id: 'mistralai/mistral-large-2-instruct',
@@ -370,7 +355,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Análisis multilingüe y razonamiento corporativo',
     contextWindow: '128K',
     maxTokens: 4096,
-    isFreeEndpoint: true,
   },
   {
     id: 'nvidia/nemotron-3-ultra-550b-a55b',
@@ -383,7 +367,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Planificación de agendas complejas y flujos multi-paso',
     contextWindow: '128K',
     maxTokens: 4096,
-    isFreeEndpoint: true,
   },
   {
     id: 'nvidia/nemotron-3-super-120b-a12b',
@@ -396,7 +379,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Automatización de tareas y orquestación de agentes',
     contextWindow: '64K',
     maxTokens: 3072,
-    isFreeEndpoint: true,
   },
   {
     id: 'nvidia/nemotron-3.5-lightning-30b-a3b',
@@ -409,7 +391,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Coding & Agentes Autónomos (Recomendado para VAOS)',
     contextWindow: '64K',
     maxTokens: 2048,
-    isFreeEndpoint: true,
   },
   {
     id: 'moonshotai/kimi-k3',
@@ -422,7 +403,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Comprensión profunda de documentos y contexto extenso',
     contextWindow: '200K',
     maxTokens: 3072,
-    isFreeEndpoint: true,
   },
   {
     id: 'openai/gpt-oss-20b',
@@ -435,7 +415,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Cálculos y tareas numéricas',
     contextWindow: '32K',
     maxTokens: 2048,
-    isFreeEndpoint: true,
   },
 
   // ==========================================
@@ -452,7 +431,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Conversación fluida por voz instantánea (Recomendado para Voz)',
     contextWindow: '128K',
     maxTokens: 800,
-    isFreeEndpoint: true,
   },
   {
     id: 'deepseek-ai/deepseek-v4.1-flash',
@@ -465,7 +443,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Velocidad extrema y respuestas concisas',
     contextWindow: '64K',
     maxTokens: 800,
-    isFreeEndpoint: true,
   },
   {
     id: 'meta/muse-glimmer-30b',
@@ -478,7 +455,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Llamadas a funciones y formateo estructurado',
     contextWindow: '32K',
     maxTokens: 1200,
-    isFreeEndpoint: true,
   },
   {
     id: 'google/gemma-4-31b-it',
@@ -491,7 +467,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Agentes autónomos e instrucciones precisas',
     contextWindow: '32K',
     maxTokens: 2048,
-    isFreeEndpoint: true,
   },
   {
     id: 'google/diffusiongemma-26b-a4b-it',
@@ -504,7 +479,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Chat interactivo y generación fluida',
     contextWindow: '32K',
     maxTokens: 1200,
-    isFreeEndpoint: true,
   },
   {
     id: 'mistralai/mistral-nemotron',
@@ -517,7 +491,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Control estricto de dispositivos',
     contextWindow: '32K',
     maxTokens: 1200,
-    isFreeEndpoint: true,
   },
   {
     id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning',
@@ -530,7 +503,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Procesamiento de voz multimodal',
     contextWindow: '32K',
     maxTokens: 1200,
-    isFreeEndpoint: true,
   },
   {
     id: 'nvidia/riva-translate-4b-instruct-v2',
@@ -543,7 +515,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Traducción de voz y comandos multilingües',
     contextWindow: '16K',
     maxTokens: 800,
-    isFreeEndpoint: true,
   },
 
   // ==========================================
@@ -560,7 +531,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Respuestas ágiles, multimodalidad y comandos conversacionales (<1s)',
     contextWindow: '1M',
     maxTokens: 4096,
-    isFreeEndpoint: false,
   },
   {
     id: 'google/gemini-2.5-pro',
@@ -573,7 +543,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Razonamiento profundo, síntesis ejecutiva y resolución de problemas complejos',
     contextWindow: '2M',
     maxTokens: 8192,
-    isFreeEndpoint: false,
   },
 
   // ==========================================
@@ -590,7 +559,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Control global del teléfono, privacidad absoluta y cero latencia',
     contextWindow: 'Local',
     maxTokens: 1024,
-    isFreeEndpoint: true,
   },
   {
     id: 'rt-lite-hardware',
@@ -603,7 +571,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Control físico inmediato de actuadores del teléfono',
     contextWindow: 'Local',
     maxTokens: 1024,
-    isFreeEndpoint: true,
   },
   {
     id: 'rt-lite-telephony',
@@ -616,7 +583,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Comunicaciones directas por voz y mensajería',
     contextWindow: 'Local',
     maxTokens: 1024,
-    isFreeEndpoint: true,
   },
   {
     id: 'rt-lite-agenda',
@@ -629,7 +595,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Gestión avanzada de calendario, tareas, alarmas y temporizadores',
     contextWindow: 'Local',
     maxTokens: 1024,
-    isFreeEndpoint: true,
   },
   {
     id: 'rt-lite-docs',
@@ -642,7 +607,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Creación de reportes, presupuestos, minutas y exportación a PDF',
     contextWindow: 'Local',
     maxTokens: 1024,
-    isFreeEndpoint: true,
   },
   {
     id: 'rt-lite-security',
@@ -651,11 +615,10 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     category: 'RT-Lite Local',
     domain: 'offline_device',
     tier: 'Local On-Device',
-    description: 'Cifrado E2EE de grado militar AES-GCM-256, service worker y alertas push nativas en segundo plano.',
+    description: 'Utilidad AES-GCM de bóveda experimental, service worker y código Web Push sujeto a permisos.',
     bestFor: 'Bóveda de credenciales, notas secretas y notificaciones push persistentes',
     contextWindow: 'Local',
     maxTokens: 1024,
-    isFreeEndpoint: true,
   },
   {
     id: 'custom-llm',
@@ -668,7 +631,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Tu propia infraestructura, llaves API privadas y modelos personalizados',
     contextWindow: 'Variable',
     maxTokens: 4096,
-    isFreeEndpoint: false,
   },
   {
     id: 'direct-no-ai',
@@ -681,7 +643,6 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     bestFor: 'Control puro, cero procesamiento neural, máxima privacidad y rapidez instantánea',
     contextWindow: 'N/A',
     maxTokens: 0,
-    isFreeEndpoint: true,
   },
 ];
 
@@ -773,7 +734,7 @@ export const KOKORO_VOICES: KokoroVoice[] = [
   },
   {
     id: 'af_heart',
-    name: 'Kokoro Heart (Ultra-HD)',
+    name: 'Heart (perfil de voz)',
     gender: 'Femenina',
     language: 'English',
     style: 'Neural Studio HD: Tecnológica, suave y precisa',
@@ -783,7 +744,7 @@ export const KOKORO_VOICES: KokoroVoice[] = [
   },
   {
     id: 'af_bella',
-    name: 'Kokoro Bella',
+    name: 'Bella (perfil de voz)',
     gender: 'Femenina',
     language: 'English',
     style: 'Dinámica, brillante y expresiva',
@@ -793,7 +754,7 @@ export const KOKORO_VOICES: KokoroVoice[] = [
   },
   {
     id: 'af_nicole',
-    name: 'Kokoro Nicole',
+    name: 'Nicole (perfil de voz)',
     gender: 'Femenina',
     language: 'English',
     style: 'Voz ejecutiva, directa y concisa',
@@ -803,7 +764,7 @@ export const KOKORO_VOICES: KokoroVoice[] = [
   },
   {
     id: 'am_adam',
-    name: 'Kokoro Adam',
+    name: 'Adam (perfil de voz)',
     gender: 'Masculina',
     language: 'English',
     style: 'Profunda, resonante y segura',
@@ -813,7 +774,7 @@ export const KOKORO_VOICES: KokoroVoice[] = [
   },
   {
     id: 'am_michael',
-    name: 'Kokoro Michael',
+    name: 'Michael (perfil de voz)',
     gender: 'Masculina',
     language: 'English',
     style: 'Corporativo, nítido y equilibrado',
@@ -823,7 +784,7 @@ export const KOKORO_VOICES: KokoroVoice[] = [
   },
   {
     id: 'bf_emma',
-    name: 'Kokoro Emma (British)',
+    name: 'Emma (perfil de voz)',
     gender: 'Femenina',
     language: 'English',
     style: 'Acento británico sofisticado',
@@ -1145,8 +1106,8 @@ export const EXCLUSIVE_AGENTS: AgentProfile[] = [
     id: 'exclusive-vladimir',
     name: 'Vladimir // Estratega Supremo',
     role: 'Master Orchestrator & Autonomous Ops (OSINT)',
-    description: 'Agente exclusivo de alto mando. Planificación autónoma, análisis profundo de amenazas, inteligencia de fuentes abiertas (OSINT) y ejecución de operaciones complejas con mínima fricción.',
-    systemPrompt: 'Eres Vladimir, el Estratega Supremo de VVC LIAM CORE (Control // Analyze // Execute). Tienes capacidad de orquestación autónoma e inyección dinámica de skills (OSINT, Reconocimiento de Redes, Análisis Táctico, Terminal). Tu tono es impecable, analítico, frío, directo y de máxima autoridad ejecutiva. Sintetiza la información en respuestas de alta densidad estratégica y cero ruido.',
+    description: 'Perfil de instrucciones para análisis y planificación. No dispone de herramientas ejecutables ni autonomía para acciones externas.',
+    systemPrompt: 'Eres Vladimir, el Estratega Supremo de VVC LIAM CORE (Control // Analyze // Execute). Generas análisis de texto; no dispones de terminal, herramientas de red ni ejecutores de acciones. Tu tono es impecable, analítico, frío, directo y de máxima autoridad ejecutiva. Sintetiza la información en respuestas de alta densidad estratégica y cero ruido.',
     temperature: 0.35,
     maxTokens: 850,
     defaultVoiceId: 'es_mateo',
@@ -1189,8 +1150,8 @@ export const EXCLUSIVE_AGENTS: AgentProfile[] = [
     id: 'exclusive-victoria',
     name: 'Victoria // Ciberdefensa & SecOps',
     role: 'Arquitecta de Ciberseguridad, Forense Digital & E2EE',
-    description: 'Agente exclusiva de ciberdefensa. Protocolos criptográficos Zero-Knowledge, detección de intrusiones, auditoría de permisos y blindaje de bóveda privada.',
-    systemPrompt: 'Eres Victoria, Arquitecta de Ciberdefensa y Operaciones de Seguridad (SecOps) de VVC LIAM CORE. Controlas el blindaje criptográfico AES-GCM-256, la bóveda blindada E2EE, la telemetría de integridad del sistema y el análisis forense de intrusiones. Tu estilo es técnico, riguroso, vigilante y hermético.',
+    description: 'Perfil de instrucciones para análisis de ciberdefensa; no acredita detección de intrusiones ni protección automática de la bóveda.',
+    systemPrompt: 'Eres Victoria, Arquitecta de Ciberdefensa y Operaciones de Seguridad (SecOps) de VVC LIAM CORE. Tu función es ofrecer análisis de texto; no controlas la bóveda, la criptografía ni herramientas forenses. Tu estilo es técnico, riguroso, vigilante y hermético.',
     temperature: 0.25,
     maxTokens: 750,
     defaultVoiceId: 'es_sofia',
@@ -1236,7 +1197,7 @@ export const DEFAULT_AGENTS: AgentProfile[] = [
     name: 'Ingeniero Ciberseguridad & Hardware',
     role: 'Arquitecto de Seguridad E2EE & Control Físico',
     description: 'Especialista en protocolos criptográficos AES-GCM, bóveda blindada, telemetría de batería y sensores de hardware.',
-    systemPrompt: 'Eres el Oficial de Seguridad Criptográfica y Control de Hardware de VVC LIAM CORE. Te enfocas en la privacidad de datos (Zero-Knowledge), auditoría de claves, gestión segura de la bóveda y control de actuadores del teléfono (linterna, volumen, brillo, redes).',
+    systemPrompt: 'Eres el Oficial de Seguridad Criptográfica y Control de Hardware de VVC LIAM CORE. Ofreces orientación textual de privacidad y APIs del navegador, sin ejecutar controles del sistema ni acreditar protección de claves.',
     temperature: 0.3,
     maxTokens: 500,
     defaultVoiceId: 'es_mateo',

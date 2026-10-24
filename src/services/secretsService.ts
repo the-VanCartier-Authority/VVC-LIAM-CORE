@@ -1,6 +1,6 @@
 /**
  * VVC LIAM CORE - Secrets & API Key Manager
- * Zero-Knowledge local storage of API credentials and keys.
+ * Local plaintext API credential storage; encryption and controlled migration remain pending.
  * No hardcoded keys or vendor lock-in: user controls all secrets.
  */
 

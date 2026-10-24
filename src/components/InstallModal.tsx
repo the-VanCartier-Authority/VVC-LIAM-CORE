@@ -47,7 +47,7 @@ npm run build
 npx cap add android
 npx cap sync
 
-# 3. Generar APK nativo de Android o binario de escritorio
+# 3. Abrir el proyecto Android (no genera binarios de escritorio)
 npx cap open android
 # En Android Studio: Build > Build Bundle(s) / APK(s) > Build APK(s)`;
 
@@ -72,7 +72,7 @@ npx cap open android
           <div className="flex items-center gap-2">
             <Smartphone className="w-5 h-5 text-[#00f0ff]" />
             <h3 className="font-mono text-sm sm:text-base font-bold text-white tracking-wider">
-              Instalación en Celular & Generación de APK
+              Instalación PWA & guía de empaquetado
             </h3>
           </div>
 
@@ -105,7 +105,7 @@ npx cap open android
                 : 'text-slate-300 hover:text-white'
             }`}
           >
-            2. Compilar APK Nativo (.apk)
+            2. Guía Android (sin APK incluido)
           </button>
 
           <button
@@ -137,21 +137,21 @@ npx cap open android
                 </div>
 
                 <p className="text-slate-300 leading-relaxed text-xs">
-                  Al pulsar el botón inferior o abrir este enlace en el navegador de tu celular (Google Chrome o Microsoft Edge en Android), el sistema genera e instala automáticamente un <strong>WebAPK firmado</strong> en tu teléfono.
+                  Chrome o Edge pueden ofrecer la instalación de esta <strong>PWA</strong>. El formato y la disponibilidad dependen del navegador; este repositorio no incluye un APK o binario nativo verificado.
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-[11px] text-slate-400">
                   <div className="p-2.5 rounded bg-[#07090e] border border-[#1e2638]">
-                    <span className="text-[#00f0ff] font-bold block mb-0.5">Icono Nativo</span>
-                    Aparece en el cajón de apps de tu celular como cualquier app de Play Store.
+                    <span className="text-[#00f0ff] font-bold block mb-0.5">Icono PWA</span>
+                    El navegador puede añadir el acceso a la pantalla de inicio.
                   </div>
                   <div className="p-2.5 rounded bg-[#07090e] border border-[#1e2638]">
                     <span className="text-[#b026ff] font-bold block mb-0.5">Pantalla Completa</span>
                     Modo standalone sin barra de URL ni marcos de navegador.
                   </div>
                   <div className="p-2.5 rounded bg-[#07090e] border border-[#1e2638]">
-                    <span className="text-emerald-400 font-bold block mb-0.5">100% Offline</span>
-                    Ejecuta el motor local RT-Lite sin conexión a internet.
+                    <span className="text-emerald-400 font-bold block mb-0.5">Offline parcial</span>
+                    Funciones locales con caché; voz y arranque en frío sin garantía.
                   </div>
                 </div>
 
@@ -231,7 +231,7 @@ npx cap open android
                     </div>
                   </div>
                   <p className="text-[10px] text-slate-400">
-                    ✓ Se instalará como una app nativa con su icono oficial, pantalla completa y acceso a la memoria local sin requerir compilación.
+                    El navegador puede instalar la PWA con el icono oficial y modo standalone; no equivale a una aplicación nativa verificada.
                   </p>
                 </div>
 
