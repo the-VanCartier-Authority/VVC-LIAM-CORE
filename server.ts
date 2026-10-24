@@ -10,9 +10,11 @@ import { createVaosRouter } from './src/server/vaosOrchestrator.ts';
 import { ProviderRegistry, providerKey, postProvider, EgressPolicyError, UpstreamError } from './src/server/providerEgress.ts';
 import { executionOutcome } from './src/shared/executionOutcome.ts';
 import { createFirebaseVerifier, firebaseIdentityMiddleware } from './src/server/firebaseIdentity.ts';
+import { BackendLimits, resourceErrorHandler } from './src/server/backendLimits.ts';
 
 dotenv.config();
 const providers = new ProviderRegistry(process.env.LLM_PROVIDERS_JSON || '[]');
+const limits = new BackendLimits(process.env.BACKEND_LIMITS_JSON || '{}');
 
 function egressFailure(res: Response, error: unknown) {
   const policy = error instanceof EgressPolicyError;
@@ -33,10 +35,12 @@ const PORT = process.env.PORT && process.env.PORT !== '8080' ? Number(process.en
 const firebaseProjectId = process.env.FIREBASE_PROJECT_ID || JSON.parse(
   readFileSync(new URL('./firebase-applet-config.json', import.meta.url), 'utf8')).projectId;
 app.use('/api', firebaseIdentityMiddleware(createFirebaseVerifier(firebaseProjectId)));
-app.use(express.json({ limit: '15mb' }));
+app.use('/api', limits.middleware());
+app.use(express.json({ limit: '256kb' }));
+app.use('/api', limits.payload());
 
 // Mount VAOS Smart Routing Orchestrator (Policy Engine, Fast Path & Async Queue)
-app.use('/api/vaos', createVaosRouter());
+app.use('/api/vaos', createVaosRouter(limits));
 
 // Neural voice mapping for Studio-grade Kokoro profiles
 const VOICE_MAP: Record<string, string> = {
@@ -275,29 +279,31 @@ async function generateEdgeTTS(text: string, voiceId: string): Promise<{ audio: 
   const { MsEdgeTTS, OUTPUT_FORMAT } = await import('msedge-tts');
   const tts = new MsEdgeTTS();
   const voiceName = EDGE_VOICE_MAP[voiceId] || 'es-ES-AlvaroNeural';
-  await tts.setMetadata(voiceName, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
-  const { audioStream } = tts.toStream(text);
-
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    const timeout = setTimeout(() => {
-      reject(new Error('EDGE_TTS_TIMEOUT'));
-    }, 7000);
-
-    audioStream.on('data', (d: Buffer) => chunks.push(d));
-    audioStream.on('end', () => {
+    let audioStream: ReturnType<typeof tts.toStream>['audioStream'] | undefined;
+    let settled = false, size = 0;
+    const finish = (error?: Error) => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timeout);
-      const buf = Buffer.concat(chunks);
-      resolve({
-        audio: buf.toString('base64'),
-        mimeType: 'audio/mp3',
-        voiceName,
+      try { tts.close(); audioStream?.destroy(); } catch {}
+      if (error) reject(error);
+      else resolve({ audio: Buffer.concat(chunks).toString('base64'), mimeType: 'audio/mp3', voiceName });
+    };
+    // Include metadata/socket setup in the deadline, not only audio reception.
+    const timeout = setTimeout(() => finish(new Error('EDGE_TTS_TIMEOUT')), 7000);
+    tts.setMetadata(voiceName, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3).then(() => {
+      if (settled) return;
+      audioStream = tts.toStream(text).audioStream;
+      audioStream.on('data', (chunk: Buffer) => {
+        size += chunk.length;
+        if (size > 4 * 1024 * 1024) finish(new Error('EDGE_TTS_SIZE_LIMIT'));
+        else chunks.push(chunk);
       });
-    });
-    audioStream.on('error', (err) => {
-      clearTimeout(timeout);
-      reject(err);
-    });
+      audioStream.once('end', () => finish());
+      audioStream.once('error', () => finish(new Error('EDGE_TTS_FAILED')));
+    }).catch(() => finish(new Error('EDGE_TTS_FAILED')));
   });
 }
 
@@ -364,7 +370,7 @@ app.post('/api/tts', async (req: Request, res: Response) => {
     const geminiKey = process.env.GEMINI_API_KEY;
     if (geminiKey && geminiKey !== 'MY_GEMINI_API_KEY') {
       const voiceName = VOICE_MAP[voiceId] || 'Fenrir';
-      const ai = new GoogleGenAI({ apiKey: geminiKey });
+      const ai = new GoogleGenAI({ apiKey: geminiKey, httpOptions: { timeout: 6000, retryOptions: { attempts: 1 } } });
 
       for (const model of TTS_MODELS) {
         try {
@@ -377,6 +383,7 @@ app.post('/api/tts', async (req: Request, res: Response) => {
             contents: [{ role: 'user', parts: [{ text: cleanText }] }],
             config: {
               responseModalities: ['AUDIO'],
+              maxOutputTokens: 4096,
               speechConfig: {
                 voiceConfig: {
                   prebuiltVoiceConfig: { voiceName },
@@ -424,10 +431,11 @@ app.post('/api/tts', async (req: Request, res: Response) => {
  */
 async function generateGeminiReply(systemMsg: string, userMsg: string, apiKey: string, modelName = 'gemini-2.5-flash') {
   try {
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: 30000, retryOptions: { attempts: 1 } } });
     const response = await ai.models.generateContent({
       model: modelName,
       contents: `${systemMsg ? `[Instrucción del sistema: ${systemMsg}]\n\n` : ''}${userMsg}`,
+      config: { maxOutputTokens: 4096 },
     });
     if (!response.text?.trim()) throw new UpstreamError();
     return response.text;
@@ -644,11 +652,12 @@ app.post('/api/chat/gemini', async (req: Request, res: Response) => {
       targetModel = 'gemini-2.5-flash';
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: 30000, retryOptions: { attempts: 1 } } });
     const fullContents = sysMsg ? `[Instrucción del sistema: ${sysMsg}]\n\n${lastMsg}` : lastMsg;
     const response = await ai.models.generateContent({
       model: targetModel,
       contents: fullContents,
+      config: { maxOutputTokens: 4096 },
     });
 
     const responseText = cleanModelResponse(response.text || '');
@@ -716,10 +725,11 @@ app.post('/api/secrets/test', async (req: Request, res: Response) => {
     if (provider === 'gemini') {
       const key = providerKey(providers.select('gemini', req.body), apiKey);
       if (!key) return res.status(400).json({ success: false, error: 'Clave no proporcionada' });
-      const ai = new GoogleGenAI({ apiKey: key });
+      const ai = new GoogleGenAI({ apiKey: key, httpOptions: { timeout: 30000, retryOptions: { attempts: 1 } } });
       const testRes = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: 'Ping',
+        config: { maxOutputTokens: 4096 },
       });
       return res.json({ success: true, message: 'Google Gemini API Key verificada con éxito', ping: testRes.text?.slice(0, 50) });
     }
@@ -758,6 +768,8 @@ app.post('/api/secrets/test', async (req: Request, res: Response) => {
     return egressFailure(res, err);
   }
 });
+
+app.use(resourceErrorHandler);
 
 // Setup Vite middleware in dev or static files in production
 async function startServer() {
