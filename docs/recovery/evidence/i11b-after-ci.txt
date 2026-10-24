@@ -1,0 +1,15 @@
+2026-10-24T22:19:41.3619609Z Validated Node 24.19.0; package manager bun@1.4.4
+2026-10-24T22:19:41.4362462Z bun install v1.4.4 (38afee6c8)
+2026-10-24T22:19:50.8351774Z ✔ I11b: disconnect closes an already transmitted custom-provider request (915.180564ms)
+2026-10-24T22:19:52.1112664Z ✔ I11b: a disconnected NVIDIA request cannot start its explicit Gemini fallback (1276.366315ms)
+2026-10-24T22:19:52.6032745Z ✔ I11b: disconnect propagates to the Gemini SDK abort signal (492.315258ms)
+2026-10-24T22:20:00.8151487Z ✔ I11b: cancellation before DNS sends neither lookup nor credential-bearing request (16.212647ms)
+2026-10-24T22:20:00.8347733Z ✔ I11b: a DNS answer arriving after cancellation cannot dial its validated IP (27.012862ms)
+2026-10-24T22:20:00.8613023Z ✔ I11b: a late DNS rejection is handled without further work (23.845686ms)
+2026-10-24T22:20:00.8839571Z ✔ I11b: aborting a partial upstream response rejects and closes its socket (22.272451ms)
+2026-10-24T22:20:00.9008979Z ✔ I11b: abort during TLS handshake closes the connection without HTTP credentials or an IP retry (18.885667ms)
+2026-10-24T22:20:00.9162094Z ✔ I11b: an active signal preserves a normal complete response (18.014888ms)
+2026-10-24T22:20:11.0459417Z ℹ tests 133
+2026-10-24T22:20:11.0461006Z ℹ pass 133
+2026-10-24T22:20:11.0461724Z ℹ fail 0
+2026-10-24T22:20:18.1621827Z {"node":"v24.19.0","mode":"production","staticHtml":200,"asset":200,"manifest":200,"rejectedRoutes":4,"rejectedDestinationCalls":0,"registeredFixtureCalls":1,"missingGeminiKey":401,"missingIdentity":401,"validIdentity":200,"externalInferenceCalls":0}
