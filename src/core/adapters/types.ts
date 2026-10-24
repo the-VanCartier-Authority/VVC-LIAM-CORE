@@ -31,7 +31,7 @@ export interface DeviceCapabilities {
 
 export type TaskPriority = 'P0_CRITICAL' | 'P1_HIGH' | 'P2_LOW';
 export type TaskRoute = 'FAST_PATH' | 'ASYNC_PATH';
-export type TaskExecutionStatus = 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'UNAVAILABLE';
+export type TaskExecutionStatus = 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'UNAVAILABLE' | 'CANCELLED' | 'INTERRUPTED';
 
 export interface VaosDispatchPayload {
   command: string;
@@ -75,7 +75,9 @@ export interface VaosDispatchResult {
   asyncTask?: {
     taskId: string;
     status: TaskExecutionStatus;
-    estimatedDurationMs: number;
+    estimatedDurationMs?: number;
+    durable?: boolean;
+    durabilityScope?: string;
     queuePosition: number;
     pollUrl: string;
   };
@@ -103,7 +105,7 @@ export interface VaosTaskDetail {
 export interface ApiClient {
   get<T>(url: string, headers?: Record<string, string>): Promise<T>;
   post<T>(url: string, body: unknown, headers?: Record<string, string>): Promise<T>;
-  dispatchVaos(payload: VaosDispatchPayload): Promise<VaosDispatchResult>;
+  dispatchVaos(payload: VaosDispatchPayload, idempotencyKey?: string): Promise<VaosDispatchResult>;
   getVaosTask(taskId: string): Promise<VaosTaskDetail>;
   getVaosTelemetry(): Promise<{
     points: VaosTelemetryPoint[];

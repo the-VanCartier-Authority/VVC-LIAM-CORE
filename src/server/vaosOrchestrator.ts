@@ -5,10 +5,13 @@ import { executionOutcome } from '../shared/executionOutcome.ts';
 import type { ExecutionOutcome } from '../shared/executionOutcome.ts';
 import type { BackendLimits } from './backendLimits.ts';
 import { ResourceLimitError } from './backendLimits.ts';
+import { VaosStore, QueueError, digest } from './vaosStore.ts';
+import { randomUUID } from 'node:crypto';
+import { resolve } from 'node:path';
 
 export type TaskPriority = 'P0_CRITICAL' | 'P1_HIGH' | 'P2_LOW';
 export type TaskRoute = 'FAST_PATH' | 'ASYNC_PATH';
-export type TaskStatus = 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'UNAVAILABLE';
+export type TaskStatus = 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'UNAVAILABLE' | 'CANCELLED' | 'INTERRUPTED';
 
 export interface VaosTask {
   taskId: string;
@@ -23,6 +26,9 @@ export interface VaosTask {
   completedAt?: number;
   durationMs?: number;
   injectedSkills: string[];
+  retryOf?: string;
+  delivery?: 'not_attempted' | 'unknown' | 'response_received';
+  model?: string;
   result?: {
     text: string;
     outcome: ExecutionOutcome;
@@ -154,7 +160,7 @@ export class VaosPolicyEngine {
 
 /**
  * VAOS TASK QUEUE & TELEMETRY REGISTRY
- * In-memory text-generation queue. No external action executor is implemented.
+ * Private single-process durable text-generation queue. No external action executor.
  */
 export class VaosOrchestrator {
   private tasks = new Map<string, VaosTask>();
@@ -162,9 +168,102 @@ export class VaosOrchestrator {
   private maxRingSize = 300;
 
   private limits?: BackendLimits;
-  constructor(limits?: BackendLimits) {
+  private store: VaosStore;
+  private leases = new Map<string, () => void>();
+  private active = new Map<string, AbortController>();
+  private paused: boolean;
+  private workers: number;
+  private attemptTimeout: number;
+  private closed = false;
+  private storageFailed = false;
+  private scheduled = false;
+  private execute: (task: VaosTask, signal: AbortSignal) => Promise<{ text?: string; tokens?: number; unavailable?: boolean }>;
+  constructor(limits?: BackendLimits, options: { databasePath?: string; paused?: boolean; workers?: number; attemptTimeoutMs?: number;
+    execute?: (task: VaosTask, signal: AbortSignal) => Promise<{ text?: string; tokens?: number; unavailable?: boolean }> } = {}) {
     this.limits = limits;
+    this.workers = options.workers ?? Number(process.env.VAOS_WORKER_CONCURRENCY || 2);
+    this.attemptTimeout = options.attemptTimeoutMs ?? Number(process.env.VAOS_ATTEMPT_TIMEOUT_MS || 30000);
+    if (!Number.isSafeInteger(this.workers) || this.workers < 1 || this.workers > 8 ||
+      !Number.isSafeInteger(this.attemptTimeout) || this.attemptTimeout < 1 || this.attemptTimeout > 30000 ||
+      (process.env.VAOS_QUEUE_PAUSED !== undefined && !['true', 'false', ''].includes(process.env.VAOS_QUEUE_PAUSED)))
+      throw new Error('INVALID_QUEUE_CONFIG');
+    this.paused = options.paused ?? process.env.VAOS_QUEUE_PAUSED === 'true';
+    this.store = new VaosStore(options.databasePath || process.env.VAOS_DATABASE_PATH || resolve('.data/vaos.sqlite'));
+    this.execute = options.execute || generateVaosText;
+    this.store.prune();
+    for (const task of this.store.all()) {
+      if (task.status === 'PROCESSING') {
+        task.status = 'INTERRUPTED'; task.delivery = 'unknown'; task.completedAt = Date.now();
+        task.result = this.noExecution('unavailable', 'Proceso interrumpido; la generación anterior puede haber llegado al proveedor. No se repetirá automáticamente.', true);
+        this.store.save(task);
+      } else if (task.status === 'QUEUED' && task.createdAt < Date.now() - 86400000) {
+        task.status = 'UNAVAILABLE'; task.completedAt = Date.now();
+        task.result = this.noExecution('unavailable', 'Tarea caducada sin iniciar generación.', false); this.store.save(task);
+      } else if (task.status === 'QUEUED') {
+        const policy = VaosPolicyEngine.evaluate(task.command, task.agentId, task.priority);
+        if (!policy.approved) {
+          task.status = 'FAILED'; task.completedAt = Date.now();
+          task.result = this.noExecution('failed', 'La política actual no autoriza recuperar esta solicitud.', false);
+          this.store.save(task);
+        }
+      }
+      this.tasks.set(task.taskId, task);
+    }
     this.recordInitialHealthProbe();
+    this.schedule();
+  }
+  private noExecution(status: 'failed' | 'unavailable', text: string, generationMayHaveOccurred: boolean): NonNullable<VaosTask['result']> {
+    return { text, outcome: executionOutcome(status, 'vaos'), actionType: 'not_executed',
+      tokensPerSec: null, tokensSource: 'unavailable', data: { realExecution: false, generationMayHaveOccurred } };
+  }
+  private available() { if (this.closed || this.storageFailed) throw new QueueError(503, 'QUEUE_UNAVAILABLE', 'La cola no está disponible.'); }
+  private fault(): never {
+    this.storageFailed = true;
+    for (const controller of this.active.values()) controller.abort();
+    console.warn('[VAOS] Private queue storage unavailable; generation paused.');
+    throw new QueueError(503, 'QUEUE_UNAVAILABLE', 'No se pudo confirmar el estado durable de la tarea.');
+  }
+  private save(task: VaosTask) {
+    try {
+      this.store.save(task);
+      if (!['QUEUED', 'PROCESSING'].includes(task.status)) this.pruneHistory();
+    } catch { this.fault(); }
+  }
+  private pruneHistory() {
+    this.store.prune();
+    const retained = new Set(this.store.all().map(task => task.taskId));
+    for (const id of this.tasks.keys()) if (!retained.has(id)) this.tasks.delete(id);
+  }
+  public setPaused(paused: boolean) { this.paused = paused; if (!paused) this.schedule(); }
+  public health() { return this.closed || this.storageFailed ? 'UNAVAILABLE' : this.paused ? 'PAUSED' : 'OK'; }
+  public close() {
+    if (this.closed) return;
+    this.closed = true;
+    for (const controller of this.active.values()) controller.abort();
+    for (const release of this.leases.values()) release();
+    this.leases.clear(); this.store.close();
+  }
+  private schedule() {
+    if (this.scheduled || this.closed || this.storageFailed || this.paused) return;
+    this.scheduled = true;
+    setImmediate(() => { this.scheduled = false; this.pump(); }).unref();
+  }
+  private queued() {
+    const rank = { P0_CRITICAL: 0, P1_HIGH: 1, P2_LOW: 2 };
+    return [...this.tasks.values()].filter(task => task.status === 'QUEUED')
+      .sort((a, b) => rank[a.priority] - rank[b.priority] || a.createdAt - b.createdAt);
+  }
+  private pump() {
+    if (this.closed || this.storageFailed || this.paused) return;
+    for (const task of this.queued()) {
+      if (!this.leases.has(task.taskId)) {
+        try { this.leases.set(task.taskId, this.limits?.task(task.ownerUid) || (() => {})); }
+        catch (error) { if (error instanceof ResourceLimitError) continue; throw error; }
+      }
+      if (this.active.size >= this.workers) continue;
+      const controller = new AbortController(); this.active.set(task.taskId, controller);
+      this.processAsyncTask(task, controller).catch(() => { /* fault() already pauses the queue */ });
+    }
   }
 
   /**
@@ -237,198 +336,135 @@ export class VaosOrchestrator {
     };
   }
 
-  public enqueueTask(
-    ownerUid: string,
-    command: string,
-    agentId: string,
-    priority: TaskPriority,
-    injectedSkills: string[] = []
-  ): VaosTask {
+  public enqueueTask(ownerUid: string, command: string, agentId: string, priority: TaskPriority,
+    injectedSkills: string[] = [], options: { idempotencyKey?: string; retryOf?: string } = {}): VaosTask {
+    this.available();
     if (!ownerUid) throw new Error('VERIFIED_OWNER_REQUIRED');
-    // Bounded in-memory history, not a durable queue. Never evict active work.
-    const terminal = Array.from(this.tasks.values()).filter(task => !['QUEUED', 'PROCESSING'].includes(task.status));
-    const owned = terminal.filter(task => task.ownerUid === ownerUid);
-    while (owned.length >= 100) this.tasks.delete(owned.shift()!.taskId);
-    while (this.tasks.size >= 1000 && terminal.length) this.tasks.delete(terminal.shift()!.taskId);
-    if (this.tasks.size >= 1000) throw new ResourceLimitError(503);
-    const release = this.limits?.task(ownerUid);
-    const taskId = `liam-task-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-    const task: VaosTask = {
-      taskId,
-      ownerUid,
-      command,
-      agentId,
-      priority,
-      route: 'ASYNC_PATH',
-      status: 'QUEUED',
-      createdAt: Date.now(),
-      injectedSkills,
-    };
-
-    this.tasks.set(taskId, task);
-
-    // Execute asynchronously via real background execution pipeline
-    setImmediate(() => {
-      this.processAsyncTask(taskId).then(() => release?.(), () => release?.());
-    });
-
-    return task;
+    const fingerprint = digest(JSON.stringify({ command, agentId, priority, injectedSkills, retryOf: options.retryOf || null }));
+    let replay: VaosTask | undefined;
+    try { replay = this.store.replay(ownerUid, options.idempotencyKey, fingerprint); }
+    catch (error) { if (error instanceof QueueError) throw error; this.fault(); }
+    if (replay) return replay;
+    // Existing leases bound admitted work (queued + processing), not just HTTP lifetime.
+    const outstanding = [...this.tasks.values()].filter(task => ['QUEUED', 'PROCESSING'].includes(task.status));
+    if (outstanding.length >= 8 || outstanding.filter(task => task.ownerUid === ownerUid).length >= 2 ||
+        outstanding.some(task => !this.leases.has(task.taskId))) throw new ResourceLimitError(429, 1);
+    const release = this.limits?.task(ownerUid) || (() => {});
+    const task: VaosTask = { taskId: `liam-task-${randomUUID()}`, ownerUid, command, agentId, priority,
+      route: 'ASYNC_PATH', status: 'QUEUED', createdAt: Date.now(), injectedSkills: [...injectedSkills],
+      delivery: 'not_attempted', model: 'gemini-2.5-flash', ...(options.retryOf ? { retryOf: options.retryOf } : {}) };
+    if (Buffer.byteLength(JSON.stringify(task)) > 32000) { release(); throw new ResourceLimitError(400); }
+    try { this.store.insert(task, options.idempotencyKey, fingerprint, this.limits?.dailyGenerationLimit() || 1000000); }
+    catch (error) { release(); if (error instanceof ResourceLimitError || error instanceof QueueError) throw error; this.fault(); }
+    this.tasks.set(task.taskId, task); this.leases.set(task.taskId, release);
+    this.pruneHistory();
+    this.schedule();
+    return structuredClone(task);
   }
-
-  /**
-   * Real Execution Pipeline with Gemini GenAI Integration and Live Telemetry
-   */
-  private async processAsyncTask(taskId: string) {
-    const task = this.tasks.get(taskId);
-    if (!task) return;
-
-    task.status = 'PROCESSING';
-    task.startedAt = Date.now();
-    const monotonicStart = process.hrtime.bigint();
-
-    const apiKey = process.env.GEMINI_API_KEY;
-    let responseText = '';
-    let tokenCount = 0;
-    let tokensSource: 'provider' | 'estimated' = 'estimated';
-
+  private async processAsyncTask(task: VaosTask, controller: AbortController) {
+    const started = process.hrtime.bigint();
+    const timer = setTimeout(() => controller.abort(), this.attemptTimeout); timer.unref();
     try {
-      if (apiKey && apiKey !== 'MY_GEMINI_API_KEY') {
-        const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: 30000, retryOptions: { attempts: 1 } } });
-        
-        let agentDirective = 'Eres un agente operativo autónomo del sistema VVC LIAM CORE.';
-        if (task.agentId.includes('vladimir')) {
-          agentDirective = 'Eres Vladimir, Director de Inteligencia y Reconocimiento Táctico (OSINT) de VVC LIAM CORE. Responde con precisión táctica, concisión y autoridad analítica.';
-        } else if (task.agentId.includes('valentina')) {
-          agentDirective = 'Eres Valentina, Especialista en Análisis Criptográfico, Ciberdefensa y Validación E2EE de VVC LIAM CORE. Tu foco es el rigor de seguridad y cifrado.';
-        } else if (task.agentId.includes('victoria')) {
-          agentDirective = 'Eres Victoria, Directora de Estrategia Operativa y Gestión Ejecutiva de VVC LIAM CORE. Proporciona síntesis accionables y directrices claras.';
-        }
-
-        const skillsNote = task.injectedSkills.length > 0
-          ? `\nHabilidades activas requeridas: ${task.injectedSkills.join(', ')}.`
-          : '';
-
-        const fullPrompt = `${agentDirective}${skillsNote}\n\nSólo generas texto. No tienes herramientas para ejecutar acciones externas. No afirmes que has enviado, creado, borrado o completado acciones del usuario.\nSolicitud [${task.priority}]: "${task.command}".`;
-
-        const candidateModels = ['gemini-2.5-flash', 'gemini-3.8-flash', 'gemini-2.5-pro'];
-        let response: any = null;
-        for (const m of candidateModels) {
-          try {
-            response = await ai.models.generateContent({
-              model: m,
-              contents: fullPrompt,
-              config: { maxOutputTokens: 4096 },
-            });
-            if (response?.text) break;
-          } catch (modelErr: any) {
-            console.warn('[VAOS AI] Model unavailable, trying next candidate');
-          }
-        }
-
-        responseText = response?.text?.trim() || '';
-        if (!responseText) throw new Error('PROVIDER_GENERATION_FAILED');
-        const reportedCount = response?.usageMetadata?.candidatesTokenCount;
-        tokensSource = Number.isInteger(reportedCount) && reportedCount >= 0 ? 'provider' : 'estimated';
-        tokenCount = tokensSource === 'provider' ? reportedCount : Math.ceil(responseText.length / 4);
+      task.status = 'PROCESSING'; task.startedAt = Date.now(); task.delivery = 'unknown';
+      this.save(task); // Commit the uncertainty boundary BEFORE any provider request.
+      const generated = await this.execute(structuredClone(task), controller.signal);
+      if (this.closed || task.status !== 'PROCESSING') return;
+      if (controller.signal.aborted) throw new Error('GENERATION_CANCELLED');
+      task.completedAt = Date.now(); task.durationMs = Number(process.hrtime.bigint() - started) / 1000000;
+      if (generated.unavailable) {
+        task.status = 'UNAVAILABLE'; task.delivery = 'not_attempted';
+        task.result = this.noExecution('unavailable', 'Proveedor no disponible. No se ha ejecutado ninguna acción.', false);
       } else {
-        task.status = 'UNAVAILABLE';
-        task.completedAt = Date.now();
-        task.durationMs = Number(process.hrtime.bigint() - monotonicStart) / 1000000;
-        task.result = { text: 'Proveedor no disponible. No se ha ejecutado ninguna acción.',
-          outcome: executionOutcome('unavailable', 'vaos'), actionType: 'not_executed',
-          data: { realExecution: false } };
-        this.recordTelemetry({ timestamp: task.completedAt, taskId: task.taskId, ownerUid: task.ownerUid,
-          command: task.command, priority: task.priority, route: task.route,
-          latencyMs: task.durationMs, latencyScope: 'processing_wall_time', tokensPerSec: null,
-          tokensSource: 'unavailable', success: false, agentId: task.agentId });
-        return;
+        const text = generated.text?.trim();
+        if (!text || Buffer.byteLength(text) > 64000) throw new Error('GENERATION_INVALID');
+        const providerTokens = Number.isSafeInteger(generated.tokens) && generated.tokens! >= 0;
+        const result = { text, outcome: executionOutcome('generated', 'gemini'), actionType: 'text_generation',
+          tokensGenerated: providerTokens ? generated.tokens : Math.ceil(text.length / 4),
+          tokensSource: providerTokens ? 'provider' as const : 'estimated' as const,
+          tokensPerSec: providerTokens && task.durationMs > 0 ? generated.tokens! * 1000 / task.durationMs : null,
+          data: { realExecution: false, requestedModel: task.model, modelSource: 'requested_only', generatedForAgent: task.agentId, skillsActive: task.injectedSkills } };
+        if (Buffer.byteLength(JSON.stringify({ ...task, result })) > 128 * 1024) throw new Error('GENERATION_INVALID');
+        task.result = result; task.status = 'COMPLETED'; task.delivery = 'response_received';
       }
-
-      task.status = 'COMPLETED';
-      task.completedAt = Date.now();
-      task.durationMs = Number(process.hrtime.bigint() - monotonicStart) / 1000000;
-
-      const elapsedSec = task.durationMs / 1000;
-      const realTokensPerSec = tokensSource === 'provider' && elapsedSec > 0 ? Number((tokenCount / elapsedSec).toFixed(1)) : null;
-
-      task.result = {
-        text: responseText,
-        outcome: executionOutcome('generated', 'gemini'),
-        actionType: 'text_generation',
-        tokensGenerated: tokenCount,
-        tokensSource,
-        tokensPerSec: realTokensPerSec,
-        data: {
-          priority: task.priority,
-          generatedForAgent: task.agentId,
-          skillsActive: task.injectedSkills,
-          realExecution: false,
-        },
-      };
-
-      // Record to telemetry ring with real measured values
-      this.recordTelemetry({
-        ownerUid: task.ownerUid,
-        timestamp: task.completedAt,
-        taskId: task.taskId,
-        command: task.command,
-        priority: task.priority,
-        route: 'ASYNC_PATH',
-        latencyMs: task.durationMs,
-        latencyScope: 'processing_wall_time',
-        tokensPerSec: realTokensPerSec,
-        tokensSource,
-        success: true,
-        agentId: task.agentId,
-      });
-    } catch (err: any) {
-      task.status = 'FAILED';
-      task.completedAt = Date.now();
-      task.durationMs = Number(process.hrtime.bigint() - monotonicStart) / 1000000;
-      task.error = 'No se pudo generar una respuesta. No se ha ejecutado ninguna acción.';
-      task.result = { text: task.error, outcome: executionOutcome('failed', 'gemini'),
-        actionType: 'not_executed', data: { realExecution: false } };
-
-      this.recordTelemetry({
-        ownerUid: task.ownerUid,
-        timestamp: task.completedAt,
-        taskId: task.taskId,
-        command: task.command,
-        priority: task.priority,
-        route: 'ASYNC_PATH',
-        latencyMs: task.durationMs,
-        latencyScope: 'processing_wall_time',
-        tokensPerSec: null,
-        tokensSource: 'unavailable',
-        success: false,
-        agentId: task.agentId,
-      });
+      this.save(task); this.recordTaskTelemetry(task);
+    } catch (error) {
+      if (this.closed || this.storageFailed || task.status !== 'PROCESSING') return;
+      task.status = 'FAILED'; task.completedAt = Date.now(); task.durationMs = Number(process.hrtime.bigint() - started) / 1000000;
+      task.error = 'No se pudo confirmar una generación válida. No se ha ejecutado ninguna acción.';
+      task.result = this.noExecution('failed', task.error, true); this.save(task); this.recordTaskTelemetry(task);
+    } finally {
+      clearTimeout(timer); this.active.delete(task.taskId);
+      this.leases.get(task.taskId)?.(); this.leases.delete(task.taskId); this.schedule();
     }
   }
-
+  private recordTaskTelemetry(task: VaosTask) {
+    this.recordTelemetry({ ownerUid: task.ownerUid, timestamp: task.completedAt!, taskId: task.taskId,
+      command: task.command, priority: task.priority, route: task.route, latencyMs: task.durationMs || 0,
+      latencyScope: 'processing_wall_time', tokensPerSec: task.result?.tokensPerSec ?? null,
+      tokensSource: task.result?.tokensSource || 'unavailable', success: task.status === 'COMPLETED', agentId: task.agentId });
+  }
   public getTask(taskId: string, ownerUid: string): VaosTask | undefined {
-    const task = this.tasks.get(taskId);
-    return task?.ownerUid === ownerUid ? task : undefined;
+    this.available(); const task = this.tasks.get(taskId);
+    return task?.ownerUid === ownerUid ? structuredClone(task) : undefined;
+  }
+  public listTasks(ownerUid: string): VaosTask[] {
+    this.available();
+    return [...this.tasks.values()].filter(task => task.ownerUid === ownerUid).slice(-20).reverse().map(task => structuredClone(task));
+  }
+  public queuePosition(taskId: string) { return Math.max(0, this.queued().findIndex(task => task.taskId === taskId) + 1); }
+  public cancelTask(taskId: string, ownerUid: string): VaosTask | undefined {
+    this.available(); const task = this.tasks.get(taskId);
+    if (!task || task.ownerUid !== ownerUid) return undefined;
+    if (task.status === 'CANCELLED') return structuredClone(task);
+    if (!['QUEUED', 'PROCESSING'].includes(task.status)) throw new QueueError(409, 'TASK_TERMINAL', 'La tarea ya está en un estado terminal.');
+    const uncertain = task.status === 'PROCESSING';
+    task.status = 'CANCELLED'; task.completedAt = Date.now();
+    task.result = this.noExecution('unavailable', uncertain
+      ? 'Cancelación local registrada. El proveedor puede haber recibido la petición; no se puede retirar una generación remota ya iniciada.'
+      : 'Cancelada antes de iniciar la generación.', uncertain);
+    this.save(task);
+    if (uncertain) this.active.get(taskId)?.abort();
+    else { this.leases.get(taskId)?.(); this.leases.delete(taskId); }
+    this.schedule(); return structuredClone(task);
   }
 
-  public listTasks(ownerUid: string): VaosTask[] {
-    return Array.from(this.tasks.values()).filter(task => task.ownerUid === ownerUid).slice(-20).reverse();
-  }
 }
 
-export const vaosService = new VaosOrchestrator();
+async function generateVaosText(task: VaosTask, signal: AbortSignal) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') return { unavailable: true };
+  const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: 30000, retryOptions: { attempts: 1 } } });
+  let agentDirective = 'Eres un agente operativo autónomo del sistema VVC LIAM CORE.';
+  if (task.agentId.includes('vladimir')) {
+    agentDirective = 'Eres Vladimir, Director de Inteligencia y Reconocimiento Táctico (OSINT) de VVC LIAM CORE. Responde con precisión táctica, concisión y autoridad analítica.';
+  } else if (task.agentId.includes('valentina')) {
+    agentDirective = 'Eres Valentina, Especialista en Análisis Criptográfico, Ciberdefensa y Validación E2EE de VVC LIAM CORE. Tu foco es el rigor de seguridad y cifrado.';
+  } else if (task.agentId.includes('victoria')) {
+    agentDirective = 'Eres Victoria, Directora de Estrategia Operativa y Gestión Ejecutiva de VVC LIAM CORE. Proporciona síntesis accionables y directrices claras.';
+  }
+
+  const skillsNote = task.injectedSkills.length > 0
+    ? `\nHabilidades activas requeridas: ${task.injectedSkills.join(', ')}.`
+    : '';
+
+  const fullPrompt = `${agentDirective}${skillsNote}\n\nSólo generas texto. No tienes herramientas para ejecutar acciones externas. No afirmes que has enviado, creado, borrado o completado acciones del usuario.\nSolicitud [${task.priority}]: "${task.command}".`;
+  const response = await ai.models.generateContent({ model: task.model!, contents: fullPrompt,
+    config: { maxOutputTokens: 4096, abortSignal: signal } });
+  return { text: response.text, tokens: response.usageMetadata?.candidatesTokenCount };
+}
 
 /**
  * Creates VAOS Express Router
  */
 export function createVaosRouter(limits?: BackendLimits): Router {
   const router = express.Router();
-  const service = limits ? new VaosOrchestrator(limits) : vaosService;
+  const service = new VaosOrchestrator(limits);
+  process.once('exit', () => service.close());
 
   // POST /api/vaos/dispatch
   router.post('/dispatch', (req: Request, res: Response) => {
     const startTime = process.hrtime.bigint();
-    const { command, agentId = 'exclusive-vladimir', forcePriority, injectedSkills = [] } = req.body;
+    const { command, agentId = 'exclusive-vladimir', forcePriority, injectedSkills = [] } = req.body || {};
 
     if (!command || typeof command !== 'string') {
       return res.status(400).json({ error: 'Comando no especificado.' });
@@ -491,7 +527,7 @@ export function createVaosRouter(limits?: BackendLimits): Router {
     }
 
     // 3. ASYNC PATH EXECUTION (P0_CRITICAL / P1_HIGH Queue)
-    const task = service.enqueueTask(req.auth!.uid, command, agentId, policy.priority, injectedSkills);
+    const task = service.enqueueTask(req.auth!.uid, command, agentId, policy.priority, injectedSkills, { idempotencyKey: idempotencyKey(req) });
 
     return res.json({
       route: 'ASYNC_PATH' as TaskRoute,
@@ -500,7 +536,9 @@ export function createVaosRouter(limits?: BackendLimits): Router {
       asyncTask: {
         taskId: task.taskId,
         status: task.status,
-        queuePosition: 1,
+        queuePosition: service.queuePosition(task.taskId),
+        durable: true,
+        durabilityScope: 'local-filesystem-process-restart',
         pollUrl: `/api/vaos/task/${task.taskId}`,
       },
     });
@@ -516,6 +554,27 @@ export function createVaosRouter(limits?: BackendLimits): Router {
     return res.json(task);
   });
 
+  router.delete('/task/:taskId', (req, res) => {
+    const task = service.cancelTask(req.params.taskId, req.auth!.uid);
+    return task ? res.json(task) : res.status(404).json({ error: 'Tarea no encontrada.' });
+  });
+  router.post('/task/:taskId/retry', (req, res) => {
+    const previous = service.getTask(req.params.taskId, req.auth!.uid);
+    if (!previous) return res.status(404).json({ error: 'Tarea no encontrada.' });
+    if (!['FAILED', 'UNAVAILABLE', 'INTERRUPTED', 'CANCELLED'].includes(previous.status))
+      throw new QueueError(409, 'TASK_NOT_RETRYABLE', 'Sólo se reintentan tareas terminales no completadas.');
+    if (previous.delivery === 'unknown' && req.body?.acknowledgeUncertainDelivery !== true)
+      throw new QueueError(409, 'UNCERTAIN_DELIVERY', 'La generación anterior puede haber ocurrido. Confirma explícitamente antes de pedir otra.');
+    const key = idempotencyKey(req);
+    if (!key) throw new QueueError(400, 'IDEMPOTENCY_REQUIRED', 'El reintento requiere Idempotency-Key.');
+    const policy = VaosPolicyEngine.evaluate(previous.command, previous.agentId, previous.priority);
+    if (!policy.approved) throw new QueueError(403, 'POLICY_REJECTED', 'La política actual no autoriza reintentar esta solicitud.');
+    const task = service.enqueueTask(req.auth!.uid, previous.command, previous.agentId, policy.priority,
+      previous.injectedSkills, { idempotencyKey: key, retryOf: previous.taskId });
+    return res.json({ taskId: task.taskId, status: task.status, retryOf: task.retryOf, durable: true,
+      durabilityScope: 'local-filesystem-process-restart', pollUrl: `/api/vaos/task/${task.taskId}` });
+  });
+
   // GET /api/vaos/tasks
   router.get('/tasks', (req: Request, res: Response) => {
     return res.json(service.listTasks(req.auth!.uid));
@@ -528,8 +587,24 @@ export function createVaosRouter(limits?: BackendLimits): Router {
 
   // GET /api/vaos/health
   router.get('/health', (_req: Request, res: Response) => {
-    return res.json({ status: 'OK', engine: 'VAOS-Policy-Core-Real', time: Date.now() });
+    const status = service.health();
+    return res.status(status === 'UNAVAILABLE' ? 503 : 200).json({ status, engine: 'VAOS-Text-Queue', time: Date.now() });
   });
 
+  router.use((error: unknown, _req: Request, res: Response, next: (error: unknown) => void) => {
+    if (error instanceof ResourceLimitError) return next(error);
+    if (error instanceof QueueError) return res.status(error.status).json({ code: error.code, error: error.message,
+      outcome: executionOutcome('failed', 'vaos') });
+    console.warn('[VAOS] Queue operation failed.');
+    return res.status(503).json({ code: 'QUEUE_UNAVAILABLE', error: 'La cola no está disponible.', outcome: executionOutcome('unavailable', 'vaos') });
+  });
   return router;
+}
+function idempotencyKey(req: Request): string | undefined {
+  const key = req.headers['idempotency-key'];
+  if (key === undefined) return undefined;
+  if (typeof key !== 'string' || !/^[A-Za-z0-9._:-]{8,128}$/.test(key) ||
+      req.rawHeaders.filter((_, index) => index % 2 === 0).filter(name => name.toLowerCase() === 'idempotency-key').length !== 1)
+    throw new QueueError(400, 'INVALID_IDEMPOTENCY_KEY', 'Clave de idempotencia no válida.');
+  return key;
 }

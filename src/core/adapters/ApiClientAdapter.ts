@@ -51,11 +51,11 @@ export class ApiClientAdapter implements ApiClient {
     return res.json() as Promise<T>;
   }
 
-  public async dispatchVaos(payload: VaosDispatchPayload): Promise<VaosDispatchResult> {
+  public async dispatchVaos(payload: VaosDispatchPayload, idempotencyKey = crypto.randomUUID()): Promise<VaosDispatchResult> {
     return this.post<VaosDispatchResult>('/api/vaos/dispatch', {
       ...payload,
       callerTimestamp: payload.callerTimestamp || Date.now(),
-    });
+    }, { 'Idempotency-Key': idempotencyKey });
   }
 
   public async getVaosTask(taskId: string): Promise<VaosTaskDetail> {

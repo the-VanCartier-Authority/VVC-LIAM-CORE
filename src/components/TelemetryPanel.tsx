@@ -1,3 +1,4 @@
+import { taskPollView } from '../core/vaosTaskView';
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import {
@@ -414,7 +415,7 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({
       const t1 = performance.now();
       const realFastMs = Math.round(t1 - t0);
 
-      setBenchmarkLog(`✓ Fast Path completado en ${realFastMs}ms (<200ms SLA cumplido). Evaluando Async Path P0...`);
+      setBenchmarkLog(`Routing consultado en ${realFastMs}ms; no verifica acciones. Evaluando generación Async P0...`);
 
       // 2. Test Async Path P0
       const asyncResult = await platformService.api.dispatchVaos({
@@ -424,24 +425,19 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({
       });
 
       if (asyncResult.asyncTask) {
-        setBenchmarkLog(`✓ Tarea Async P0 encolada (ID: ${asyncResult.asyncTask.taskId.slice(-8)}). Procesando en segundo plano...`);
+        setBenchmarkLog(`Tarea guardada en cola (ID: ${asyncResult.asyncTask.taskId.slice(-8)}). Consulta de estado en curso...`);
         
-        // Poll until real AI execution completes
+        // Poll bounded generation status; interruption/cancellation are terminal, not success.
         const taskId = asyncResult.asyncTask.taskId;
         let attempts = 0;
         const pollInterval = setInterval(async () => {
           attempts++;
           try {
             const detail = await platformService.api.getVaosTask(taskId);
-            if (['COMPLETED', 'FAILED', 'UNAVAILABLE'].includes(detail.status) || attempts > 15) {
+            const view = taskPollView(detail, attempts > 15);
+            if (view.stop) {
               clearInterval(pollInterval);
-              const duration = typeof detail.durationMs === 'number' ? `${detail.durationMs}ms` : 'N/D';
-              const tokensSec = typeof detail.result?.tokensPerSec === 'number' ? ` (${detail.result.tokensPerSec} tokens/s de proceso)` : ' (tasa N/D)';
-              setBenchmarkLog(
-                detail.status === 'COMPLETED'
-                  ? `Generación terminada: routing RTT ${realFastMs}ms | proceso ${duration}${tokensSec}. No verifica acciones externas.`
-                  : `Medición sin resultado de generación (${detail.status}). Routing RTT ${realFastMs}ms; tasa N/D.`
-              );
+              setBenchmarkLog(`${view.text} Routing RTT ${realFastMs}ms.`);
 
               // Refresh telemetry with real points
               const telem = await platformService.api.getVaosTelemetry();
