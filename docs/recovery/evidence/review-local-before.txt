@@ -1,0 +1,44 @@
+TAP version 13
+# Subtest: review: local DNS cannot move a provider to another address in the private ranges
+not ok 1 - review: local DNS cannot move a provider to another address in the private ranges
+  ---
+  duration_ms: 6.229921
+  type: 'test'
+  location: '/workspace/VVC-LIAM-CORE/tests/local-exception-review.test.mjs:5:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected rejection (EgressPolicyError).'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  stack: |-
+    async TestContext.<anonymous> (file:///workspace/VVC-LIAM-CORE/tests/local-exception-review.test.mjs:10:5)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# Subtest: review: a local DNS exception must enumerate exact IP addresses
+not ok 2 - review: a local DNS exception must enumerate exact IP addresses
+  ---
+  duration_ms: 0.739988
+  type: 'test'
+  location: '/workspace/VVC-LIAM-CORE/tests/local-exception-review.test.mjs:13:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected exception (EgressPolicyError).'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  stack: |-
+    TestContext.<anonymous> (file:///workspace/VVC-LIAM-CORE/tests/local-exception-review.test.mjs:14:10)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 0
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 217.112589
