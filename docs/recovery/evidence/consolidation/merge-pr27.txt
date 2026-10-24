@@ -1,0 +1,5 @@
+Auto-merging server.ts
+CONFLICT (content): Merge conflict in server.ts
+Auto-merging src/App.tsx
+Auto-merging src/components/ModelAgentControlBar.tsx
+Automatic merge failed; fix conflicts and then commit the result.

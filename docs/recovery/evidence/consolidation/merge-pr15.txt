@@ -1,0 +1,13 @@
+Merge made by the 'ort' strategy.
+ .github/workflows/ci.yml                     |  2 ++
+ bun.lock                                     | 21 ++++++++++++---------
+ docs/recovery/E02.md                         | 18 ++++++++++++++++++
+ docs/recovery/evidence/e02-audit-after.json  |  1 +
+ docs/recovery/evidence/e02-audit-before.json |  1 +
+ package.json                                 |  7 ++++++-
+ tests/dependency-compat.test.mjs             | 18 ++++++++++++++++++
+ 7 files changed, 58 insertions(+), 10 deletions(-)
+ create mode 100644 docs/recovery/E02.md
+ create mode 100644 docs/recovery/evidence/e02-audit-after.json
+ create mode 100644 docs/recovery/evidence/e02-audit-before.json
+ create mode 100644 tests/dependency-compat.test.mjs

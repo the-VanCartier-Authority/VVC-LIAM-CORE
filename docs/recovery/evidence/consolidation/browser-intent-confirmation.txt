@@ -1,0 +1,2 @@
+{"browser":"154.0.8037.57","beforeConfirmationHandoffs":0,"confirmationVisible":1,"errors":[],"realExternalCalls":0}
+{"cancelledHandoffs":0,"identitySwitchDiscarded":true,"staleIdentityDiscarded":true,"keyboardCancellation":true,"explicitlyConfirmedHandoffs":1,"realExternalCalls":0}

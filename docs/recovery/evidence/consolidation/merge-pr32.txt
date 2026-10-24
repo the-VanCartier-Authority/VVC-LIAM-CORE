@@ -1,0 +1,4 @@
+Auto-merging src/App.tsx
+CONFLICT (content): Merge conflict in src/App.tsx
+Auto-merging src/utils/rtLiteEngine.ts
+Automatic merge failed; fix conflicts and then commit the result.

@@ -1,0 +1,1 @@
+{"browser":"154.0.8037.57","localDefaultDay":"2026-10-23","ambiguousTaskRejected":true,"gapGoogleRejected":true,"overnightEventCorrect":true,"invalidLegacyRecordVisibleWithoutLink":true,"mockGoogleInterval":{"summary":"Fixture Google","startDateTime":"2026-11-03T04:30:00.000Z","endDateTime":"2026-11-03T05:30:00.000Z"},"errors":[],"realGoogleCalls":0,"realProviderCalls":0}

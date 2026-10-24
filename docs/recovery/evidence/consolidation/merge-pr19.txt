@@ -1,0 +1,37 @@
+Auto-merging src/components/CalendarRemindersModal.tsx
+Merge made by the 'ort' strategy.
+ docs/recovery/D03.md                           |  27 ++++++
+ docs/recovery/evidence/d03-before.txt          |  18 ++++
+ docs/recovery/evidence/d03-browser-after.json  |   1 +
+ docs/recovery/evidence/d03-followup-before.txt |  19 +++++
+ server.ts                                      |   6 +-
+ src/App.tsx                                    |  24 +++---
+ src/components/ApiSecretsModal.tsx             |   6 +-
+ src/components/CalendarRemindersModal.tsx      |   2 +-
+ src/components/CommandConsole.tsx              |   8 +-
+ src/components/DeviceControlsDrawer.tsx        |   4 +-
+ src/components/DocumentSpreadsheetModal.tsx    |  35 ++++----
+ src/components/EncryptedVaultModal.tsx         |   4 +-
+ src/components/GmailModal.tsx                  |   2 +-
+ src/components/Header.tsx                      |   6 +-
+ src/components/HelpCenterModal.tsx             |  92 +++++---------------
+ src/components/InstallModal.tsx                |  18 ++--
+ src/components/MessagingModal.tsx              |   4 +-
+ src/components/ModelAgentControlBar.tsx        |   4 +-
+ src/components/SettingsModal.tsx               |  20 ++---
+ src/components/VoiceOrbVisualizer.tsx          |   2 +-
+ src/core/adapters/DeviceAdapter.ts             |   8 +-
+ src/services/secretsService.ts                 |   2 +-
+ src/types/index.ts                             | 111 ++++++++-----------------
+ src/utils/rtLiteEngine.ts                      |  10 +--
+ tests/capability-claims-browser.mjs            |  28 +++++++
+ tests/native-capability.test.mjs               |  18 ++++
+ tests/privacy-browser.mjs                      |  31 +++++++
+ 27 files changed, 277 insertions(+), 233 deletions(-)
+ create mode 100644 docs/recovery/D03.md
+ create mode 100644 docs/recovery/evidence/d03-before.txt
+ create mode 100644 docs/recovery/evidence/d03-browser-after.json
+ create mode 100644 docs/recovery/evidence/d03-followup-before.txt
+ create mode 100644 tests/capability-claims-browser.mjs
+ create mode 100644 tests/native-capability.test.mjs
+ create mode 100644 tests/privacy-browser.mjs

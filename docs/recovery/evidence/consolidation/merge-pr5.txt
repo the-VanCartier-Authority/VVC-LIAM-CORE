@@ -1,0 +1,25 @@
+Merge made by the 'ort' strategy.
+ docs/recovery/D01.md                          |  23 ++++++
+ docs/recovery/evidence/d01-before.txt         | 104 ++++++++++++++++++++++++++
+ docs/recovery/evidence/d01-webhook-before.txt |  84 +++++++++++++++++++++
+ server.ts                                     |  45 +++++++----
+ src/App.tsx                                   |  18 +++--
+ src/components/CalendarRemindersModal.tsx     |  18 +++--
+ src/core/adapters/types.ts                    |   2 +-
+ src/server/vaosOrchestrator.ts                |  43 +++++++----
+ src/shared/executionOutcome.ts                |  18 +++++
+ src/utils/ical.ts                             |  39 +++++++---
+ src/utils/rtLiteEngine.ts                     |   2 +-
+ tests/fixtures/fail-gemini.mjs                |   2 +
+ tests/truthfulness-http.test.mjs              | 100 +++++++++++++++++++++++++
+ tests/truthfulness-unit.test.mjs              |  21 ++++++
+ tests/webhook-truthfulness.test.mjs           |  51 +++++++++++++
+ 15 files changed, 516 insertions(+), 54 deletions(-)
+ create mode 100644 docs/recovery/D01.md
+ create mode 100644 docs/recovery/evidence/d01-before.txt
+ create mode 100644 docs/recovery/evidence/d01-webhook-before.txt
+ create mode 100644 src/shared/executionOutcome.ts
+ create mode 100644 tests/fixtures/fail-gemini.mjs
+ create mode 100644 tests/truthfulness-http.test.mjs
+ create mode 100644 tests/truthfulness-unit.test.mjs
+ create mode 100644 tests/webhook-truthfulness.test.mjs

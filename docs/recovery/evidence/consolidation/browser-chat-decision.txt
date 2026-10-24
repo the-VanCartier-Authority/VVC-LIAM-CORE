@@ -1,0 +1,2 @@
+{"browser":"154.0.8037.57","paths":["/api/chat/nvidia"],"errors":[],"realExternalCalls":0}
+{"geminiRoute":"/api/chat/gemini","temperature":0.6,"max_tokens":800,"systemAndCurrentTurnConsistent":true,"realProviderCalls":0}

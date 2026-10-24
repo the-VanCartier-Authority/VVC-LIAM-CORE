@@ -1,0 +1,32 @@
+Merge made by the 'ort' strategy.
+ .env.example                            |   4 +
+ bun.lock                                |   3 +
+ docs/recovery/B01.md                    |  27 +++
+ docs/recovery/evidence/b01-before.txt   | 350 ++++++++++++++++++++++++++++++++
+ package.json                            |   5 +-
+ server.ts                               |   5 +
+ src/App.tsx                             |   7 +-
+ src/components/ApiSecretsModal.tsx      |   3 +-
+ src/core/adapters/ApiClientAdapter.ts   |   5 +-
+ src/core/authenticatedFetch.ts          |  20 ++
+ src/server/firebaseIdentity.ts          |  53 +++++
+ src/services/backendApi.ts              |  13 ++
+ src/services/pushNotificationService.ts |  11 +-
+ src/utils/speech.ts                     |   3 +-
+ tests/backend-auth-regression.test.mjs  |  21 ++
+ tests/backend-auth.test.mjs             |  79 +++++++
+ tests/fixtures/mock-firebase-jwks.mjs   |  12 ++
+ tests/identity-fixture.mjs              |  16 ++
+ tests/server-helper.mjs                 |  28 ++-
+ tests/smoke-production.mjs              |   4 +-
+ tests/truthfulness-http.test.mjs        |   4 +-
+ 21 files changed, 651 insertions(+), 22 deletions(-)
+ create mode 100644 docs/recovery/B01.md
+ create mode 100644 docs/recovery/evidence/b01-before.txt
+ create mode 100644 src/core/authenticatedFetch.ts
+ create mode 100644 src/server/firebaseIdentity.ts
+ create mode 100644 src/services/backendApi.ts
+ create mode 100644 tests/backend-auth-regression.test.mjs
+ create mode 100644 tests/backend-auth.test.mjs
+ create mode 100644 tests/fixtures/mock-firebase-jwks.mjs
+ create mode 100644 tests/identity-fixture.mjs

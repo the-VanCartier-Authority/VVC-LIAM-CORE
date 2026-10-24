@@ -1,0 +1,22 @@
+[
+  {
+    "pr": 34,
+    "job": 120952196959,
+    "filtered": "2026-10-24T18:30:12.3532348Z Validated Node 24.19.0; package manager bun@1.4.4\n2026-10-24T18:30:12.5867257Z bun install v1.4.4 (38afee6c8)\n2026-10-24T18:30:25.2267935Z ℹ tests 109\n2026-10-24T18:30:25.2311187Z ℹ pass 109\n2026-10-24T18:30:25.2323992Z ℹ fail 0\n2026-10-24T18:30:25.2353005Z ℹ cancelled 0\n2026-10-24T18:30:25.2362143Z ℹ skipped 0\n2026-10-24T18:30:25.4512777Z > tsc --noEmit\n2026-10-24T18:30:26.9071353Z > vite build\n2026-10-24T18:30:31.1673396Z {\"node\":\"v24.19.0\",\"mode\":\"production\",\"staticHtml\":200,\"asset\":200,\"manifest\":200,\"rejectedRoutes\":4,\"rejectedDestinationCalls\":0,\"registeredFixtureCalls\":1,\"missingGeminiKey\":401,\"externalInferenceCalls\":0}"
+  },
+  {
+    "pr": 36,
+    "job": 120958213742,
+    "filtered": "2026-10-24T18:55:50.7615884Z Validated Node 24.19.0; package manager bun@1.4.4\n2026-10-24T18:55:50.8041616Z bun install v1.4.4 (38afee6c8)\n2026-10-24T18:56:19.7045404Z ℹ tests 136\n2026-10-24T18:56:19.7047305Z ℹ pass 136\n2026-10-24T18:56:19.7048057Z ℹ fail 0\n2026-10-24T18:56:19.7048734Z ℹ cancelled 0\n2026-10-24T18:56:19.7049432Z ℹ skipped 0\n2026-10-24T18:56:19.8536707Z > tsc --noEmit\n2026-10-24T18:56:21.3911489Z > vite build\n2026-10-24T18:56:26.6499080Z {\"node\":\"v24.19.0\",\"mode\":\"production\",\"staticHtml\":200,\"asset\":200,\"manifest\":200,\"rejectedRoutes\":4,\"rejectedDestinationCalls\":0,\"registeredFixtureCalls\":1,\"missingGeminiKey\":401,\"missingIdentity\":401,\"validIdentity\":200,\"externalInferenceCalls\":0}"
+  },
+  {
+    "pr": 38,
+    "job": 121000541960,
+    "filtered": "2026-10-24T22:05:05.0329586Z Validated Node 24.19.0; package manager bun@1.4.4\n2026-10-24T22:05:05.0704839Z bun install v1.4.4 (38afee6c8)\n2026-10-24T22:05:29.8600837Z ℹ tests 124\n2026-10-24T22:05:29.8611454Z ℹ pass 124\n2026-10-24T22:05:29.8612228Z ℹ fail 0\n2026-10-24T22:05:29.8612873Z ℹ cancelled 0\n2026-10-24T22:05:29.8613588Z ℹ skipped 0\n2026-10-24T22:05:30.0020681Z > tsc --noEmit\n2026-10-24T22:05:31.4621762Z > vite build\n2026-10-24T22:05:36.6590481Z {\"node\":\"v24.19.0\",\"mode\":\"production\",\"staticHtml\":200,\"asset\":200,\"manifest\":200,\"rejectedRoutes\":4,\"rejectedDestinationCalls\":0,\"registeredFixtureCalls\":1,\"missingGeminiKey\":401,\"missingIdentity\":401,\"validIdentity\":200,\"externalInferenceCalls\":0}"
+  },
+  {
+    "pr": 40,
+    "job": 121004842954,
+    "filtered": "2026-10-24T22:24:57.8255585Z Validated Node 24.19.0; package manager bun@1.4.4\n2026-10-24T22:24:57.8573582Z bun install v1.4.4 (38afee6c8)\n2026-10-24T22:25:20.7822201Z ℹ tests 133\n2026-10-24T22:25:20.7823520Z ℹ pass 133\n2026-10-24T22:25:20.7823931Z ℹ fail 0\n2026-10-24T22:25:20.7826734Z ℹ cancelled 0\n2026-10-24T22:25:20.7827231Z ℹ skipped 0\n2026-10-24T22:25:20.8969566Z > tsc --noEmit\n2026-10-24T22:25:21.9294304Z > vite build\n2026-10-24T22:25:25.8416417Z {\"node\":\"v24.19.0\",\"mode\":\"production\",\"staticHtml\":200,\"asset\":200,\"manifest\":200,\"rejectedRoutes\":4,\"rejectedDestinationCalls\":0,\"registeredFixtureCalls\":1,\"missingGeminiKey\":401,\"missingIdentity\":401,\"validIdentity\":200,\"externalInferenceCalls\":0}"
+  }
+]

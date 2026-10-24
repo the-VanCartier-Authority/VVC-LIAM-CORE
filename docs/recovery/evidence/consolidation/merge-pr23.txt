@@ -1,0 +1,10 @@
+Auto-merging src/server/vaosOrchestrator.ts
+Merge made by the 'ort' strategy.
+ docs/recovery/I01.md                  | 11 ++++++
+ docs/recovery/evidence/i01-before.txt | 71 +++++++++++++++++++++++++++++++++++
+ src/server/vaosOrchestrator.ts        | 37 ++++++++++++------
+ tests/critical-priority.test.mjs      | 53 ++++++++++++++++++++++++++
+ 4 files changed, 160 insertions(+), 12 deletions(-)
+ create mode 100644 docs/recovery/I01.md
+ create mode 100644 docs/recovery/evidence/i01-before.txt
+ create mode 100644 tests/critical-priority.test.mjs

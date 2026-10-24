@@ -1,0 +1,38 @@
+
+> vvc-liam-core@1.0.0 build
+> vite build
+
+vite v8.3.3 building client environment for production...
+transforming...
+✓ 2501 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/registerSW.js                       0.13 kB
+dist/manifest.json                       2.15 kB │ gzip:   0.86 kB
+dist/index.html                          4.92 kB │ gzip:   1.71 kB
+dist/assets/index-BtnIb29H.css         110.19 kB │ gzip:  16.24 kB
+dist/assets/purify.es-B7SQ8EAD.js       29.07 kB │ gzip:  11.45 kB
+dist/assets/index.es-BF9nD0XP.js       151.37 kB │ gzip:  48.88 kB
+dist/assets/html2canvas-pFfotG9M.js    199.48 kB │ gzip:  46.77 kB
+dist/assets/index-Bf2-PtgZ.js        1,771.75 kB │ gzip: 524.55 kB
+
+[33m[INEFFECTIVE_DYNAMIC_IMPORT] [0msrc/services/pushNotificationService.ts is dynamically imported by src/services/googleAuth.ts but also statically imported by src/App.tsx, src/components/SettingsModal.tsx, dynamic import will not move module into another chunk.
+
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 1.31s
+
+PWA v2.0.0
+mode      generateSW
+precache  27 entries (2671.97 KiB)
+files generated
+  dist/sw.js
+  dist/workbox-9c191d2f.js
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

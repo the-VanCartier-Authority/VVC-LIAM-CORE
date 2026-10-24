@@ -1,0 +1,11 @@
+Merge made by the 'ort' strategy.
+ .github/workflows/ci.yml  | 51 +++++++++++++++++++++++++++++++++++++++++++++++
+ .node-version             |  1 +
+ docs/recovery/E01.md      | 11 ++++++++++
+ package.json              |  3 +++
+ scripts/check-runtime.mjs |  7 +++++++
+ 5 files changed, 73 insertions(+)
+ create mode 100644 .github/workflows/ci.yml
+ create mode 100644 .node-version
+ create mode 100644 docs/recovery/E01.md
+ create mode 100644 scripts/check-runtime.mjs

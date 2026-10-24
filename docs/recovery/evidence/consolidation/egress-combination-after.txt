@@ -1,0 +1,10 @@
+✔ integration B05/I11b: an already cancelled binary request performs no DNS or HTTP (7.680488ms)
+✔ integration B05/I11b: binary abort preserves exact bytes and leaves later JSON/binary requests usable (36.488919ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 48.901438

@@ -1,0 +1,2 @@
+Validated Node 24.19.0; package manager bun@1.4.4
+1.4.4
