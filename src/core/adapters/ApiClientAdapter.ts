@@ -1,3 +1,4 @@
+import { backendFetch } from '../../services/backendApi';
 import type {
   ApiClient,
   VaosDispatchPayload,
@@ -15,7 +16,7 @@ export class ApiClientAdapter implements ApiClient {
 
   public async get<T>(url: string, headers: Record<string, string> = {}): Promise<T> {
     const fullUrl = `${this.baseUrl}${url}`;
-    const res = await fetch(fullUrl, {
+    const res = await backendFetch(fullUrl, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -33,7 +34,7 @@ export class ApiClientAdapter implements ApiClient {
 
   public async post<T>(url: string, body: unknown, headers: Record<string, string> = {}): Promise<T> {
     const fullUrl = `${this.baseUrl}${url}`;
-    const res = await fetch(fullUrl, {
+    const res = await backendFetch(fullUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

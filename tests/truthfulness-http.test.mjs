@@ -8,7 +8,7 @@ async function awaitTask(app, command) {
   const dispatch = await post(app.base, '/api/vaos/dispatch', { command });
   const { asyncTask } = await dispatch.json();
   for (let i = 0; i < 100; i++) {
-    const task = await (await fetch(app.base + asyncTask.pollUrl)).json();
+    const task = await (await fetch(app.base + asyncTask.pollUrl, { headers: app.authHeaders })).json();
     if (!['QUEUED', 'PROCESSING'].includes(task.status)) return task;
     await new Promise(resolve => setTimeout(resolve, 10));
   }
@@ -59,7 +59,7 @@ test('F11: asynchronous request without a provider is unavailable, never complet
   const { asyncTask } = await response.json();
   let task;
   for (let i = 0; i < 50; i++) {
-    task = await (await fetch(app.base + asyncTask.pollUrl)).json();
+    task = await (await fetch(app.base + asyncTask.pollUrl, { headers: app.authHeaders })).json();
     if (!['QUEUED', 'PROCESSING'].includes(task.status)) break;
     await new Promise(resolve => setTimeout(resolve, 10));
   }
