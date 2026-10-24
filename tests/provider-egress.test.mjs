@@ -75,7 +75,7 @@ test('URL-normalized numeric IPv4 aliases cannot bypass IP checks', async () => 
 
 test('local exceptions are exact and exclude metadata, unspecified, mapped and multicast addresses', async () => {
   const target = provider({ endpoint: 'http://local.fixture:11434/v1/chat/completions',
-    localException: { providerId: 'fixture', hostname: 'local.fixture', port: 11434 } });
+    localException: { providerId: 'fixture', hostname: 'local.fixture', port: 11434, addresses: ['127.0.0.1', '192.168.1.10', '::1', 'fc00::1'] } });
   for (const [address, family] of [['127.0.0.1', 4], ['192.168.1.10', 4], ['::1', 6], ['fc00::1', 6]])
     assert.equal((await resolveProvider(target, async () => [{ address, family }])).length, 1);
   for (const address of ['169.254.169.254', '0.0.0.0', '224.0.0.1', '8.8.8.8'])
@@ -104,7 +104,7 @@ test('transport pins DNS once per connection and rejects changed DNS on the next
   t.after(() => new Promise(resolve => server.close(resolve)));
   const port = server.address().port;
   const target = provider({ endpoint: `http://rebind.fixture:${port}/v1/chat/completions`,
-    localException: { providerId: 'fixture', hostname: 'rebind.fixture', port } });
+    localException: { providerId: 'fixture', hostname: 'rebind.fixture', port, addresses: ['127.0.0.1'] } });
   let resolutions = 0;
   const resolver = async () => [{ address: ++resolutions === 1 ? '127.0.0.1' : '169.254.169.254', family: 4 }];
   assert.equal((await postProvider(target, 'synthetic-byok', {}, 1000, resolver)).status, 200);
@@ -136,7 +136,7 @@ test('network address fallback uses only validated IPs and never duplicates a tr
   t.after(() => new Promise(resolve => server.close(resolve)));
   const port = server.address().port;
   const target = provider({ endpoint: `http://dual.fixture:${port}/v1/chat/completions`,
-    localException: { providerId: 'fixture', hostname: 'dual.fixture', port } });
+    localException: { providerId: 'fixture', hostname: 'dual.fixture', port, addresses: ['127.0.0.1', '127.0.0.2'] } });
   let resolutions = 0;
   const resolver = async () => { resolutions++; return [{ address: '127.0.0.2', family: 4 }, { address: '127.0.0.1', family: 4 }]; };
   assert.equal((await postProvider(target, 'synthetic-byok', {}, 1000, resolver)).status, 200);

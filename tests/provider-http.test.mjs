@@ -15,7 +15,7 @@ const calls = [], redirected = [], tlsCalls = [];
 const messages = [{ role: 'user', content: 'fixture' }];
 const local = (id, kind, hostname, port, path, extra = {}) => ({ id, kind,
   endpoint: `http://${hostname.includes(':') ? `[${hostname}]` : hostname}:${port}/${path}`, allowByok: true,
-  localException: { providerId: id, hostname, port }, ...extra });
+  localException: { providerId: id, hostname, port, ...(hostname === 'localhost' ? { addresses: ['127.0.0.1', '::1'] } : {}) }, ...extra });
 const listen = async (server, hostname = '127.0.0.1') => { server.listen(0, hostname); await once(server, 'listening'); return server.address().port; };
 const close = server => new Promise(resolve => { server.closeAllConnections(); server.close(resolve); });
 before(async () => {

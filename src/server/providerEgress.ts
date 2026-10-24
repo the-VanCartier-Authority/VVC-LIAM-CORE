@@ -7,7 +7,7 @@ import type { RequestOptions } from 'node:https';
 import type { TLSSocket } from 'node:tls';
 
 type Kind = 'nvidia' | 'gemini' | 'openai-compatible' | 'ollama' | 'vllm';
-type LocalException = Readonly<{ providerId: string; hostname: string; port: number }>;
+type LocalException = Readonly<{ providerId: string; hostname: string; port: number; addresses: readonly string[] }>;
 export type Provider = Readonly<{
   id: string; kind: Kind; endpoint: string; allowByok: boolean;
   apiKeyEnv?: string; localException?: LocalException;
@@ -62,10 +62,14 @@ export class ProviderRegistry {
       if (item.localException !== undefined) {
         const local = item.localException;
         if (!local || typeof local !== 'object' || Array.isArray(local) ||
-            Object.keys(local).sort().join(',') !== 'hostname,port,providerId' ||
+            Object.keys(local).some(k => !['providerId', 'hostname', 'port', 'addresses'].includes(k)) ||
             local.providerId !== item.id || local.hostname !== hostOf(url) ||
             !Number.isInteger(local.port) || local.port !== portOf(url)) return deny();
-        localException = Object.freeze({ ...local });
+        const addresses = local.addresses ?? (isIP(hostOf(url)) ? [hostOf(url)] : undefined);
+        if (!Array.isArray(addresses) || !addresses.length || addresses.length > 16 ||
+            addresses.some(address => typeof address !== 'string' || !isLocalAddress(address))) return deny();
+        localException = Object.freeze({ providerId: local.providerId, hostname: local.hostname,
+          port: local.port, addresses: Object.freeze([...addresses]) });
       }
       if (url.protocol === 'http:' && !localException) return deny();
       providers.push(Object.freeze({ id: item.id, kind: item.kind, endpoint: url.href,
@@ -116,6 +120,10 @@ const localV6Addresses = new BlockList();
 localV6Addresses.addAddress('::1', 'ipv6');
 localV6Addresses.addSubnet('fc00::', 7, 'ipv6');
 const familyOf = (address: string) => isIP(address) === 4 ? 'ipv4' : 'ipv6';
+function isLocalAddress(address: string): boolean {
+  return isIP(address) === 4 ? localAddresses.check(address, 'ipv4')
+    : isIP(address) === 6 && localV6Addresses.check(address, 'ipv6');
+}
 export function isPublicAddress(address: string): boolean {
   const family = isIP(address);
   return family === 4 ? !blockedV4.check(address, 'ipv4')
@@ -130,10 +138,11 @@ export async function resolveProvider(provider: Provider, resolve: Resolver = ho
   if (!addresses.length) return deny();
   const exception = provider.localException;
   const permitsLocal = exception?.providerId === provider.id && exception.hostname === host && exception.port === portOf(url);
+  const allowedLocalIPs = new BlockList();
+  if (permitsLocal) for (const address of exception.addresses) allowedLocalIPs.addAddress(address, familyOf(address));
   for (const entry of addresses) {
     if (!isIP(entry.address) || isIP(entry.address) !== entry.family) return deny();
-    const local = entry.family === 4 ? localAddresses.check(entry.address, 'ipv4')
-      : localV6Addresses.check(entry.address, 'ipv6');
+    const local = isLocalAddress(entry.address) && allowedLocalIPs.check(entry.address, familyOf(entry.address));
     if ((!isPublicAddress(entry.address) && !(permitsLocal && local)) ||
         (url.protocol === 'http:' && !(permitsLocal && local))) return deny();
   }
