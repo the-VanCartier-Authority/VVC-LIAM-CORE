@@ -1,0 +1,96 @@
+▶ B05: authenticated B cannot count, notify, claim or delete A subscriptions
+  ✖ status exposes only own subscription count (7.185486ms)
+  ✖ forged target UID cannot broadcast to another owner (7.313223ms)
+  ✖ a subscription cannot be reassigned by another account (9.940666ms)
+  ✖ foreign and missing unsubscribe endpoints are indistinguishable (5.503192ms)
+✖ B05: authenticated B cannot count, notify, claim or delete A subscriptions (612.304615ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 0
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 749.541895
+
+✖ failing tests:
+
+test at tests/push-ownership.test.mjs:26:11
+✖ status exposes only own subscription count (7.185486ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-b05/tests/push-ownership.test.mjs:28:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/vvc-b05/tests/push-ownership.test.mjs:26:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/push-ownership.test.mjs:32:11
+✖ forged target UID cannot broadcast to another owner (7.313223ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-b05/tests/push-ownership.test.mjs:35:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/vvc-b05/tests/push-ownership.test.mjs:32:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/push-ownership.test.mjs:38:11
+✖ a subscription cannot be reassigned by another account (9.940666ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 409
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-b05/tests/push-ownership.test.mjs:39:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/vvc-b05/tests/push-ownership.test.mjs:38:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 409,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/push-ownership.test.mjs:41:11
+✖ foreign and missing unsubscribe endpoints are indistinguishable (5.503192ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 404
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-b05/tests/push-ownership.test.mjs:42:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/vvc-b05/tests/push-ownership.test.mjs:41:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 404,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
