@@ -37,24 +37,20 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({
 }) => {
   const [telemetryPoints, setTelemetryPoints] = useState<VaosTelemetryPoint[]>([]);
   const [stats, setStats] = useState({
-    avgFastPathLatencyMs: 95,
-    avgAsyncDurationMs: 440,
-    avgTokensPerSec: 48.2,
-    totalDispatched: 24,
-    fastPathCount: 16,
-    asyncCount: 8,
-    p0Count: 4,
-    p1Count: 4,
-    p2Count: 16,
+    avgFastPathLatencyMs: null as number | null,
+    avgAsyncDurationMs: null as number | null,
+    avgTokensPerSec: null as number | null,
+    totalDispatched: 0,
+    fastPathCount: 0,
+    asyncCount: 0,
+    p0Count: 0,
+    p1Count: 0,
+    p2Count: 0,
   });
 
   const [batteryInfo, setBatteryInfo] = useState<DeviceBatteryInfo>({
-    level: 0.92,
-    charging: false,
-    chargingTime: 0,
-    dischargingTime: 18000,
-    temperatureEstimatedC: 28.5,
-    healthProfile: 'OPTIMAL',
+    level: null, charging: null, chargingTime: null, dischargingTime: null,
+    temperatureEstimatedC: null, source: 'unavailable',
   });
 
   const [isBenchmarking, setIsBenchmarking] = useState(false);
@@ -86,6 +82,13 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({
         }
       } catch (err) {
         console.warn('[TelemetryPanel] Error fetching metrics:', err);
+        if (isMounted) {
+          setTelemetryPoints([]);
+          setStats({ avgFastPathLatencyMs: null, avgAsyncDurationMs: null, avgTokensPerSec: null,
+            totalDispatched: 0, fastPathCount: 0, asyncCount: 0, p0Count: 0, p1Count: 0, p2Count: 0 });
+          setBatteryInfo({ level: null, charging: null, chargingTime: null, dischargingTime: null,
+            temperatureEstimatedC: null, source: 'unavailable' });
+        }
       }
     };
 
@@ -100,10 +103,11 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({
 
   // RENDER D3 LATENCY CHART
   useEffect(() => {
-    if (!isOpen || !latencyChartRef.current || telemetryPoints.length === 0) return;
+    if (!isOpen || !latencyChartRef.current) return;
 
     const svg = d3.select(latencyChartRef.current);
     svg.selectAll('*').remove();
+    if (!telemetryPoints.length) { svg.append('text').attr('x', 15).attr('y', 30).attr('fill', '#C0C0C0').text('N/D'); return; }
 
     const width = latencyChartRef.current.clientWidth || 440;
     const height = 180;
@@ -152,7 +156,7 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({
       .attr('fill', '#00FF66')
       .attr('font-size', '9px')
       .attr('font-family', 'monospace')
-      .text('SLA FAST PATH <200ms');
+      .text('META ROUTING <200ms');
 
     // Axes
     const yAxis = d3.axisLeft(y).ticks(4).tickFormat((d) => `${d}ms`);
@@ -220,10 +224,12 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({
 
   // RENDER D3 TOKENS/SEC THROUGHPUT CHART
   useEffect(() => {
-    if (!isOpen || !tokensChartRef.current || telemetryPoints.length === 0) return;
+    if (!isOpen || !tokensChartRef.current) return;
 
     const svg = d3.select(tokensChartRef.current);
     svg.selectAll('*').remove();
+    const data = telemetryPoints.filter(point => point.tokensSource === 'provider' && point.tokensPerSec !== null).slice(-14);
+    if (!data.length) { svg.append('text').attr('x', 15).attr('y', 30).attr('fill', '#C0C0C0').text('N/D'); return; }
 
     const width = tokensChartRef.current.clientWidth || 440;
     const height = 140;
@@ -234,8 +240,6 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({
     const g = svg
       .append('g')
       .attr('transform', `translate(${margin.left},${margin.top})`);
-
-    const data = telemetryPoints.slice(-14);
 
     const x = d3
       .scaleBand()
@@ -253,9 +257,9 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({
       .append('rect')
       .attr('class', 'bar')
       .attr('x', (_, i) => x(String(i)) || 0)
-      .attr('y', (d) => y(d.tokensPerSec))
+      .attr('y', (d) => y(d.tokensPerSec!))
       .attr('width', x.bandwidth())
-      .attr('height', (d) => innerH - y(d.tokensPerSec))
+      .attr('height', (d) => innerH - y(d.tokensPerSec!))
       .attr('rx', 3)
       .attr('fill', (d) => (d.priority === 'P0_CRITICAL' ? '#D4AF37' : '#8A2BFF'))
       .attr('opacity', 0.85);
@@ -277,6 +281,10 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({
 
     const svg = d3.select(batteryGaugeRef.current);
     svg.selectAll('*').remove();
+    if (batteryInfo.level === null) {
+      svg.append('text').attr('x', 75).attr('y', 75).attr('text-anchor', 'middle').attr('fill', '#C0C0C0').text('N/D');
+      return;
+    }
 
     const size = 150;
     const radius = size / 2;
@@ -337,7 +345,7 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({
       .attr('font-size', '10px')
       .attr('font-family', 'monospace')
       .attr('letter-spacing', '0.1em')
-      .text(batteryInfo.charging ? 'CARGANDO' : `${batteryInfo.temperatureEstimatedC || 28.5}°C · ${batteryInfo.healthProfile || 'OPTIMAL'}`);
+      .text(batteryInfo.charging === null ? 'N/D' : batteryInfo.charging ? 'CARGANDO' : 'API DEL NAVEGADOR');
   }, [isOpen, batteryInfo]);
 
   // RENDER D3 PRIORITY DONUT BREAKDOWN
@@ -356,9 +364,9 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({
       .attr('transform', `translate(${radius},${radius})`);
 
     const data = [
-      { label: 'P2_LOW (Fast Path)', count: Math.max(1, stats.p2Count), color: '#00FF66' },
-      { label: 'P1_HIGH (Async Ops)', count: Math.max(1, stats.p1Count), color: '#8A2BFF' },
-      { label: 'P0_CRITICAL (VIP)', count: Math.max(1, stats.p0Count), color: '#D4AF37' },
+      { label: 'P2_LOW (Fast Path)', count: stats.p2Count, color: '#00FF66' },
+      { label: 'P1_HIGH (Async Ops)', count: stats.p1Count, color: '#8A2BFF' },
+      { label: 'P0_CRITICAL (VIP)', count: stats.p0Count, color: '#D4AF37' },
     ];
 
     const pie = d3
@@ -425,12 +433,14 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({
           attempts++;
           try {
             const detail = await platformService.api.getVaosTask(taskId);
-            if (detail.status === 'COMPLETED' || detail.status === 'FAILED' || attempts > 15) {
+            if (['COMPLETED', 'FAILED', 'UNAVAILABLE'].includes(detail.status) || attempts > 15) {
               clearInterval(pollInterval);
-              const duration = detail.durationMs ? `${detail.durationMs}ms` : 'tiempo real';
-              const tokensSec = detail.result?.tokensPerSec ? ` (${detail.result.tokensPerSec} tokens/s)` : '';
+              const duration = typeof detail.durationMs === 'number' ? `${detail.durationMs}ms` : 'N/D';
+              const tokensSec = typeof detail.result?.tokensPerSec === 'number' ? ` (${detail.result.tokensPerSec} tokens/s de proceso)` : ' (tasa N/D)';
               setBenchmarkLog(
-                `✓ Benchmark completado: Fast Path ${realFastMs}ms | Async P0 procesado en ${duration}${tokensSec}. Telemetría real actualizada.`
+                detail.status === 'COMPLETED'
+                  ? `Generación terminada: routing RTT ${realFastMs}ms | proceso ${duration}${tokensSec}. No verifica acciones externas.`
+                  : `Medición sin resultado de generación (${detail.status}). Routing RTT ${realFastMs}ms; tasa N/D.`
               );
 
               // Refresh telemetry with real points
@@ -524,7 +534,7 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({
                 <Zap className="w-4 h-4 text-[#00FF66]" />
               </div>
               <div className="font-mono text-2xl font-black text-[#00FF66]">
-                {stats.avgFastPathLatencyMs}ms
+                {stats.avgFastPathLatencyMs === null ? 'N/D' : `${stats.avgFastPathLatencyMs}ms`}
               </div>
               <div className="text-[10px] font-mono text-[#C0C0C0]/70">
                 Meta objetivo: &lt;200ms (P2_LOW)
@@ -538,7 +548,7 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({
                 <Clock className="w-4 h-4 text-[#8A2BFF]" />
               </div>
               <div className="font-mono text-2xl font-black text-[#8A2BFF]">
-                {stats.avgAsyncDurationMs}ms
+                {stats.avgAsyncDurationMs === null ? 'N/D' : `${stats.avgAsyncDurationMs}ms`}
               </div>
               <div className="text-[10px] font-mono text-[#C0C0C0]/70">
                 P0_CRITICAL & P1_HIGH en cola
@@ -548,14 +558,14 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({
             {/* Tile 3: Throughput */}
             <div className="bg-[#120C18] border border-[#261833] rounded-xl p-3.5 space-y-1">
               <div className="flex items-center justify-between text-xs font-mono text-[#C0C0C0]">
-                <span>THROUGHPUT LLM</span>
+                <span>TASA DE PROCESO</span>
                 <Activity className="w-4 h-4 text-[#D4AF37]" />
               </div>
               <div className="font-mono text-2xl font-black text-[#D4AF37]">
-                {stats.avgTokensPerSec} <span className="text-xs font-normal">tps</span>
+                {stats.avgTokensPerSec === null ? 'N/D' : `${stats.avgTokensPerSec} tokens/s`}
               </div>
               <div className="text-[10px] font-mono text-[#C0C0C0]/70">
-                Tokens por segundo promedio
+                Tokens reportados / tiempo de proceso
               </div>
             </div>
 
@@ -570,10 +580,10 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({
                 )}
               </div>
               <div className="font-mono text-2xl font-black text-white">
-                {Math.round(batteryInfo.level * 100)}%
+                {batteryInfo.level === null ? 'N/D' : `${Math.round(batteryInfo.level * 100)}%`}
               </div>
               <div className="text-[10px] font-mono text-[#00FF66]">
-                {batteryInfo.charging ? 'Carga Rápida Activa' : `${batteryInfo.temperatureEstimatedC || 28.5}°C Nominal`}
+                {batteryInfo.source === 'browser' ? 'API del navegador; temperatura N/D' : 'Medición no disponible'}
               </div>
             </div>
           </div>
@@ -590,7 +600,7 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({
                   <div className="flex items-center gap-2">
                     <Activity className="w-4 h-4 text-[#00FF66]" />
                     <span className="font-mono text-xs font-bold text-white tracking-wide">
-                      CURVA DE LATENCIA DE INFERENCIA & FAST PATH (D3.js)
+                      TIEMPO DE PROCESO Y ROUTING
                     </span>
                   </div>
                   <span className="text-[10px] font-mono text-[#00FF66] bg-[#00FF66]/10 px-2 py-0.5 rounded border border-[#00FF66]/20">
@@ -608,11 +618,11 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({
                   <div className="flex items-center gap-2">
                     <Cpu className="w-4 h-4 text-[#8A2BFF]" />
                     <span className="font-mono text-xs font-bold text-white tracking-wide">
-                      THROUGHPUT DE GENERACIÓN (TOKENS / SEG)
+                      TOKENS REPORTADOS / TIEMPO DE PROCESO
                     </span>
                   </div>
                   <span className="text-[10px] font-mono text-[#C0C0C0]/60">
-                    Últimas ejecuciones
+                    No mide TPS interno del modelo
                   </span>
                 </div>
                 <div className="w-full overflow-hidden">
@@ -635,14 +645,14 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({
                     </span>
                   </div>
                   <span className="text-[10px] font-mono text-[#00FF66]">
-                    REAL TIME
+                    {batteryInfo.source === 'browser' ? 'API NAVEGADOR' : 'N/D'}
                   </span>
                 </div>
                 <svg ref={batteryGaugeRef} width={150} height={150} className="my-1" />
                 <div className="w-full pt-2 border-t border-[#261833] text-[11px] font-mono text-[#C0C0C0] flex justify-between">
                   <span>Estado Energía:</span>
                   <span className="text-white font-semibold">
-                    {batteryInfo.charging ? 'Alimentación AC' : 'Descarga Óptima'}
+                    {batteryInfo.charging === null ? 'N/D' : batteryInfo.charging ? 'Cargando' : 'Sin carga'}
                   </span>
                 </div>
               </div>
@@ -742,7 +752,7 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({
                         {point.latencyMs}ms
                       </td>
                       <td className="py-2 text-[#C0C0C0]">
-                        {point.tokensPerSec} tps
+                        {point.tokensPerSec === null ? 'N/D' : `${point.tokensPerSec} tokens/s de proceso`}
                       </td>
                     </tr>
                   ))}

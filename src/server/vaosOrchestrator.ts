@@ -27,8 +27,9 @@ export interface VaosTask {
     text: string;
     outcome: ExecutionOutcome;
     actionType?: string;
-    tokensPerSec?: number;
+    tokensPerSec?: number | null;
     tokensGenerated?: number;
+    tokensSource?: 'provider' | 'estimated' | 'unavailable';
     data?: Record<string, unknown>;
   };
   error?: string;
@@ -42,7 +43,9 @@ export interface TelemetryRecord {
   priority: TaskPriority;
   route: TaskRoute;
   latencyMs: number;
-  tokensPerSec: number;
+  tokensPerSec: number | null;
+  tokensSource: 'provider' | 'estimated' | 'unavailable';
+  latencyScope: 'policy_routing' | 'processing_wall_time';
   success: boolean;
   agentId: string;
 }
@@ -161,7 +164,7 @@ export class VaosOrchestrator {
     const t0 = process.hrtime.bigint();
     const policyResult = VaosPolicyEngine.evaluate('Estado de núcleos y telemetría');
     const t1 = process.hrtime.bigint();
-    const probeLatencyMs = Number((t1 - t0) / 1000000n) || 1;
+    const probeLatencyMs = Number(t1 - t0) / 1000000;
 
     this.recordTelemetry({
       timestamp: bootTime,
@@ -170,8 +173,10 @@ export class VaosOrchestrator {
       command: 'Autoverificación de Arranque VAOS // Fast Path SLA',
       priority: policyResult.priority,
       route: 'FAST_PATH',
-      latencyMs: Math.max(1, probeLatencyMs),
-      tokensPerSec: 64.0,
+      latencyMs: probeLatencyMs,
+      latencyScope: 'policy_routing',
+      tokensPerSec: null,
+      tokensSource: 'unavailable',
       success: true,
       agentId: 'core-kernel',
     });
@@ -192,17 +197,16 @@ export class VaosOrchestrator {
     const avgFastPathLatencyMs =
       fastPoints.length > 0
         ? Math.round(fastPoints.reduce((acc, p) => acc + p.latencyMs, 0) / fastPoints.length)
-        : 18;
+        : null;
 
     const avgAsyncDurationMs =
       asyncPoints.length > 0
         ? Math.round(asyncPoints.reduce((acc, p) => acc + p.latencyMs, 0) / asyncPoints.length)
-        : 450;
+        : null;
 
-    const avgTokensPerSec =
-      points.length > 0
-        ? Number((points.reduce((acc, p) => acc + p.tokensPerSec, 0) / points.length).toFixed(1))
-        : 52.4;
+    const rates = points.filter(point => point.tokensSource === 'provider' && point.tokensPerSec !== null);
+    const avgTokensPerSec = rates.length
+      ? Number((rates.reduce((sum, point) => sum + point.tokensPerSec!, 0) / rates.length).toFixed(1)) : null;
 
     return {
       points,
@@ -210,6 +214,7 @@ export class VaosOrchestrator {
         avgFastPathLatencyMs,
         avgAsyncDurationMs,
         avgTokensPerSec,
+        tokenRateScope: 'processing_wall_time',
         totalDispatched: points.length,
         fastPathCount: fastPoints.length,
         asyncCount: asyncPoints.length,
@@ -267,10 +272,12 @@ export class VaosOrchestrator {
 
     task.status = 'PROCESSING';
     task.startedAt = Date.now();
+    const monotonicStart = process.hrtime.bigint();
 
     const apiKey = process.env.GEMINI_API_KEY;
     let responseText = '';
     let tokenCount = 0;
+    let tokensSource: 'provider' | 'estimated' = 'estimated';
 
     try {
       if (apiKey && apiKey !== 'MY_GEMINI_API_KEY') {
@@ -308,32 +315,36 @@ export class VaosOrchestrator {
 
         responseText = response?.text?.trim() || '';
         if (!responseText) throw new Error('PROVIDER_GENERATION_FAILED');
-        tokenCount = response?.usageMetadata?.candidatesTokenCount || Math.ceil(responseText.length / 4);
+        const reportedCount = response?.usageMetadata?.candidatesTokenCount;
+        tokensSource = Number.isInteger(reportedCount) && reportedCount >= 0 ? 'provider' : 'estimated';
+        tokenCount = tokensSource === 'provider' ? reportedCount : Math.ceil(responseText.length / 4);
       } else {
         task.status = 'UNAVAILABLE';
         task.completedAt = Date.now();
-        task.durationMs = task.completedAt - task.startedAt;
+        task.durationMs = Number(process.hrtime.bigint() - monotonicStart) / 1000000;
         task.result = { text: 'Proveedor no disponible. No se ha ejecutado ninguna acción.',
           outcome: executionOutcome('unavailable', 'vaos'), actionType: 'not_executed',
           data: { realExecution: false } };
         this.recordTelemetry({ timestamp: task.completedAt, taskId: task.taskId, ownerUid: task.ownerUid,
           command: task.command, priority: task.priority, route: task.route,
-          latencyMs: task.durationMs, tokensPerSec: 0, success: false, agentId: task.agentId });
+          latencyMs: task.durationMs, latencyScope: 'processing_wall_time', tokensPerSec: null,
+          tokensSource: 'unavailable', success: false, agentId: task.agentId });
         return;
       }
 
       task.status = 'COMPLETED';
       task.completedAt = Date.now();
-      task.durationMs = task.completedAt - (task.startedAt || task.createdAt);
+      task.durationMs = Number(process.hrtime.bigint() - monotonicStart) / 1000000;
 
-      const elapsedSec = Math.max(task.durationMs / 1000, 0.05);
-      const realTokensPerSec = Number((tokenCount / elapsedSec).toFixed(1));
+      const elapsedSec = task.durationMs / 1000;
+      const realTokensPerSec = tokensSource === 'provider' && elapsedSec > 0 ? Number((tokenCount / elapsedSec).toFixed(1)) : null;
 
       task.result = {
         text: responseText,
         outcome: executionOutcome('generated', 'gemini'),
         actionType: 'text_generation',
         tokensGenerated: tokenCount,
+        tokensSource,
         tokensPerSec: realTokensPerSec,
         data: {
           priority: task.priority,
@@ -352,14 +363,16 @@ export class VaosOrchestrator {
         priority: task.priority,
         route: 'ASYNC_PATH',
         latencyMs: task.durationMs,
+        latencyScope: 'processing_wall_time',
         tokensPerSec: realTokensPerSec,
+        tokensSource,
         success: true,
         agentId: task.agentId,
       });
     } catch (err: any) {
       task.status = 'FAILED';
       task.completedAt = Date.now();
-      task.durationMs = task.completedAt - (task.startedAt || task.createdAt);
+      task.durationMs = Number(process.hrtime.bigint() - monotonicStart) / 1000000;
       task.error = 'No se pudo generar una respuesta. No se ha ejecutado ninguna acción.';
       task.result = { text: task.error, outcome: executionOutcome('failed', 'gemini'),
         actionType: 'not_executed', data: { realExecution: false } };
@@ -372,7 +385,9 @@ export class VaosOrchestrator {
         priority: task.priority,
         route: 'ASYNC_PATH',
         latencyMs: task.durationMs,
-        tokensPerSec: 0,
+        latencyScope: 'processing_wall_time',
+        tokensPerSec: null,
+        tokensSource: 'unavailable',
         success: false,
         agentId: task.agentId,
       });
@@ -400,7 +415,7 @@ export function createVaosRouter(limits?: BackendLimits): Router {
 
   // POST /api/vaos/dispatch
   router.post('/dispatch', (req: Request, res: Response) => {
-    const startTime = Date.now();
+    const startTime = process.hrtime.bigint();
     const { command, agentId = 'exclusive-vladimir', forcePriority, injectedSkills = [] } = req.body;
 
     if (!command || typeof command !== 'string') {
@@ -421,10 +436,9 @@ export function createVaosRouter(limits?: BackendLimits): Router {
 
     // 2. FAST PATH EXECUTION (<200ms target)
     if (policy.route === 'FAST_PATH') {
-      const latencyMs = Math.max(1, Date.now() - startTime);
+      const latencyMs = Number(process.hrtime.bigint() - startTime) / 1000000;
       const responseText = 'Simulación local de enrutamiento. No se ha ejecutado ninguna acción.';
-      const tokenCount = Math.ceil(responseText.length / 4);
-      const tokensPerSec = Number((tokenCount / Math.max(latencyMs / 1000, 0.02)).toFixed(1));
+      const tokensPerSec = null;
 
       const fastResult = {
         route: 'FAST_PATH' as TaskRoute,
@@ -437,7 +451,7 @@ export function createVaosRouter(limits?: BackendLimits): Router {
           tokensPerSec,
           handledBy: agentId,
           data: {
-            sla: '<200ms',
+            latencyTargetMs: 200,
             policyCategory: policy.category,
             realExecution: false,
           },
@@ -452,7 +466,9 @@ export function createVaosRouter(limits?: BackendLimits): Router {
         priority: policy.priority,
         route: 'FAST_PATH',
         latencyMs,
+        latencyScope: 'policy_routing',
         tokensPerSec,
+        tokensSource: 'unavailable',
         success: true,
         agentId,
       });
