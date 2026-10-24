@@ -5,6 +5,8 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { inferenceFailureText } from './shared/executionOutcome';
+import { createConfirmationGate, needsSensitiveConfirmation, sensitiveActionSummary } from './core/actionConfirmation';
+import { SensitiveActionDialog } from './components/SensitiveActionDialog';
 import { Header } from './components/Header';
 import { VoiceOrbVisualizer } from './components/VoiceOrbVisualizer';
 import { QuickCommandChips } from './components/QuickCommandChips';
@@ -30,7 +32,7 @@ import { ModelAgentControlBar } from './components/ModelAgentControlBar';
 import { SecretsService, type SecretKeyId } from './services/secretsService';
 import { TelemetryPanel } from './components/TelemetryPanel';
 import { platformService } from './core/adapters/PlatformService';
-import { initAuth, googleSignIn } from './services/googleAuth';
+import { auth, initAuth, googleSignIn } from './services/googleAuth';
 import {
   syncUserProfileToFirestore,
   saveTaskToFirestore,
@@ -76,7 +78,8 @@ import {
 
 import { 
   parseNaturalVoiceCommand, 
-  generateRTLiteResponse 
+  generateRTLiteResponse,
+  type CommandExecutionResult
 } from './utils/rtLiteEngine';
 
 import { 
@@ -427,11 +430,20 @@ export default function App() {
 
   // Google Auth User State
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const confirmationGate = useRef(createConfirmationGate<CommandExecutionResult>());
+  const confirmationIdentity = useRef({ user: auth.currentUser, epoch: 0 });
+  const [pendingAction, setPendingAction] = useState<{ nonce: string; text: string; summary: string } | null>(null);
 
   useEffect(() => {
+    const identityChanged = (user: User | null) => {
+      confirmationIdentity.current = { user: auth.currentUser, epoch: confirmationIdentity.current.epoch + 1 };
+      confirmationGate.current.cancel(); setPendingAction(null);
+      setStatusLabel(previous => previous === 'CONFIRMACIÓN PENDIENTE' ? 'LISTO' : previous);
+      setCurrentUser(user);
+    };
     const unsubscribe = initAuth(
-      (user) => setCurrentUser(user),
-      () => setCurrentUser(null)
+      identityChanged,
+      () => identityChanged(null)
     );
     return () => unsubscribe();
   }, []);
@@ -693,10 +705,31 @@ export default function App() {
     speakKokoro(`Tarea "${task.title}" vinculada con éxito al calendario.`, selectedVoiceId);
   };
 
+  const confirmationData = useRef('');
+  confirmationData.current = JSON.stringify({ contacts, tasks,
+    events: calendarEvents, cloud: currentCloudIntegration, webhook: thirdPartyWebhookUrl });
+  const readConfirmationContext = useCallback(() => {
+    const user = auth.currentUser;
+    if (confirmationIdentity.current.user !== user)
+      confirmationIdentity.current = { user, epoch: confirmationIdentity.current.epoch + 1 };
+    return JSON.stringify({ uid: user?.uid || null, epoch: confirmationIdentity.current.epoch, data: confirmationData.current });
+  }, []);
+
   // Process User Command (via Voice or Text)
   const handleProcessCommand = useCallback(
-    async (commandText: string) => {
+    async (commandText: string, confirmationNonce?: string) => {
       if (!commandText.trim()) return;
+
+      const confirmedIntent = confirmationNonce
+        ? confirmationGate.current.take(confirmationNonce, readConfirmationContext()) : undefined;
+      setPendingAction(null);
+      if (confirmationNonce && !confirmedIntent) {
+        setMessages(prev => [...prev, { id: `a-${Date.now()}`, sender: 'assistant',
+          text: 'La confirmación caducó o cambió la sesión o el estado. No se ha ejecutado ninguna acción. Repite la orden.',
+          timestamp: new Date().toLocaleTimeString(), modelUsed: 'Confirmación local', isE2EE: false }]);
+        setStatusLabel('LISTO'); return;
+      }
+      if (!confirmationNonce) confirmationGate.current.cancel();
 
       const userTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       const userMsg: ConsoleMessage = {
@@ -706,13 +739,20 @@ export default function App() {
         timestamp: userTime,
       };
 
-      setMessages((prev) => [...prev, userMsg]);
+      if (!confirmationNonce) setMessages((prev) => [...prev, userMsg]);
       setIsProcessing(true);
       setStatusLabel('PROCESANDO');
 
       try {
         // Step 1: Run through upgraded RT-Lite Local Intent Parser with existing tasks and calendar events
-        const intentResult = parseNaturalVoiceCommand(commandText, deviceState, contacts, tasks, calendarEvents);
+        const intentResult = confirmedIntent || parseNaturalVoiceCommand(commandText, deviceState, contacts, tasks, calendarEvents);
+
+        if (!confirmationNonce && needsSensitiveConfirmation(intentResult, Boolean(thirdPartyWebhookUrl))) {
+          const nonce = confirmationGate.current.request(intentResult, readConfirmationContext());
+          const title = tasks.find(task => task.id === intentResult.taskToDeleteId)?.title;
+          setPendingAction({ nonce, text: commandText, summary: sensitiveActionSummary(intentResult, title, thirdPartyWebhookUrl) });
+          return;
+        }
 
         if (intentResult.isHandled) {
           playCyberTone('confirm');
@@ -1229,7 +1269,7 @@ export default function App() {
         ]);
       } finally {
         setIsProcessing(false);
-        setStatusLabel('LISTO');
+        setStatusLabel(confirmationGate.current.isPending() ? 'CONFIRMACIÓN PENDIENTE' : 'LISTO');
       }
     },
     [
@@ -1250,6 +1290,7 @@ export default function App() {
       selectedVoiceId,
       pitchModifier,
       rateModifier,
+      readConfirmationContext,
     ]
   );
 
@@ -1562,6 +1603,10 @@ export default function App() {
         }}
         isTorchActive={deviceState.flashlight}
       />
+
+      {pendingAction && <SensitiveActionDialog summary={pendingAction.summary}
+        onCancel={() => { confirmationGate.current.cancel(); setPendingAction(null); setStatusLabel('LISTO'); }}
+        onConfirm={() => { void handleProcessCommand(pendingAction.text, pendingAction.nonce); }} />}
 
       {/* Phone Controls Drawer */}
       <DeviceControlsDrawer

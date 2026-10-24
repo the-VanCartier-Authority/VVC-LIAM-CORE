@@ -11,7 +11,11 @@ const stubs = {
   googleAuth: `
     const user = { uid: 'fixture-a', email: 'fixture@example.test', displayName: 'Fixture', getIdToken: async () => 'synthetic-id' };
     export const auth = { currentUser: user }, db = {}, WORKSPACE_SCOPES = [];
-    export const initAuth = callback => { queueMicrotask(() => callback?.(user, 'synthetic-oauth')); return () => {}; };
+    export const initAuth = (callback, failure) => {
+      window.fixtureReplaceIdentitySilently = () => { auth.currentUser = { ...auth.currentUser }; };
+      window.fixtureSwitchIdentity = uid => { auth.currentUser = uid ? { ...user, uid } : null;
+        if (auth.currentUser) callback?.(auth.currentUser, 'synthetic-oauth'); else failure?.(); };
+      queueMicrotask(() => callback?.(user, 'synthetic-oauth')); return () => {}; };
     export const googleSignIn = async () => ({ user, accessToken: 'synthetic-oauth' });
     export const googleSignOut = async () => {}, setCachedAccessToken = () => {};
     export const getAccessToken = async () => 'synthetic-oauth', testFirestoreConnection = async () => {};`,
@@ -87,8 +91,28 @@ try {
   await dialog.getByRole('button', { name: 'Cancelar', exact: true }).click();
   assert.deepEqual(await page.evaluate(() => window.fixtureHandoffs), []);
   await ask();
+  assert.equal(await page.evaluate(() => document.activeElement.textContent), 'Cancelar');
+  await page.keyboard.press('Shift+Tab');
+  assert.equal(await page.evaluate(() => document.activeElement.textContent), 'Confirmar');
+  await page.keyboard.press('Escape'); await dialog.waitFor({ state: 'hidden' });
+  assert.deepEqual(await page.evaluate(() => window.fixtureHandoffs), []);
+  await ask();
+  await page.evaluate(() => window.fixtureSwitchIdentity('fixture-b'));
+  await dialog.waitFor({ state: 'hidden' });
+  assert.deepEqual(await page.evaluate(() => window.fixtureHandoffs), []);
+  await ask();
+  // Even if an OAuth/UI callback has not fired, the live Firebase identity object
+  // changes the confirmation context before dispatch.
+  await page.evaluate(() => window.fixtureReplaceIdentitySilently());
+  assert.equal(await dialog.count(), 1);
+  await dialog.getByRole('button', { name: 'Confirmar', exact: true }).click();
+  await dialog.waitFor({ state: 'hidden' });
+  assert.deepEqual(await page.evaluate(() => window.fixtureHandoffs), []);
+  await page.evaluate(() => window.fixtureSwitchIdentity('fixture-a'));
+  await ask();
   await dialog.getByRole('button', { name: 'Confirmar', exact: true }).click();
   await page.waitForFunction(() => window.fixtureHandoffs.length === 1);
   assert.deepEqual(await page.evaluate(() => window.fixtureHandoffs), ['+15550000001']);
-  console.log(JSON.stringify({ cancelledHandoffs: 0, explicitlyConfirmedHandoffs: 1, realExternalCalls: 0 }));
+  console.log(JSON.stringify({ cancelledHandoffs: 0, identitySwitchDiscarded: true, staleIdentityDiscarded: true,
+    keyboardCancellation: true, explicitlyConfirmedHandoffs: 1, realExternalCalls: 0 }));
 } finally { await browser?.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
