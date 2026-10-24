@@ -4,7 +4,10 @@
   "version": "1.0.0",
   "description": "VVC LIAM CORE // Control · Analyze · Execute - Multiplatform Voice & Task Orchestrator (VAOS)",
   "type": "module",
+  "packageManager": "bun@1.4.4",
+  "engines": { "node": "24.19.0" },
   "scripts": {
+    "check:runtime": "node scripts/check-runtime.mjs",
     "dev": "tsx server.ts",
     "build": "vite build",
     "build:android": "vite build",
