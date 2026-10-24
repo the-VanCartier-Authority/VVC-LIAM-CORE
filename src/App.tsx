@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { inferenceFailureText } from './shared/executionOutcome';
+import { catalogModelProvider, cloudModelProvider } from './shared/modelRouting';
 import { backendFetch } from './services/backendApi';
 import { Header } from './components/Header';
 import { VoiceOrbVisualizer } from './components/VoiceOrbVisualizer';
@@ -1006,7 +1007,7 @@ export default function App() {
         }
 
         // --- NIVEL 2: MOTORES LOCALES ON-DEVICE RT-LITE (100% OFFLINE) ---
-        if (isOffline || currentModel.startsWith('rt-lite')) {
+        if (isOffline || catalogModelProvider(currentModel) === 'local') {
           const localAnswer = generateRTLiteResponse(commandText, currentModel);
           if (!deviceState.isMuted) {
             setIsSpeaking(true);
@@ -1074,9 +1075,10 @@ export default function App() {
 
         let responseText = '';
         let modelTag = currentModel as string;
+        const selectedProvider = cloudModelProvider(currentModel);
 
         // Route A: Google Gemini Cloud
-        if (currentModel.startsWith('google/')) {
+        if (selectedProvider === 'gemini') {
           const gemKey = SecretsService.getSecret('gemini_api_key');
           if (!gemKey) {
             promptSecret('gemini_api_key', 'Configura tu Google Gemini API Key secreta para utilizar este modelo.');
@@ -1109,7 +1111,7 @@ export default function App() {
           modelTag = data.model_used || currentModel;
         } 
         // Route B: Custom LLM (OpenAI-compatible / Groq / Ollama)
-        else if (currentModel === 'custom-llm') {
+        else if (selectedProvider === 'custom') {
           const custEndpoint = SecretsService.getSecret('custom_endpoint');
           const custKey = SecretsService.getSecret('custom_api_key');
           const custModel = SecretsService.getSecret('custom_model') || 'llama-3.3-70b-versatile';
@@ -1334,16 +1336,18 @@ export default function App() {
   const pendingTasksCount = tasks.filter((t) => !t.isCompleted).length;
 
   const handleSelectModel = (model: ModelType) => {
+    const provider = catalogModelProvider(model);
+    if (!provider) return;
     setCurrentModel(model);
     localStorage.setItem('vvc_liam_model', model);
     playCyberTone('confirm');
 
     // Prompt for secret API key if required and not set
-    if (model.startsWith('google/') && !SecretsService.hasSecret('gemini_api_key')) {
+    if (provider === 'gemini' && !SecretsService.hasSecret('gemini_api_key')) {
       promptSecret('gemini_api_key', 'Configura tu Google Gemini API Key secreta para utilizar este modelo.');
-    } else if (model === 'custom-llm' && (!SecretsService.hasSecret('custom_endpoint') || !SecretsService.hasSecret('custom_api_key'))) {
+    } else if (provider === 'custom' && (!SecretsService.hasSecret('custom_endpoint') || !SecretsService.hasSecret('custom_api_key'))) {
       promptSecret('custom_endpoint', 'Configura tu Endpoint URL y API Key para el LLM Personalizado.');
-    } else if (!model.startsWith('rt-lite') && model !== 'direct-no-ai' && !model.startsWith('google/') && model !== 'custom-llm') {
+    } else if (provider === 'nvidia') {
       if (!SecretsService.hasSecret('nvidia_api_key')) {
         promptSecret('nvidia_api_key', 'Ingresa tu NVIDIA NIM API Key secreta para utilizar este modelo en la nube.');
       }

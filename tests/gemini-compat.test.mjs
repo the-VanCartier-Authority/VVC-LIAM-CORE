@@ -17,7 +17,7 @@ test('Gemini SDK keeps fixed Google origin for server key, BYOK, key test and NV
   assert.equal(response.status, 200); assert.equal((await response.json()).text, 'gemini fixture');
   assert.equal((await post(app.base, '/api/chat/gemini', { prompt: 'fixture', apiKey: 'synthetic-gemini-byok' })).status, 200);
   assert.equal((await post(app.base, '/api/secrets/test', { provider: 'gemini', apiKey: 'synthetic-gemini-byok' })).status, 200);
-  assert.equal((await post(app.base, '/api/chat/nvidia', { messages: [{ role: 'user', content: 'fixture' }] })).status, 200);
+  assert.equal((await post(app.base, '/api/chat/nvidia', { fallback: 'gemini-flash', messages: [{ role: 'user', content: 'fixture' }] })).status, 200);
   const calls = (await readFile(capture, 'utf8')).trim().split('\n').map(JSON.parse);
   assert.equal(calls.length, 4); assert.ok(calls.every(c => c.origin === 'https://generativelanguage.googleapis.com'));
   assert.deepEqual(calls.map(c => c.serverKey), [true, false, false, true]);
