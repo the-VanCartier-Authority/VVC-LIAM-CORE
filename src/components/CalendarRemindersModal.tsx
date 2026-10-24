@@ -242,10 +242,10 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
       recurrence: newRecurrence,
       subtasks: subtasksList,
       syncedToThirdParty: {
-        googleCalendar: syncGoogle,
-        notion: syncNotion,
-        todoist: true,
-        slackWebhook: Boolean(thirdPartyWebhookUrl),
+        googleCalendar: false,
+        notion: false,
+        todoist: false,
+        slackWebhook: false,
       },
     });
 
@@ -267,7 +267,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
     let eventTime = newEventTime;
     let eventEndTime = newEventEndTime;
     let conflictNote: string | undefined = undefined;
-    let syncStatus: 'synced' | 'local' | 'conflict_resolved' = 'synced';
+    let syncStatus: 'synced' | 'local' | 'conflict_resolved' = 'local';
 
     if (conflictAnalysis.hasConflict) {
       conflictNote = `Conflicto detectado originalmente con ${conflictAnalysis.conflictingEvents[0]?.title || 'evento existente'}.`;
@@ -358,7 +358,9 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
 
     const res = await dispatchTaskWebhook(thirdPartyWebhookUrl, 'created', sampleTask);
     if (res.success) {
-      setTestWebhookStatus('¡Webhook enviado con éxito! (Status 200)');
+      setTestWebhookStatus(`Aceptado por el servicio (HTTP ${res.status}); ejecución externa no verificada.`);
+    } else if (res.delivery === 'unverified') {
+      setTestWebhookStatus('Entrega no verificada: no hay recibo HTTP legible.');
     } else {
       setTestWebhookStatus(`Error: ${res.error}`);
     }
@@ -607,7 +609,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                         onChange={(e) => setSyncGoogle(e.target.checked)}
                         className="accent-[#00f0ff] rounded"
                       />
-                      <span>Google Calendar Sync</span>
+                      <span>Google Calendar (solicitud sin ejecución)</span>
                     </label>
 
                     <label className="flex items-center gap-1.5 text-[11px] text-slate-300 cursor-pointer">
@@ -617,7 +619,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                         onChange={(e) => setSyncNotion(e.target.checked)}
                         className="accent-[#b026ff] rounded"
                       />
-                      <span>Notion DB</span>
+                      <span>Notion (sin adaptador de tareas)</span>
                     </label>
                   </div>
 

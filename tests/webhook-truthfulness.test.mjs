@@ -39,3 +39,13 @@ test('D01: network/CORS failure has no receipt and must not invent one', async t
   assert.equal(result.success, false); assert.equal(result.delivery, 'unverified');
   assert.equal(result.status, undefined); assert.doesNotMatch(JSON.stringify(result), /synthetic-sensitive-network-detail/);
 });
+
+test('D01: invalid or credential-bearing webhook URLs have no attempted request', async t => {
+  let calls = 0;
+  t.mock.method(globalThis, 'fetch', async () => { calls++; return new Response(null, { status: 200 }); });
+  for (const destination of ['not a url', 'https://user:synthetic@fixture.example.test/hooks', 'file:///tmp/fixture']) {
+    const result = await dispatchTaskWebhook(destination, 'created', task);
+    assert.equal(result.success, false); assert.equal(result.delivery, 'not_attempted');
+  }
+  assert.equal(calls, 0);
+});
