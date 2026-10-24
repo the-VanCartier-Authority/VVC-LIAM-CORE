@@ -1126,6 +1126,8 @@ export default function App() {
               apiKey: gemKey,
               prompt: commandText,
               systemInstruction: systemPrompt,
+              temperature: agentTemperature,
+              max_tokens: agentMaxTokens,
               messages: [
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: commandText },

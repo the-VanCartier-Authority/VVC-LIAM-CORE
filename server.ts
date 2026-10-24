@@ -1,3 +1,4 @@
+import { geminiConversation, ChatInputError } from './src/server/geminiConversation.ts';
 import express from 'express';
 import type { Request, Response } from 'express';
 import dotenv from 'dotenv';
@@ -20,6 +21,7 @@ const providers = new ProviderRegistry(process.env.LLM_PROVIDERS_JSON || '[]');
 const limits = new BackendLimits(process.env.BACKEND_LIMITS_JSON || '{}');
 
 function egressFailure(res: Response, error: unknown) {
+  if (error instanceof ChatInputError) return res.status(400).json({ code: error.code, error: error.message, outcome: executionOutcome('failed', 'chat-input'), realExecution: false });
   if (error instanceof ModelRoutingError) return res.status(400).json({ success: false,
     code: error.code, error: error.message, outcome: executionOutcome('failed', 'model-selection'), realExecution: false });
   const policy = error instanceof EgressPolicyError;
@@ -379,13 +381,13 @@ app.post('/api/tts', async (req: Request, res: Response) => {
 /**
  * Helper to generate response using Gemini Flash
  */
-async function generateGeminiReply(systemMsg: string, userMsg: string, apiKey: string, modelName = 'gemini-2.5-flash') {
+async function generateGeminiReply(body: Record<string, unknown>, apiKey: string, modelName = 'gemini-2.5-flash') {
+  const conversation = geminiConversation(body);
   try {
     const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: 30000, retryOptions: { attempts: 1 } } });
     const response = await ai.models.generateContent({
       model: modelName,
-      contents: `${systemMsg ? `[Instrucción del sistema: ${systemMsg}]\n\n` : ''}${userMsg}`,
-      config: { maxOutputTokens: 4096 },
+      ...conversation,
     });
     if (!response.text?.trim()) throw new UpstreamError();
     return response.text;
@@ -434,13 +436,10 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
     const apiKey = providerKey(provider, clientApiKey);
     const geminiKey = fallback === 'gemini-flash' ? providerKey(providers.select('gemini', {}), clientGeminiApiKey) : '';
 
-    const lastMsg = messages?.[messages.length - 1]?.content || 'Hola';
-    const systemMsg = messages?.find((m: { role: string; content: string }) => m.role === 'system')?.content || '';
-
     // A configured Gemini key alone never authorizes replacing the chosen NIM.
     if (!apiKey) {
       if (geminiKey) {
-        const text = await generateGeminiReply(systemMsg, lastMsg, geminiKey, 'gemini-2.5-flash');
+        const text = await generateGeminiReply(req.body, geminiKey, 'gemini-2.5-flash');
         return res.json({
           id: `fallback-gemini-${Date.now()}`,
           choices: [{ message: { role: 'assistant', content: text } }],
@@ -558,7 +557,7 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
 
     // Cross-provider fallback uses its own credential and truthful provenance.
     if (geminiKey && geminiKey !== 'MY_GEMINI_API_KEY') {
-      const text = await generateGeminiReply(systemMsg, lastMsg, geminiKey);
+      const text = await generateGeminiReply(req.body, geminiKey, 'gemini-2.5-flash');
       return res.json({
         id: `auto-backup-${Date.now()}`,
         choices: [{ message: { role: 'assistant', content: text } }],
@@ -579,7 +578,7 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
 app.post('/api/chat/gemini', async (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   try {
-    const { prompt, systemInstruction, messages, apiKey: clientApiKey, model = 'gemini-2.5-flash' } = req.body;
+    const { apiKey: clientApiKey, model = 'gemini-2.5-flash' } = req.body;
     const targetModel = providerModel('gemini', model);
     const apiKey = providerKey(providers.select('gemini', req.body), clientApiKey);
 
@@ -593,16 +592,9 @@ app.post('/api/chat/gemini', async (req: Request, res: Response) => {
       });
     }
 
-    const lastMsg = prompt || messages?.[messages.length - 1]?.content || 'Hola';
-    const sysMsg = systemInstruction || messages?.find((m: { role: string; content: string }) => m.role === 'system')?.content || '';
-
+    const conversation = geminiConversation(req.body);
     const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: 30000, retryOptions: { attempts: 1 } } });
-    const fullContents = sysMsg ? `[Instrucción del sistema: ${sysMsg}]\n\n${lastMsg}` : lastMsg;
-    const response = await ai.models.generateContent({
-      model: targetModel,
-      contents: fullContents,
-      config: { maxOutputTokens: 4096 },
-    });
+    const response = await ai.models.generateContent({ model: targetModel, ...conversation });
 
     const responseText = cleanModelResponse(response.text || '');
     if (!responseText.trim()) throw new UpstreamError();
