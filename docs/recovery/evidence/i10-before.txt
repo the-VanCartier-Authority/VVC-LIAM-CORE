@@ -1,0 +1,70 @@
+✖ I10: acknowledged task survives a real server process restart (917.695691ms)
+✖ I10: idempotency scoped to verified UID returns the original task (353.393818ms)
+✖ I10: owner can cancel processing and late provider response cannot overwrite cancellation (470.33008ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1747.175226
+
+✖ failing tests:
+
+test at tests/vaos-durable-regression.test.mjs:9:1
+✖ I10: acknowledged task survives a real server process restart (917.695691ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  404 !== 200
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-i10/tests/vaos-durable-regression.test.mjs:18:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 404,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/vaos-durable-regression.test.mjs:22:1
+✖ I10: idempotency scoped to verified UID returns the original task (353.393818ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'liam-task-1792866857873-7y9qx'
+  - 'liam-task-1792866857868-kckar'
+                          ^
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-i10/tests/vaos-durable-regression.test.mjs:28:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'liam-task-1792866857873-7y9qx',
+    expected: 'liam-task-1792866857868-kckar',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/vaos-durable-regression.test.mjs:30:1
+✖ I10: owner can cancel processing and late provider response cannot overwrite cancellation (470.33008ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  404 !== 200
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-i10/tests/vaos-durable-regression.test.mjs:35:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 404,
+    expected: 200,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

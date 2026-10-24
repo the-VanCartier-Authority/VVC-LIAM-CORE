@@ -23,7 +23,7 @@ export async function startApp(extraEnv = {}, imports = []) {
     cwd: new URL('../', import.meta.url),
     env: { ...process.env, NODE_ENV: 'production', PORT: String(port),
       NVIDIA_API_KEY: '', GEMINI_API_KEY: '', LLM_PROVIDERS_JSON: '[]',
-      FIREBASE_PROJECT_ID: identity.project, VVC_FIXTURE_JWKS_PATH: jwksPath, ...extraEnv },
+      FIREBASE_PROJECT_ID: identity.project, VVC_FIXTURE_JWKS_PATH: jwksPath, VAOS_DATABASE_PATH: join(directory, 'vaos.sqlite'), ...extraEnv },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let output = '';
@@ -37,7 +37,7 @@ export async function startApp(extraEnv = {}, imports = []) {
         base,
         token, identity, jwksPath,
         authHeaders: { Authorization: `Bearer ${token}` },
-        async stop() { appTokens.delete(base); child.kill('SIGTERM'); await once(child, 'exit');
+        async stop(signal = 'SIGTERM') { appTokens.delete(base); child.kill(signal); await once(child, 'exit');
           await rm(directory, { recursive: true, force: true }); },
       }; }
     } catch {}
