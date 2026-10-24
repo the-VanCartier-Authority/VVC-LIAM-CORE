@@ -73,9 +73,11 @@ test('NVIDIA primary, retry and key test use only the registered NIM and its own
   calls.length = 0;
   let response = await post(app.base, '/api/chat/nvidia', { providerId: 'nim', messages, model: 'fixture/model' });
   assert.equal(response.status, 200); assert.equal((await response.json()).model_used, 'fixture/model');
-  response = await post(app.base, '/api/chat/nvidia', { providerId: 'nim', messages, model: 'fixture/retry' });
+  response = await post(app.base, '/api/chat/nvidia', { providerId: 'nim', messages, model: 'fixture/retry', fallback: 'nvidia-fast' });
   assert.equal(response.status, 200);
-  assert.match((await response.json()).model_used, /Llama/);
+  const backup = await response.json();
+  assert.equal(backup.model_used, 'meta/llama-3.2-11b-vision-instruct');
+  assert.equal(backup.requested_model, 'fixture/retry'); assert.equal(backup.provider_id, 'nim');
   response = await post(app.base, '/api/secrets/test', { provider: 'nvidia', providerId: 'nim' });
   assert.equal(response.status, 200); assert.equal((await response.json()).success, true);
   assert.equal(calls.length, 4);

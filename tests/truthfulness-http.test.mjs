@@ -72,7 +72,7 @@ test('F11: asynchronous request without a provider is unavailable, never complet
 test('F09: failed Gemini fallback returns failure instead of synthetic success', async t => {
   const app = await startApp({ GEMINI_API_KEY: 'synthetic-failure' }, ['./tests/fixtures/fail-gemini.mjs']);
   t.after(() => app.stop());
-  const response = await post(app.base, '/api/chat/nvidia', { messages: [{ role: 'user', content: 'crear documento' }] });
+  const response = await post(app.base, '/api/chat/nvidia', { fallback: 'gemini-flash', messages: [{ role: 'user', content: 'crear documento' }] });
   assert.equal(response.status, 502);
   const data = await response.json(); assert.equal(data.outcome.status, 'failed');
   assert.equal(data.outcome.realExecution, false); assert.equal(data.choices, undefined);
@@ -92,7 +92,8 @@ test('F09: failed NVIDIA retries and empty custom output cannot become local exe
   const app = await startApp({ LLM_PROVIDERS_JSON: JSON.stringify(registry) }); t.after(() => app.stop());
   for (const id of ['nim', 'custom']) {
     const response = await post(app.base, `/api/chat/${id === 'nim' ? 'nvidia' : 'custom'}`, {
-      providerId: id, apiKey: 'synthetic-only', model: 'fixture/retry', messages: [] });
+      providerId: id, apiKey: 'synthetic-only', model: 'fixture/retry', messages: [],
+      ...(id === 'nim' ? { fallback: 'nvidia-fast' } : {}) });
     assert.equal(response.status, 502); const body = await response.json();
     assert.equal(body.outcome.status, 'failed'); assert.equal(body.outcome.realExecution, false);
     assert.equal(body.choices, undefined);
