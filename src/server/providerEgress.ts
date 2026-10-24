@@ -1,3 +1,4 @@
+import { assertNotAborted, withCancellation, RequestAbortedError } from './requestCancellation.ts';
 // Server-only provider registry and transport. Never import from browser code.
 import { lookup as dnsLookup } from 'node:dns/promises';
 import { BlockList, isIP } from 'node:net';
@@ -161,21 +162,24 @@ export function assertConnectedPeer(addresses: Address[], address: string | unde
 // Host/SNI/certificate validation keep the registered hostname. No HTTP bytes leave
 // until the actual peer and, for HTTPS, the authenticated TLS connection are checked.
 export async function postProvider(provider: Provider, key: string, payload: unknown, timeoutMs = 45000,
-  resolve?: Resolver): Promise<Response> {
+  resolve?: Resolver, signal?: AbortSignal): Promise<Response> {
+  assertNotAborted(signal);
   const started = Date.now();
   let dnsTimer: ReturnType<typeof setTimeout>;
   let addresses: Address[];
   try {
-    addresses = await Promise.race([
+    addresses = await withCancellation(Promise.race([
       resolveProvider(provider, resolve),
       new Promise<never>((_, reject) => { dnsTimer = setTimeout(() => reject(new UpstreamError()), Math.min(timeoutMs, 5000)); }),
-    ]);
+    ]), signal);
   } catch (error) {
+    assertNotAborted(signal);
     throw error instanceof EgressPolicyError ? error : new UpstreamError();
   } finally { clearTimeout(dnsTimer!); }
   const deadline = started + timeoutMs;
   for (let index = 0; index < addresses.length; index++) {
-    try { return await sendPinned(provider, key, payload, addresses[index], deadline); }
+    assertNotAborted(signal);
+    try { return await sendPinned(provider, key, payload, addresses[index], deadline, signal); }
     catch (error) {
       // Dual-stack/network fallback is allowed only before any HTTP bytes were sent,
       // to another IP in the same validated snapshot. TLS/policy errors stop here.
@@ -185,7 +189,8 @@ export async function postProvider(provider: Provider, key: string, payload: unk
   throw new UpstreamError();
 }
 
-async function sendPinned(provider: Provider, key: string, payload: unknown, pinned: Address, deadline: number): Promise<Response> {
+async function sendPinned(provider: Provider, key: string, payload: unknown, pinned: Address, deadline: number, signal?: AbortSignal): Promise<Response> {
+  assertNotAborted(signal);
   const url = new URL(provider.endpoint);
   const body = JSON.stringify(payload);
   return new Promise((resolveResponse, reject) => {
@@ -193,7 +198,7 @@ async function sendPinned(provider: Provider, key: string, payload: unknown, pin
     const secure = url.protocol === 'https:';
     const request = secure ? httpsRequest : httpRequest;
     const options: RequestOptions & { autoSelectFamily: boolean } = {
-      method: 'POST', agent: false, autoSelectFamily: false,
+      method: 'POST', agent: false, autoSelectFamily: false, signal,
       lookup: (_hostname, _options, callback) => callback(null, pinned.address, pinned.family),
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json',
         'Content-Length': Buffer.byteLength(body), ...(key ? { Authorization: `Bearer ${key}` } : {}) },
@@ -203,13 +208,15 @@ async function sendPinned(provider: Provider, key: string, payload: unknown, pin
     const timer = setTimeout(() => req.destroy(new UpstreamError()), Math.max(1, deadline - Date.now()));
     req.once('error', (error: NodeJS.ErrnoException) => {
       clearTimeout(timer);
-      if (error instanceof EgressPolicyError) reject(error);
+      if (signal?.aborted) reject(new RequestAbortedError());
+      else if (error instanceof EgressPolicyError) reject(error);
       else if (!transmitted && ['ECONNREFUSED', 'ENETUNREACH', 'EHOSTUNREACH', 'ETIMEDOUT'].includes(error.code || '')) reject(new ConnectError());
       else reject(new UpstreamError());
     });
     req.once('socket', socket => {
       socket.once(secure ? 'secureConnect' : 'connect', () => {
         try {
+          assertNotAborted(signal);
           assertConnectedPeer([pinned], socket.remoteAddress, socket.remotePort, portOf(url));
           if (secure && !(socket as TLSSocket).authorized) return deny();
           transmitted = true;
@@ -218,6 +225,7 @@ async function sendPinned(provider: Provider, key: string, payload: unknown, pin
       });
     });
     req.once('response', response => {
+      if (signal?.aborted) { clearTimeout(timer); response.destroy(); req.destroy(); reject(new RequestAbortedError()); return; }
       const status = response.statusCode || 502;
       if (status >= 300 && status < 400) {
         clearTimeout(timer); response.destroy(); req.destroy(); reject(new EgressPolicyError()); return;
@@ -234,10 +242,11 @@ async function sendPinned(provider: Provider, key: string, payload: unknown, pin
         }
         else chunks.push(chunk);
       });
-      response.once('error', () => { clearTimeout(timer); reject(new UpstreamError()); });
-      response.once('aborted', () => { clearTimeout(timer); reject(new UpstreamError()); });
+      response.once('error', () => { clearTimeout(timer); reject(signal?.aborted ? new RequestAbortedError() : new UpstreamError()); });
+      response.once('aborted', () => { clearTimeout(timer); reject(signal?.aborted ? new RequestAbortedError() : new UpstreamError()); });
       response.once('end', () => {
         clearTimeout(timer);
+        if (signal?.aborted) { reject(new RequestAbortedError()); return; }
         const body = status === 204 || status === 205 ? null : Buffer.concat(chunks);
         resolveResponse(new Response(body, { status, headers: { 'Content-Type': 'application/json' } }));
       });
