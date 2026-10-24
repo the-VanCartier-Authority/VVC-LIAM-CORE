@@ -54,8 +54,28 @@ export class VaosPolicyEngine {
   public static evaluate(
     command: string,
     agentId?: string,
-    forcePriority?: TaskPriority
+    forcePriority?: unknown
   ): {
+    approved: boolean; reason?: string; code?: string;
+    priority: TaskPriority; route: TaskRoute; category: string;
+  } {
+    const policy = this.classify(command);
+    // Server classification is authoritative, including security rejection.
+    // Client hints may increase scrutiny; they can never lower it.
+    if (!policy.approved || forcePriority === undefined) return policy;
+    const priorities: readonly TaskPriority[] = ['P0_CRITICAL', 'P1_HIGH', 'P2_LOW'];
+    const suggested = priorities.find(priority => priority === forcePriority);
+    if (!suggested) return { ...policy, approved: false, code: 'INVALID_PRIORITY',
+      reason: 'Prioridad solicitada no válida.' };
+    if (priorities.indexOf(suggested) > priorities.indexOf(policy.priority)) return {
+      ...policy, approved: false, code: 'PRIORITY_DOWNGRADE',
+      reason: 'La prioridad solicitada rebaja la clasificación del servidor.',
+    };
+    if (suggested === policy.priority) return policy;
+    return { ...policy, priority: suggested, route: 'ASYNC_PATH', category: `CLIENT_ESCALATED_${policy.category}` };
+  }
+
+  private static classify(command: string): {
     approved: boolean;
     reason?: string;
     priority: TaskPriority;
@@ -72,15 +92,6 @@ export class VaosPolicyEngine {
         priority: 'P0_CRITICAL',
         route: 'ASYNC_PATH',
         category: 'SECURITY_BLOCKED',
-      };
-    }
-
-    if (forcePriority) {
-      return {
-        approved: true,
-        priority: forcePriority,
-        route: forcePriority === 'P2_LOW' ? 'FAST_PATH' : 'ASYNC_PATH',
-        category: 'USER_OVERRIDE',
       };
     }
 
@@ -411,11 +422,13 @@ export function createVaosRouter(limits?: BackendLimits): Router {
     const policy = VaosPolicyEngine.evaluate(command, agentId, forcePriority);
 
     if (!policy.approved) {
-      return res.status(403).json({
-        route: 'FAST_PATH',
+      return res.status(policy.code === 'INVALID_PRIORITY' ? 400 : 403).json({
+        route: policy.route,
         priority: policy.priority,
         policyApproved: false,
         policyReason: policy.reason,
+        code: policy.code || 'POLICY_REJECTED',
+        outcome: executionOutcome('failed', 'vaos-policy'),
       });
     }
 
