@@ -109,7 +109,7 @@ export const GoogleContactsModal: React.FC<GoogleContactsModalProps> = ({
       let createdContact: PhoneContact = {
         id: `c-local-${Date.now()}`,
         name: newName.trim(),
-        phone: newPhone.trim() || '+1 555-0100',
+        phone: newPhone.trim(),
         email: newEmail.trim() || undefined,
         relation: 'Contacto Personal',
       };
@@ -176,7 +176,7 @@ export const GoogleContactsModal: React.FC<GoogleContactsModalProps> = ({
     const q = searchTerm.toLowerCase();
     return (
       c.name.toLowerCase().includes(q) ||
-      c.phone.toLowerCase().includes(q) ||
+      (c.phone || '').toLowerCase().includes(q) ||
       (c.email && c.email.toLowerCase().includes(q))
     );
   });
@@ -409,6 +409,7 @@ export const GoogleContactsModal: React.FC<GoogleContactsModalProps> = ({
                 {/* Actions */}
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
+                    disabled={!contact.phone}
                     onClick={() => onInitiateCall(contact)}
                     title={`Llamar a ${contact.name}`}
                     className="p-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition-colors"
@@ -417,6 +418,7 @@ export const GoogleContactsModal: React.FC<GoogleContactsModalProps> = ({
                   </button>
 
                   <button
+                    disabled={!contact.phone}
                     onClick={() => onInitiateMessage(contact)}
                     title={`Enviar mensaje a ${contact.name}`}
                     className="p-2 rounded-lg bg-[#00f0ff]/10 hover:bg-[#00f0ff]/20 text-[#00f0ff] border border-[#00f0ff]/30 transition-colors"

@@ -59,3 +59,19 @@ test('I06: missing phone never becomes an email or invented number', () => {
     for (const button of actions) assert.match(button, /disabled=""/);
   }
 });
+
+test('I06: imported phone reaches the real RT Lite call and message consumers', () => {
+  const contacts = convertGoogleContactsToPhoneContacts([item]);
+  const call = ui.parseNaturalVoiceCommand('llamar a fixture ada', {}, contacts);
+  assert.deepEqual(call.callContact, { name: item.name, number: item.phoneNumber });
+  const message = ui.parseNaturalVoiceCommand('enviar mensaje a fixture ada: hola', {}, contacts);
+  assert.equal(message.messagePayload.recipient, item.phoneNumber);
+  assert.doesNotMatch(call.spokenResponse, /encriptad|iniciando|segura/i);
+});
+
+test('I06: absent phone cannot produce a call/SMS from an imported name, and unknown names get no fictional number', () => {
+  const contacts = convertGoogleContactsToPhoneContacts([{ ...item, phoneNumber: undefined }]);
+  assert.equal(ui.parseNaturalVoiceCommand('llamar a fixture ada', {}, contacts).callContact, undefined);
+  assert.equal(ui.parseNaturalVoiceCommand('enviar mensaje a fixture ada: hola', {}, contacts).messagePayload, undefined);
+  assert.equal(ui.parseNaturalVoiceCommand('llamar a desconocido', {}, []).callContact, undefined);
+});

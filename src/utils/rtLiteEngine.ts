@@ -231,17 +231,21 @@ export function parseNaturalVoiceCommand(
   if (callMatch || query.includes('emergencia') || query.includes('llamar al 911')) {
     const rawTarget = callMatch ? callMatch[1].trim() : (query.includes('911') ? '911' : 'Emergencias');
     const contact = contacts.find(
-      (c) => c.name.toLowerCase().includes(rawTarget.toLowerCase()) || c.phone.includes(rawTarget)
+      (c) => c.name.toLowerCase().includes(rawTarget.toLowerCase()) || (c.phone || '').includes(rawTarget)
     );
 
     const name = contact ? contact.name : rawTarget;
-    const number = contact ? contact.phone : (/\d+/.test(rawTarget) ? rawTarget : '+1 (555) 019-2831');
+    const number = contact ? contact.phone : (/^[+\d\s]+$/.test(rawTarget) ? rawTarget : '');
+    if (!number) return {
+      isHandled: true, spokenResponse: `No hay un número de teléfono disponible para ${name}.`,
+      actionDetails: 'No se preparó ninguna llamada: falta un teléfono.',
+    };
 
     return {
       isHandled: true,
-      spokenResponse: `Iniciando llamada segura a ${name}. Enlace encriptado.`,
+      spokenResponse: `Preparando el marcador para ${name}. Confirma la llamada en el teléfono.`,
       actionType: 'call',
-      actionDetails: `Llamada saliente iniciada: ${name} (${number})`,
+      actionDetails: `Número preparado para el marcador: ${name} (${number})`,
       callContact: { name, number },
     };
   }
@@ -256,7 +260,11 @@ export function parseNaturalVoiceCommand(
     const isWhatsApp = query.includes('whatsapp');
 
     const contact = contacts.find((c) => c.name.toLowerCase().includes(recipientRaw.toLowerCase()));
-    const finalRecipient = contact ? contact.name : recipientRaw;
+    if (contact && !contact.phone) return {
+      isHandled: true, spokenResponse: `No hay un número de teléfono disponible para ${contact.name}.`,
+      actionDetails: 'No se preparó ningún SMS/WhatsApp: falta un teléfono.',
+    };
+    const finalRecipient = contact ? contact.phone : recipientRaw;
 
     return {
       isHandled: true,
