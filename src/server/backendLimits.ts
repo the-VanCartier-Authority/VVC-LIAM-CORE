@@ -53,6 +53,7 @@ export class BackendLimits {
       Math.max(1, Math.ceil(((bucket.day + 1) * 86400000 - this.now()) / 1000)));
     bucket.tokens += maximum; // Conservative reservation, never reported as measured use or billing.
   }
+  dailyGenerationLimit(): number { return this.config.tokenReservationsPerDay; }
   task(uid: string): () => void {
     const bucket = this.bucket(uid);
     if (bucket.tasks >= this.config.concurrentTasksPerUser || this.tasks >= this.config.concurrentTasksGlobal)
@@ -97,7 +98,7 @@ export class BackendLimits {
         }
         if (body.injectedSkills !== undefined && (!Array.isArray(body.injectedSkills) || body.injectedSkills.length > 32 ||
             body.injectedSkills.some((skill: unknown) => typeof skill !== 'string' || skill.length > 500))) invalid();
-        if (req.path.startsWith('/chat/') || req.path === '/vaos/dispatch' || req.path === '/secrets/test')
+        if (req.path.startsWith('/chat/') || req.path === '/vaos/dispatch' || /^\/vaos\/task\/[^/]+\/retry$/.test(req.path) || req.path === '/secrets/test')
           this.reserveGeneration(req.auth.uid, req.path === '/chat/gemini' || req.path === '/secrets/test' ? 1 : 3);
         if (req.path === '/tts') this.reserveGeneration(req.auth.uid, 5);
         next();
