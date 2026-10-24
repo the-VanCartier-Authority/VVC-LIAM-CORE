@@ -1,0 +1,71 @@
+✖ I01: a client cannot turn critical or operational work into a fast path (1.634454ms)
+✖ I01: invalid priority values never become policy decisions (0.373719ms)
+✖ I01: HTTP rejects downgrade and invalid values before allocating a task (603.29103ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 895.707988
+
+✖ failing tests:
+
+test at tests/critical-priority.test.mjs:6:1
+✖ I01: a client cannot turn critical or operational work into a fast path (1.634454ms)
+  AssertionError [ERR_ASSERTION]: abrir bóveda
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-i01/tests/critical-priority.test.mjs:9:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/critical-priority.test.mjs:16:1
+✖ I01: invalid priority values never become policy decisions (0.373719ms)
+  AssertionError [ERR_ASSERTION]: null
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-i01/tests/critical-priority.test.mjs:19:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/critical-priority.test.mjs:24:1
+✖ I01: HTTP rejects downgrade and invalid values before allocating a task (603.29103ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 403
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-i01/tests/critical-priority.test.mjs:28:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 403,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

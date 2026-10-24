@@ -21,6 +21,21 @@ test('I01: invalid priority values never become policy decisions', () => {
   }
 });
 
+test('I01: valid promotion preserves server checks and ordinary automatic routing', () => {
+  const automatic = VaosPolicyEngine.evaluate('consulta informativa');
+  assert.equal(automatic.approved, true); assert.equal(automatic.priority, 'P2_LOW'); assert.equal(automatic.route, 'FAST_PATH');
+  for (const priority of ['P1_HIGH', 'P0_CRITICAL']) {
+    const promoted = VaosPolicyEngine.evaluate('consulta informativa', undefined, priority);
+    assert.equal(promoted.approved, true); assert.equal(promoted.priority, priority);
+    assert.equal(promoted.route, 'ASYNC_PATH');
+  }
+  for (const hint of [undefined, 'P0_CRITICAL', 'P1_HIGH', 'P2_LOW', {}, null]) {
+    assert.equal(VaosPolicyEngine.evaluate('<script>fixture</script>', undefined, hint).approved, false);
+  }
+  for (const priority of ['P0_CRITICAL', 'P1_HIGH'])
+    assert.equal(VaosPolicyEngine.evaluate('rotar clave', undefined, priority).priority, 'P0_CRITICAL');
+});
+
 test('I01: HTTP rejects downgrade and invalid values before allocating a task', async t => {
   const app = await startApp(); t.after(() => app.stop());
   const before = await (await fetch(app.base + '/api/vaos/tasks', { headers: app.authHeaders })).json();
