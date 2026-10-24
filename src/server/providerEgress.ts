@@ -162,6 +162,29 @@ export function assertConnectedPeer(addresses: Address[], address: string | unde
 // until the actual peer and, for HTTPS, the authenticated TLS connection are checked.
 export async function postProvider(provider: Provider, key: string, payload: unknown, timeoutMs = 45000,
   resolve?: Resolver): Promise<Response> {
+  return postEncoded(provider, Buffer.from(JSON.stringify(payload)), {
+    'Content-Type': 'application/json', Accept: 'application/json',
+    ...(key ? { Authorization: `Bearer ${key}` } : {}),
+  }, timeoutMs, resolve);
+}
+
+// For server-generated Web Push ciphertext only. No arbitrary headers, agents or
+// caller-controlled connection options; the same pinned transport remains in use.
+export async function postProviderBytes(provider: Provider, body: Buffer, headers: Record<string, string | number>,
+  timeoutMs = 15000, resolve?: Resolver): Promise<Response> {
+  const allowed = new Set(['authorization', 'content-type', 'content-encoding', 'ttl', 'urgency', 'topic', 'crypto-key', 'encryption']);
+  const validated: Record<string, string | number> = {};
+  for (const [name, value] of Object.entries(headers)) {
+    if (!allowed.has(name.toLowerCase()) || !['string', 'number'].includes(typeof value) ||
+        /[\r\n\x00]/.test(String(value))) return deny();
+    validated[name] = value;
+  }
+  if (!Buffer.isBuffer(body) || body.length > 4096) return deny();
+  return postEncoded(provider, body, validated, timeoutMs, resolve);
+}
+
+async function postEncoded(provider: Provider, body: Buffer, headers: Record<string, string | number>,
+  timeoutMs: number, resolve?: Resolver): Promise<Response> {
   const started = Date.now();
   let dnsTimer: ReturnType<typeof setTimeout>;
   let addresses: Address[];
@@ -175,7 +198,7 @@ export async function postProvider(provider: Provider, key: string, payload: unk
   } finally { clearTimeout(dnsTimer!); }
   const deadline = started + timeoutMs;
   for (let index = 0; index < addresses.length; index++) {
-    try { return await sendPinned(provider, key, payload, addresses[index], deadline); }
+    try { return await sendPinned(provider, body, headers, addresses[index], deadline); }
     catch (error) {
       // Dual-stack/network fallback is allowed only before any HTTP bytes were sent,
       // to another IP in the same validated snapshot. TLS/policy errors stop here.
@@ -185,9 +208,8 @@ export async function postProvider(provider: Provider, key: string, payload: unk
   throw new UpstreamError();
 }
 
-async function sendPinned(provider: Provider, key: string, payload: unknown, pinned: Address, deadline: number): Promise<Response> {
+async function sendPinned(provider: Provider, body: Buffer, headers: Record<string, string | number>, pinned: Address, deadline: number): Promise<Response> {
   const url = new URL(provider.endpoint);
-  const body = JSON.stringify(payload);
   return new Promise((resolveResponse, reject) => {
     let transmitted = false;
     const secure = url.protocol === 'https:';
@@ -195,8 +217,7 @@ async function sendPinned(provider: Provider, key: string, payload: unknown, pin
     const options: RequestOptions & { autoSelectFamily: boolean } = {
       method: 'POST', agent: false, autoSelectFamily: false,
       lookup: (_hostname, _options, callback) => callback(null, pinned.address, pinned.family),
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json',
-        'Content-Length': Buffer.byteLength(body), ...(key ? { Authorization: `Bearer ${key}` } : {}) },
+      headers: { ...headers, 'Content-Length': body.length },
       ...(secure ? { rejectUnauthorized: true, servername: isIP(hostOf(url)) ? undefined : hostOf(url) } : {}),
     };
     const req = request(url, options);

@@ -11,6 +11,7 @@ import { ProviderRegistry, providerKey, postProvider, EgressPolicyError, Upstrea
 import { executionOutcome } from './src/shared/executionOutcome.ts';
 import { createFirebaseVerifier, firebaseIdentityMiddleware } from './src/server/firebaseIdentity.ts';
 import { BackendLimits, resourceErrorHandler } from './src/server/backendLimits.ts';
+import { PushDestinations, PushRegistry, PushError, createPushSender, pushPayload } from './src/server/pushDelivery.ts';
 
 dotenv.config();
 const providers = new ProviderRegistry(process.env.LLM_PROVIDERS_JSON || '[]');
@@ -80,16 +81,8 @@ try {
   console.warn('[VVC LIAM Push] Error configurando VAPID details:', vapidErr);
 }
 
-// In-memory Push Subscriptions registry
-interface PushSubRecord {
-  endpoint: string;
-  expirationTime?: number | null;
-  keys: {
-    p256dh: string;
-    auth: string;
-  };
-}
-const pushSubscriptions = new Map<string, PushSubRecord>();
+const pushDestinations = new PushDestinations(process.env.PUSH_ADDITIONAL_HOSTS_JSON || '[]');
+const pushRegistry = new PushRegistry(pushDestinations, createPushSender(pushDestinations));
 
 // Service Worker & PWA Direct Routes with proper MIME type and scope headers
 app.get('/manifest.json', (_req: Request, res: Response) => {
@@ -132,81 +125,33 @@ app.get('/api/push/vapid-public-key', (_req: Request, res: Response) => {
   res.json({ publicKey: vapidPublicKey });
 });
 
+function pushFailure(res: Response, error: unknown) {
+  return res.status(error instanceof PushError ? error.status : 500).json({ success: false,
+    code: error instanceof PushError ? error.code : 'PUSH_FAILED', error: 'No se pudo completar la operación push.' });
+}
+
 app.post('/api/push/subscribe', (req: Request, res: Response) => {
-  const sub = req.body;
-  if (!sub || !sub.endpoint || !sub.keys) {
-    return res.status(400).json({ error: 'Suscripción Web Push no válida.' });
-  }
-  pushSubscriptions.set(sub.endpoint, sub);
-  console.log(`[VVC LIAM Push] Nueva suscripción registrada. Total activas: ${pushSubscriptions.size}`);
-  return res.json({ success: true, count: pushSubscriptions.size });
+  try { return res.json({ success: true, count: pushRegistry.subscribe(req.auth!.uid, req.body) }); }
+  catch (error) { return pushFailure(res, error); }
 });
-
 app.post('/api/push/unsubscribe', (req: Request, res: Response) => {
-  const { endpoint } = req.body;
-  if (endpoint) {
-    pushSubscriptions.delete(endpoint);
-    console.log(`[VVC LIAM Push] Suscripción eliminada. Restantes: ${pushSubscriptions.size}`);
-  }
-  return res.json({ success: true, count: pushSubscriptions.size });
+  try { return res.json({ success: true, count: pushRegistry.unsubscribe(req.auth!.uid, req.body?.endpoint) }); }
+  catch (error) { return pushFailure(res, error); }
 });
-
 app.post('/api/push/send', async (req: Request, res: Response) => {
   try {
-    const { title, body, icon, badge, url, taskId, delayMs, tag } = req.body;
-    const payload = JSON.stringify({
-      title: title || 'VVC LIAM CORE // Alerta en Segundo Plano',
-      body: body || 'Alerta o recordatorio programado en segundo plano.',
-      icon: icon || '/pwa-192x192.png',
-      badge: badge || '/pwa-192x192.png',
-      tag: tag || `vvc-alert-${Date.now()}`,
-      url: url || '/',
-      taskId: taskId || null,
-      timestamp: Date.now(),
-    });
-
-    const dispatch = async () => {
-      let sentCount = 0;
-      const expired: string[] = [];
-
-      for (const [endpoint, sub] of pushSubscriptions.entries()) {
-        try {
-          await webpush.sendNotification(sub as any, payload);
-          sentCount++;
-        } catch (err: any) {
-          console.warn('[VVC LIAM CORE Push] Envío fallido para endpoint:', endpoint, err?.statusCode);
-          if (err?.statusCode === 404 || err?.statusCode === 410) {
-            expired.push(endpoint);
-          }
-        }
-      }
-
-      for (const ep of expired) {
-        pushSubscriptions.delete(ep);
-      }
-
-      return { sent: sentCount, total: pushSubscriptions.size };
-    };
-
-    if (delayMs && Number(delayMs) > 0) {
-      setTimeout(dispatch, Number(delayMs));
-      return res.json({ success: true, scheduled: true, delayMs: Number(delayMs) });
+    const uid = req.auth!.uid;
+    const { payload, delayMs } = pushPayload(req.body);
+    if (delayMs) {
+      pushRegistry.schedule(uid, payload, delayMs);
+      return res.status(202).json({ success: true, scheduled: true, delayMs, delivery: 'not_attempted', durable: false });
     }
-
-    const result = await dispatch();
-    return res.json({ success: true, ...result });
-  } catch (error: any) {
-    console.error('[VVC LIAM CORE Push] Error en /api/push/send:', error);
-    return res.status(500).json({ error: error?.message || 'Error al emitir notificación push.' });
-  }
+    const result = await pushRegistry.dispatch(uid, payload);
+    return res.json({ success: result.failed === 0, ...result });
+  } catch (error) { return pushFailure(res, error); }
 });
-
-app.get('/api/push/status', (_req: Request, res: Response) => {
-  res.json({
-    enabled: true,
-    hasVapidKey: Boolean(vapidPublicKey),
-    activeSubscribers: pushSubscriptions.size,
-  });
+app.get('/api/push/status', (req: Request, res: Response) => {
+  res.json({ enabled: true, hasVapidKey: Boolean(vapidPublicKey), activeSubscribers: pushRegistry.count(req.auth!.uid) });
 });
 
 // API Configuration endpoint
