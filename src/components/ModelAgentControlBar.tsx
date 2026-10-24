@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { catalogModelProvider } from '../shared/modelRouting';
 import { 
   Cpu, 
   Sparkles, 
@@ -67,13 +68,13 @@ export const ModelAgentControlBar: React.FC<ModelAgentControlBarProps> = ({
   const rtLiteModels = AVAILABLE_MODELS.filter((m) => m.domain === 'offline_device');
 
   const [selectedNvidiaModel, setSelectedNvidiaModel] = useState<ModelType>(() => {
-    return currentModel.startsWith('qwen') || currentModel.startsWith('meta') || currentModel.startsWith('deepseek') || currentModel.startsWith('mistral') || currentModel.startsWith('nvidia')
+    return catalogModelProvider(currentModel) === 'nvidia'
       ? currentModel
       : 'qwen/qwen2.5-coder-32b-instruct';
   });
 
   const [selectedGeminiModel, setSelectedGeminiModel] = useState<ModelType>(() => {
-    return currentModel.startsWith('google/') ? currentModel : 'google/gemini-2.5-flash';
+    return catalogModelProvider(currentModel) === 'gemini' ? currentModel : 'google/gemini-2.5-flash';
   });
 
   const [selectedRtLiteModel, setSelectedRtLiteModel] = useState<ModelType>(() => {
@@ -81,6 +82,13 @@ export const ModelAgentControlBar: React.FC<ModelAgentControlBarProps> = ({
   });
 
   // Current model category detection
+  useEffect(() => {
+    const provider = catalogModelProvider(currentModel);
+    if (provider === 'nvidia') setSelectedNvidiaModel(currentModel);
+    if (provider === 'gemini') setSelectedGeminiModel(currentModel);
+    if (provider === 'local' || provider === 'direct') setSelectedRtLiteModel(currentModel);
+  }, [currentModel]);
+
   const isNvidiaActive = nvidiaModels.some((m) => m.id === currentModel);
   const isGeminiActive = geminiModels.some((m) => m.id === currentModel);
   const isCloudActive = currentModel === 'custom-llm';

@@ -12,12 +12,15 @@ import { executionOutcome } from './src/shared/executionOutcome.ts';
 import { createFirebaseVerifier, firebaseIdentityMiddleware } from './src/server/firebaseIdentity.ts';
 import { BackendLimits, resourceErrorHandler } from './src/server/backendLimits.ts';
 import { PushDestinations, PushRegistry, PushError, createPushSender, pushPayload } from './src/server/pushDelivery.ts';
+import { providerModel, fallbackSelection, modelProvenance, ModelRoutingError } from './src/shared/modelRouting.ts';
 
 dotenv.config();
 const providers = new ProviderRegistry(process.env.LLM_PROVIDERS_JSON || '[]');
 const limits = new BackendLimits(process.env.BACKEND_LIMITS_JSON || '{}');
 
 function egressFailure(res: Response, error: unknown) {
+  if (error instanceof ModelRoutingError) return res.status(400).json({ success: false,
+    code: error.code, error: error.message, outcome: executionOutcome('failed', 'model-selection'), realExecution: false });
   const policy = error instanceof EgressPolicyError;
   return res.status(policy ? 400 : 502).json({ success: false,
     outcome: executionOutcome('failed', 'provider'),
@@ -417,27 +420,29 @@ function cleanModelResponse(rawText: string): string {
   return cleaned || rawText;
 }
 
-// Proxy for NVIDIA Build API with Auto-Healing & Instant Fallback
+// NVIDIA proxy. A different model/provider requires explicit fallback selection.
 app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   try {
     const { model, messages, apiKey: clientApiKey, geminiApiKey: clientGeminiApiKey, temperature = 0.6, max_tokens = 800 } = req.body;
 
     const provider = providers.select('nvidia', req.body);
+    const selectedModel = providerModel('nvidia', model ?? 'meta/llama-3.2-11b-vision-instruct');
+    const fallback = fallbackSelection(req.body.fallback);
     const apiKey = providerKey(provider, clientApiKey);
-    const geminiKey = providerKey(providers.select('gemini', {}), clientGeminiApiKey);
+    const geminiKey = fallback === 'gemini-flash' ? providerKey(providers.select('gemini', {}), clientGeminiApiKey) : '';
 
     const lastMsg = messages?.[messages.length - 1]?.content || 'Hola';
     const systemMsg = messages?.find((m: { role: string; content: string }) => m.role === 'system')?.content || '';
 
-    // If no NVIDIA key is configured, fallback to Gemini or local
+    // A configured Gemini key alone never authorizes replacing the chosen NIM.
     if (!apiKey) {
       if (geminiKey) {
         const text = await generateGeminiReply(systemMsg, lastMsg, geminiKey, 'gemini-2.5-flash');
         return res.json({
           id: `fallback-gemini-${Date.now()}`,
           choices: [{ message: { role: 'assistant', content: text } }],
-          model_used: 'Google Gemini 2.5 Flash (Relay Cloud)',
+          ...modelProvenance('gemini', selectedModel, 'gemini-2.5-flash'),
           is_fallback: true,
           outcome: executionOutcome('generated', 'gemini'),
           realExecution: false,
@@ -452,9 +457,6 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
         realExecution: false,
       });
     }
-
-    // Determine requested model (no forced downgrades)
-    const selectedModel = model || 'meta/llama-3.2-11b-vision-instruct';
 
     // Adaptive token allocation and timeout based on model architecture
     const isCodingModel =
@@ -513,7 +515,7 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
           }
           return res.json({
             ...data,
-            model_used: selectedModel,
+            ...modelProvenance(provider.id, selectedModel, selectedModel, data.model),
             is_fallback: false,
             outcome: executionOutcome('generated', provider.id),
             realExecution: false,
@@ -521,8 +523,8 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
         }
       }
 
-      // If the chosen model failed on NVIDIA, try fast fallback only on true failure
-      if (selectedModel !== 'meta/llama-3.2-11b-vision-instruct') {
+      // Only the explicitly requested backup may replace a failed model.
+      if (fallback === 'nvidia-fast' && selectedModel !== 'meta/llama-3.2-11b-vision-instruct') {
         try {
           const fastRes = await postProvider(provider, apiKey, {
               ...payload,
@@ -536,7 +538,7 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
               fastData.choices[0].message.content = fastText;
               return res.json({
                 ...fastData,
-                model_used: `Llama 3.2 11B (NVIDIA Build Cloud · Respaldo Rápido)`,
+                ...modelProvenance(provider.id, selectedModel, 'meta/llama-3.2-11b-vision-instruct', fastData.model),
                 is_fallback: true,
                 outcome: executionOutcome('generated', provider.id),
                 realExecution: false,
@@ -552,13 +554,13 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
       console.warn('NVIDIA request notice: upstream request failed');
     }
 
-    // Smooth fallback to Gemini or local core so the user always gets a clear answer
+    // Cross-provider fallback uses its own credential and truthful provenance.
     if (geminiKey && geminiKey !== 'MY_GEMINI_API_KEY') {
       const text = await generateGeminiReply(systemMsg, lastMsg, geminiKey);
       return res.json({
         id: `auto-backup-${Date.now()}`,
         choices: [{ message: { role: 'assistant', content: text } }],
-        model_used: 'Google Gemini 2.5 Flash (Respaldo)',
+        ...modelProvenance('gemini', selectedModel, 'gemini-2.5-flash'),
         is_fallback: true,
         outcome: executionOutcome('generated', 'gemini'),
         realExecution: false,
@@ -576,6 +578,7 @@ app.post('/api/chat/gemini', async (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   try {
     const { prompt, systemInstruction, messages, apiKey: clientApiKey, model = 'gemini-2.5-flash' } = req.body;
+    const targetModel = providerModel('gemini', model);
     const apiKey = providerKey(providers.select('gemini', req.body), clientApiKey);
 
     if (!apiKey) {
@@ -591,12 +594,6 @@ app.post('/api/chat/gemini', async (req: Request, res: Response) => {
     const lastMsg = prompt || messages?.[messages.length - 1]?.content || 'Hola';
     const sysMsg = systemInstruction || messages?.find((m: { role: string; content: string }) => m.role === 'system')?.content || '';
 
-    // Standardize model name for GoogleGenAI
-    let targetModel = model.replace('google/', '');
-    if (!targetModel.startsWith('gemini-')) {
-      targetModel = 'gemini-2.5-flash';
-    }
-
     const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: 30000, retryOptions: { attempts: 1 } } });
     const fullContents = sysMsg ? `[Instrucción del sistema: ${sysMsg}]\n\n${lastMsg}` : lastMsg;
     const response = await ai.models.generateContent({
@@ -611,7 +608,7 @@ app.post('/api/chat/gemini', async (req: Request, res: Response) => {
     return res.json({
       id: `gemini-${Date.now()}`,
       choices: [{ message: { role: 'assistant', content: responseText } }],
-      model_used: `Google ${targetModel} (Cloud)`,
+      ...modelProvenance('gemini', model, targetModel, response.modelVersion),
       text: responseText,
       outcome: executionOutcome('generated', 'gemini'),
       realExecution: false,
@@ -654,7 +651,7 @@ app.post('/api/chat/custom', async (req: Request, res: Response) => {
     return res.json({
       ...data,
       choices: [{ message: { role: 'assistant', content: cleaned } }],
-      model_used: `${targetModel} (Custom Endpoint)`,
+      ...modelProvenance(provider.id, targetModel, targetModel, data.model),
       outcome: executionOutcome('generated', provider.id),
       realExecution: false,
     });
