@@ -1,0 +1,377 @@
+{
+  "baseline": "83873585c7f851da9aae435883739d448194a24d",
+  "groups": [
+    {
+      "group": "G01",
+      "prs": [
+        {
+          "number": 3,
+          "title": "[P0-A][N01/F01] Restringir salidas HTTP y claves a proveedores del servidor",
+          "sha": "0be6e86a0099c2c6f4947695b69522a2ba5e864f",
+          "base": "main",
+          "base_ref_sha_fetched": "2ffadf44c2c09bbc8dcde47046ee7d5c08a039f7",
+          "merge_base": "2ffadf44c2c09bbc8dcde47046ee7d5c08a039f7"
+        },
+        {
+          "number": 5,
+          "title": "D01 \u00b7 Evitar \u00e9xitos ficticios y separar aceptaci\u00f3n de ejecuci\u00f3n",
+          "sha": "d9df435f0afc34f6064223f962df4858616a2cf0",
+          "base": "fix/p0-a-f01-ssrf",
+          "base_ref_sha_fetched": "0be6e86a0099c2c6f4947695b69522a2ba5e864f",
+          "merge_base": "0be6e86a0099c2c6f4947695b69522a2ba5e864f"
+        },
+        {
+          "number": 7,
+          "title": "E01 \u00b7 Fijar runtime e instalar/verificar con CI congelada",
+          "sha": "7f0cffdd39a95eda359b0aebe670ba7405f0955e",
+          "base": "fix/p0-d01-truthful-results",
+          "base_ref_sha_fetched": "d9df435f0afc34f6064223f962df4858616a2cf0",
+          "merge_base": "963645202ecd76cac62afd54c8f9cd215b5c29b2"
+        }
+      ],
+      "candidate_from_consolidation": "9908785c79e633628328246f381a91c55d705a58",
+      "focus": "N01, truthful outcomes and CI bootstrap",
+      "ci_gate": "PENDING on future authorized candidate; historical final consolidation is evidence only",
+      "independent_review": "UNASSIGNED / NOT APPROVED",
+      "requires_groups": []
+    },
+    {
+      "group": "G02",
+      "prs": [
+        {
+          "number": 9,
+          "title": "B01 \u00b7 Verificar identidad Firebase antes de atender APIs sensibles",
+          "sha": "f5362170157dd102f890d3378450c7afd46733c9",
+          "base": "fix/p0-e01-ci",
+          "base_ref_sha_fetched": "7f0cffdd39a95eda359b0aebe670ba7405f0955e",
+          "merge_base": "7f0cffdd39a95eda359b0aebe670ba7405f0955e"
+        },
+        {
+          "number": 11,
+          "title": "B03 \u00b7 Limitar tareas y telemetr\u00eda VAOS a su propietario",
+          "sha": "6f94b7c61cf45536fd99cbecc8bed5ffcb8fa7af",
+          "base": "fix/p0-b01-backend-auth",
+          "base_ref_sha_fetched": "f5362170157dd102f890d3378450c7afd46733c9",
+          "merge_base": "f5362170157dd102f890d3378450c7afd46733c9"
+        }
+      ],
+      "candidate_from_consolidation": "45e1771440e341838c8c6d37aac358681424b599",
+      "focus": "B01 identity + B03 ownership",
+      "ci_gate": "PENDING on future authorized candidate; historical final consolidation is evidence only",
+      "independent_review": "UNASSIGNED / NOT APPROVED",
+      "requires_groups": [
+        "G01"
+      ]
+    },
+    {
+      "group": "G03",
+      "prs": [
+        {
+          "number": 13,
+          "title": "B02 \u00b7 Acotar peticiones, presupuestos y concurrencia por usuario",
+          "sha": "2740edda574a6823496b5dd28cd167cde0c44ffa",
+          "base": "fix/p0-b03-vaos-ownership",
+          "base_ref_sha_fetched": "6f94b7c61cf45536fd99cbecc8bed5ffcb8fa7af",
+          "merge_base": "6f94b7c61cf45536fd99cbecc8bed5ffcb8fa7af"
+        }
+      ],
+      "candidate_from_consolidation": "645864fb1b27f10282e1a043e52e403347a843e4",
+      "focus": "B02 quotas and resource leases",
+      "ci_gate": "PENDING on future authorized candidate; historical final consolidation is evidence only",
+      "independent_review": "UNASSIGNED / NOT APPROVED",
+      "requires_groups": [
+        "G01",
+        "G02"
+      ]
+    },
+    {
+      "group": "G04",
+      "prs": [
+        {
+          "number": 15,
+          "title": "E02 \u00b7 Corregir advisories de producci\u00f3n con lock reproducible",
+          "sha": "72be2a188bade2258ed80305dcc96ef8d1c265e5",
+          "base": "fix/p0-b02-resource-limits",
+          "base_ref_sha_fetched": "2740edda574a6823496b5dd28cd167cde0c44ffa",
+          "merge_base": "2740edda574a6823496b5dd28cd167cde0c44ffa"
+        }
+      ],
+      "candidate_from_consolidation": "ac72fd55fb662579e17547975b746d377685b6af",
+      "focus": "Production dependency advisories",
+      "ci_gate": "PENDING on future authorized candidate; historical final consolidation is evidence only",
+      "independent_review": "UNASSIGNED / NOT APPROVED",
+      "requires_groups": [
+        "G01",
+        "G02",
+        "G03"
+      ]
+    },
+    {
+      "group": "G05",
+      "prs": [
+        {
+          "number": 17,
+          "title": "D02 \u00b7 Mostrar procedencia real y ausencia de m\u00e9tricas",
+          "sha": "5202f8edc04cbabc8d60a9e33a96b1c07795c924",
+          "base": "fix/p0-e02-advisories",
+          "base_ref_sha_fetched": "72be2a188bade2258ed80305dcc96ef8d1c265e5",
+          "merge_base": "72be2a188bade2258ed80305dcc96ef8d1c265e5"
+        },
+        {
+          "number": 19,
+          "title": "D03 \u00b7 Alinear privacidad, voz y capacidades con lo implementado",
+          "sha": "2957d6cc56612cec33b68e2de3915781de3fb269",
+          "base": "fix/p0-d02-metric-provenance",
+          "base_ref_sha_fetched": "5202f8edc04cbabc8d60a9e33a96b1c07795c924",
+          "merge_base": "5202f8edc04cbabc8d60a9e33a96b1c07795c924"
+        }
+      ],
+      "candidate_from_consolidation": "fe5ceca861e5fc02aa2becfcb9c284a1fcb9cf76",
+      "focus": "Measured telemetry and truthful claims",
+      "ci_gate": "PENDING on future authorized candidate; historical final consolidation is evidence only",
+      "independent_review": "UNASSIGNED / NOT APPROVED",
+      "requires_groups": [
+        "G01",
+        "G02",
+        "G03",
+        "G04"
+      ]
+    },
+    {
+      "group": "G06",
+      "prs": [
+        {
+          "number": 21,
+          "title": "B05 \u00b7 Aislar propietarios y audiencia Web Push con egress fijado",
+          "sha": "34ce45da31590a8745418ff493d6cd3cd265f536",
+          "base": "fix/p0-d03-capability-claims",
+          "base_ref_sha_fetched": "2957d6cc56612cec33b68e2de3915781de3fb269",
+          "merge_base": "6aeca68a9ab45ed9c936f2550510b6134bd57070"
+        }
+      ],
+      "candidate_from_consolidation": "37e519ef3d696be3fc3588482685aca43047d51b",
+      "focus": "B05 push audience, keys and pinned binary HTTP",
+      "ci_gate": "PENDING on future authorized candidate; historical final consolidation is evidence only",
+      "independent_review": "UNASSIGNED / NOT APPROVED",
+      "requires_groups": [
+        "G01",
+        "G02",
+        "G03",
+        "G04",
+        "G05"
+      ]
+    },
+    {
+      "group": "G07",
+      "prs": [
+        {
+          "number": 23,
+          "title": "I01 \u00b7 Rechazar rebajas de prioridad del cliente",
+          "sha": "710426df0168aa427e50d4420815a282783cf9d4",
+          "base": "fix/p0-b02-resource-limits",
+          "base_ref_sha_fetched": "2740edda574a6823496b5dd28cd167cde0c44ffa",
+          "merge_base": "2740edda574a6823496b5dd28cd167cde0c44ffa"
+        },
+        {
+          "number": 27,
+          "title": "I03a \u00b7 Separar Gemma/NVIDIA de Gemini y hacer expl\u00edcitos los respaldos",
+          "sha": "d5dfa0d9c4a06b20682fc82bf842123f0000db4e",
+          "base": "fix/p1-i01-critical-priority",
+          "base_ref_sha_fetched": "710426df0168aa427e50d4420815a282783cf9d4",
+          "merge_base": "710426df0168aa427e50d4420815a282783cf9d4"
+        }
+      ],
+      "candidate_from_consolidation": "c3140d7b49bb3bbe2bf6221bdc55d9aad1041221",
+      "focus": "Priority, provider routing, push imports",
+      "ci_gate": "PENDING on future authorized candidate; historical final consolidation is evidence only",
+      "independent_review": "UNASSIGNED / NOT APPROVED",
+      "requires_groups": [
+        "G01",
+        "G02",
+        "G03",
+        "G04",
+        "G05",
+        "G06"
+      ]
+    },
+    {
+      "group": "G08",
+      "prs": [
+        {
+          "number": 29,
+          "title": "I02 \u00b7 Aplicar pol\u00edtica al chat y retirar inferencia oculta duplicada",
+          "sha": "947e0357c56fa66a502bf44248b3afc8f24f174a",
+          "base": "fix/p1-i03a-provider-routing",
+          "base_ref_sha_fetched": "d5dfa0d9c4a06b20682fc82bf842123f0000db4e",
+          "merge_base": "d5dfa0d9c4a06b20682fc82bf842123f0000db4e"
+        }
+      ],
+      "candidate_from_consolidation": "4337732c656632320e39794dba4e89a69dd4c812",
+      "focus": "Single chat policy, authenticated calls",
+      "ci_gate": "PENDING on future authorized candidate; historical final consolidation is evidence only",
+      "independent_review": "UNASSIGNED / NOT APPROVED",
+      "requires_groups": [
+        "G01",
+        "G02",
+        "G03",
+        "G04",
+        "G05",
+        "G06",
+        "G07"
+      ]
+    },
+    {
+      "group": "G09",
+      "prs": [
+        {
+          "number": 25,
+          "title": "I06 \u00b7 Conservar phone de contactos importados y evitar destinos ficticios",
+          "sha": "2b6cad2c0b287f8d4ac13f400258c924e9bb898e",
+          "base": "fix/p0-e01-ci",
+          "base_ref_sha_fetched": "7f0cffdd39a95eda359b0aebe670ba7405f0955e",
+          "merge_base": "7f0cffdd39a95eda359b0aebe670ba7405f0955e"
+        },
+        {
+          "number": 32,
+          "title": "I07 \u00b7 Rechazar \u00f3rdenes negadas/ambiguas y confirmar acciones sensibles",
+          "sha": "159817d7eb49b3b8e88256c501097655ed805b23",
+          "base": "fix/p1-i06-imported-contacts",
+          "base_ref_sha_fetched": "2b6cad2c0b287f8d4ac13f400258c924e9bb898e",
+          "merge_base": "2b6cad2c0b287f8d4ac13f400258c924e9bb898e"
+        }
+      ],
+      "candidate_from_consolidation": "3d2e0272705bad2ffd118c40ffce9978aa86f5cd",
+      "focus": "Contacts, intent and confirmation with auth imports",
+      "ci_gate": "PENDING on future authorized candidate; historical final consolidation is evidence only",
+      "independent_review": "UNASSIGNED / NOT APPROVED",
+      "requires_groups": [
+        "G01",
+        "G02",
+        "G03",
+        "G04",
+        "G05",
+        "G06",
+        "G07",
+        "G08"
+      ]
+    },
+    {
+      "group": "G10",
+      "prs": [
+        {
+          "number": 34,
+          "title": "I08: validar fechas y preservar zonas e intervalos temporales",
+          "sha": "2e256477e02e255c6664ed660ff055054c7458f9",
+          "base": "fix/p1-i07-intent-confirmation",
+          "base_ref_sha_fetched": "159817d7eb49b3b8e88256c501097655ed805b23",
+          "merge_base": "159817d7eb49b3b8e88256c501097655ed805b23"
+        }
+      ],
+      "candidate_from_consolidation": "42f781b837b834ecffb145628713021019e8b1d8",
+      "focus": "Temporal validation + D01/D03 resolutions",
+      "ci_gate": "PENDING on future authorized candidate; historical final consolidation is evidence only",
+      "independent_review": "UNASSIGNED / NOT APPROVED",
+      "requires_groups": [
+        "G01",
+        "G02",
+        "G03",
+        "G04",
+        "G05",
+        "G06",
+        "G07",
+        "G08",
+        "G09"
+      ]
+    },
+    {
+      "group": "G11",
+      "prs": [
+        {
+          "number": 36,
+          "title": "I10: persistir tareas VAOS y controlar recuperaci\u00f3n, reintento y cancelaci\u00f3n",
+          "sha": "7ab086e878e27e53fd58ef0b1280bbcd264deb3d",
+          "base": "fix/p1-i02-single-decision",
+          "base_ref_sha_fetched": "947e0357c56fa66a502bf44248b3afc8f24f174a",
+          "merge_base": "947e0357c56fa66a502bf44248b3afc8f24f174a"
+        }
+      ],
+      "candidate_from_consolidation": "2bc17b4c4c4c2a9662e3018dc76cf9957f15a761",
+      "focus": "Durable VAOS + D02 resolution",
+      "ci_gate": "PENDING on future authorized candidate; historical final consolidation is evidence only",
+      "independent_review": "UNASSIGNED / NOT APPROVED",
+      "requires_groups": [
+        "G01",
+        "G02",
+        "G03",
+        "G04",
+        "G05",
+        "G06",
+        "G07",
+        "G08",
+        "G09",
+        "G10"
+      ]
+    },
+    {
+      "group": "G12",
+      "prs": [
+        {
+          "number": 38,
+          "title": "I11a: conservar contexto expl\u00edcito y par\u00e1metros Gemini",
+          "sha": "a462cfbdee3bda796bb8dca7e65a64f5d3637eae",
+          "base": "fix/p1-i02-single-decision",
+          "base_ref_sha_fetched": "947e0357c56fa66a502bf44248b3afc8f24f174a",
+          "merge_base": "947e0357c56fa66a502bf44248b3afc8f24f174a"
+        }
+      ],
+      "candidate_from_consolidation": "996e6d1ec596d6d560b234925ed9a86a1275ab5c",
+      "focus": "Explicit Gemini context and settings",
+      "ci_gate": "PENDING on future authorized candidate; historical final consolidation is evidence only",
+      "independent_review": "UNASSIGNED / NOT APPROVED",
+      "requires_groups": [
+        "G01",
+        "G02",
+        "G03",
+        "G04",
+        "G05",
+        "G06",
+        "G07",
+        "G08",
+        "G09",
+        "G10",
+        "G11"
+      ]
+    },
+    {
+      "group": "G13",
+      "prs": [
+        {
+          "number": 40,
+          "title": "I11b: propagar cancelaci\u00f3n HTTP y detener fallbacks tras desconexi\u00f3n",
+          "sha": "5934384efab7010bd0d436bb9234df64f1960551",
+          "base": "fix/p1-i11a-gemini-context",
+          "base_ref_sha_fetched": "a462cfbdee3bda796bb8dca7e65a64f5d3637eae",
+          "merge_base": "a462cfbdee3bda796bb8dca7e65a64f5d3637eae"
+        }
+      ],
+      "candidate_from_consolidation": "57fc012f2ed8894313cc7e2770504611a10cb05b",
+      "focus": "I11b + B05 transport resolution and integration regressions",
+      "ci_gate": "PENDING on future authorized candidate; historical final consolidation is evidence only",
+      "independent_review": "UNASSIGNED / NOT APPROVED",
+      "requires_groups": [
+        "G01",
+        "G02",
+        "G03",
+        "G04",
+        "G05",
+        "G06",
+        "G07",
+        "G08",
+        "G09",
+        "G10",
+        "G11",
+        "G12"
+      ]
+    }
+  ]
+}

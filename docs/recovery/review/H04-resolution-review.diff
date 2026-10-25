@@ -1,0 +1,227 @@
+commit 2bc17b4c4c4c2a9662e3018dc76cf9957f15a761
+Merge: 42f781b 7ab086e
+Author:     Jose Antonio Flores Solano <laotraoficial2024@gmail.com>
+AuthorDate: Sat Oct 24 23:34:44 2026 +0000
+Commit:     Jose Antonio Flores Solano <laotraoficial2024@gmail.com>
+CommitDate: Sat Oct 24 23:34:44 2026 +0000
+
+    verify: retain durable queue, terminal polling and measured D02 telemetry
+
+diff --git a/src/components/TelemetryPanel.tsx b/src/components/TelemetryPanel.tsx
+remerge CONFLICT (content): Merge conflict in src/components/TelemetryPanel.tsx
+index f032d78..21cdf99 100644
+--- a/src/components/TelemetryPanel.tsx
++++ b/src/components/TelemetryPanel.tsx
+@@ -434,22 +434,10 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({
+           attempts++;
+           try {
+             const detail = await platformService.api.getVaosTask(taskId);
+-<<<<<<< 42f781b (verify: combine I08 timing with truthful labels and webhook outcomes)
+-            if (['COMPLETED', 'FAILED', 'UNAVAILABLE'].includes(detail.status) || attempts > 15) {
+-              clearInterval(pollInterval);
+-              const duration = typeof detail.durationMs === 'number' ? `${detail.durationMs}ms` : 'N/D';
+-              const tokensSec = typeof detail.result?.tokensPerSec === 'number' ? ` (${detail.result.tokensPerSec} tokens/s de proceso)` : ' (tasa N/D)';
+-              setBenchmarkLog(
+-                detail.status === 'COMPLETED'
+-                  ? `Generación terminada: routing RTT ${realFastMs}ms | proceso ${duration}${tokensSec}. No verifica acciones externas.`
+-                  : `Medición sin resultado de generación (${detail.status}). Routing RTT ${realFastMs}ms; tasa N/D.`
+-              );
+-=======
+             const view = taskPollView(detail, attempts > 15);
+             if (view.stop) {
+               clearInterval(pollInterval);
+               setBenchmarkLog(`${view.text} Routing RTT ${realFastMs}ms.`);
+->>>>>>> 7ab086e (fix(i10): persist owned VAOS tasks and prevent silent duplicate generation)
+ 
+               // Refresh telemetry with real points
+               const telem = await platformService.api.getVaosTelemetry();
+diff --git a/src/server/vaosOrchestrator.ts b/src/server/vaosOrchestrator.ts
+remerge CONFLICT (content): Merge conflict in src/server/vaosOrchestrator.ts
+index 09f6a92..29b4d71 100644
+--- a/src/server/vaosOrchestrator.ts
++++ b/src/server/vaosOrchestrator.ts
+@@ -34,10 +34,6 @@ export interface VaosTask {
+     outcome: ExecutionOutcome;
+     actionType?: string;
+     tokensPerSec?: number | null;
+-<<<<<<< 42f781b (verify: combine I08 timing with truthful labels and webhook outcomes)
+-=======
+-    tokensSource?: 'provider' | 'estimated' | 'unavailable';
+->>>>>>> 7ab086e (fix(i10): persist owned VAOS tasks and prevent silent duplicate generation)
+     tokensGenerated?: number;
+     tokensSource?: 'provider' | 'estimated' | 'unavailable';
+     data?: Record<string, unknown>;
+@@ -54,13 +50,8 @@ export interface TelemetryRecord {
+   route: TaskRoute;
+   latencyMs: number;
+   tokensPerSec: number | null;
+-<<<<<<< 42f781b (verify: combine I08 timing with truthful labels and webhook outcomes)
+   tokensSource: 'provider' | 'estimated' | 'unavailable';
+   latencyScope: 'policy_routing' | 'processing_wall_time';
+-=======
+-  tokensSource?: 'provider' | 'estimated' | 'unavailable';
+-  latencyScope?: 'policy_routing' | 'processing_wall_time';
+->>>>>>> 7ab086e (fix(i10): persist owned VAOS tasks and prevent silent duplicate generation)
+   success: boolean;
+   agentId: string;
+ }
+@@ -370,137 +361,6 @@ export class VaosOrchestrator {
+     this.schedule();
+     return structuredClone(task);
+   }
+-<<<<<<< 42f781b (verify: combine I08 timing with truthful labels and webhook outcomes)
+-
+-  /**
+-   * Real Execution Pipeline with Gemini GenAI Integration and Live Telemetry
+-   */
+-  private async processAsyncTask(taskId: string) {
+-    const task = this.tasks.get(taskId);
+-    if (!task) return;
+-
+-    task.status = 'PROCESSING';
+-    task.startedAt = Date.now();
+-    const monotonicStart = process.hrtime.bigint();
+-
+-    const apiKey = process.env.GEMINI_API_KEY;
+-    let responseText = '';
+-    let tokenCount = 0;
+-    let tokensSource: 'provider' | 'estimated' = 'estimated';
+-
+-    try {
+-      if (apiKey && apiKey !== 'MY_GEMINI_API_KEY') {
+-        const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: 30000, retryOptions: { attempts: 1 } } });
+-        
+-        let agentDirective = 'Eres un agente operativo autónomo del sistema VVC LIAM CORE.';
+-        if (task.agentId.includes('vladimir')) {
+-          agentDirective = 'Eres Vladimir, Director de Inteligencia y Reconocimiento Táctico (OSINT) de VVC LIAM CORE. Responde con precisión táctica, concisión y autoridad analítica.';
+-        } else if (task.agentId.includes('valentina')) {
+-          agentDirective = 'Eres Valentina, Especialista en Análisis Criptográfico, Ciberdefensa y Validación E2EE de VVC LIAM CORE. Tu foco es el rigor de seguridad y cifrado.';
+-        } else if (task.agentId.includes('victoria')) {
+-          agentDirective = 'Eres Victoria, Directora de Estrategia Operativa y Gestión Ejecutiva de VVC LIAM CORE. Proporciona síntesis accionables y directrices claras.';
+-        }
+-
+-        const skillsNote = task.injectedSkills.length > 0
+-          ? `\nHabilidades activas requeridas: ${task.injectedSkills.join(', ')}.`
+-          : '';
+-
+-        const fullPrompt = `${agentDirective}${skillsNote}\n\nSólo generas texto. No tienes herramientas para ejecutar acciones externas. No afirmes que has enviado, creado, borrado o completado acciones del usuario.\nSolicitud [${task.priority}]: "${task.command}".`;
+-
+-        const candidateModels = ['gemini-2.5-flash', 'gemini-3.8-flash', 'gemini-2.5-pro'];
+-        let response: any = null;
+-        for (const m of candidateModels) {
+-          try {
+-            response = await ai.models.generateContent({
+-              model: m,
+-              contents: fullPrompt,
+-              config: { maxOutputTokens: 4096 },
+-            });
+-            if (response?.text) break;
+-          } catch (modelErr: any) {
+-            console.warn('[VAOS AI] Model unavailable, trying next candidate');
+-          }
+-        }
+-
+-        responseText = response?.text?.trim() || '';
+-        if (!responseText) throw new Error('PROVIDER_GENERATION_FAILED');
+-        const reportedCount = response?.usageMetadata?.candidatesTokenCount;
+-        tokensSource = Number.isInteger(reportedCount) && reportedCount >= 0 ? 'provider' : 'estimated';
+-        tokenCount = tokensSource === 'provider' ? reportedCount : Math.ceil(responseText.length / 4);
+-      } else {
+-        task.status = 'UNAVAILABLE';
+-        task.completedAt = Date.now();
+-        task.durationMs = Number(process.hrtime.bigint() - monotonicStart) / 1000000;
+-        task.result = { text: 'Proveedor no disponible. No se ha ejecutado ninguna acción.',
+-          outcome: executionOutcome('unavailable', 'vaos'), actionType: 'not_executed',
+-          data: { realExecution: false } };
+-        this.recordTelemetry({ timestamp: task.completedAt, taskId: task.taskId, ownerUid: task.ownerUid,
+-          command: task.command, priority: task.priority, route: task.route,
+-          latencyMs: task.durationMs, latencyScope: 'processing_wall_time', tokensPerSec: null,
+-          tokensSource: 'unavailable', success: false, agentId: task.agentId });
+-        return;
+-      }
+-
+-      task.status = 'COMPLETED';
+-      task.completedAt = Date.now();
+-      task.durationMs = Number(process.hrtime.bigint() - monotonicStart) / 1000000;
+-
+-      const elapsedSec = task.durationMs / 1000;
+-      const realTokensPerSec = tokensSource === 'provider' && elapsedSec > 0 ? Number((tokenCount / elapsedSec).toFixed(1)) : null;
+-
+-      task.result = {
+-        text: responseText,
+-        outcome: executionOutcome('generated', 'gemini'),
+-        actionType: 'text_generation',
+-        tokensGenerated: tokenCount,
+-        tokensSource,
+-        tokensPerSec: realTokensPerSec,
+-        data: {
+-          priority: task.priority,
+-          generatedForAgent: task.agentId,
+-          skillsActive: task.injectedSkills,
+-          realExecution: false,
+-        },
+-      };
+-
+-      // Record to telemetry ring with real measured values
+-      this.recordTelemetry({
+-        ownerUid: task.ownerUid,
+-        timestamp: task.completedAt,
+-        taskId: task.taskId,
+-        command: task.command,
+-        priority: task.priority,
+-        route: 'ASYNC_PATH',
+-        latencyMs: task.durationMs,
+-        latencyScope: 'processing_wall_time',
+-        tokensPerSec: realTokensPerSec,
+-        tokensSource,
+-        success: true,
+-        agentId: task.agentId,
+-      });
+-    } catch (err: any) {
+-      task.status = 'FAILED';
+-      task.completedAt = Date.now();
+-      task.durationMs = Number(process.hrtime.bigint() - monotonicStart) / 1000000;
+-      task.error = 'No se pudo generar una respuesta. No se ha ejecutado ninguna acción.';
+-      task.result = { text: task.error, outcome: executionOutcome('failed', 'gemini'),
+-        actionType: 'not_executed', data: { realExecution: false } };
+-
+-      this.recordTelemetry({
+-        ownerUid: task.ownerUid,
+-        timestamp: task.completedAt,
+-        taskId: task.taskId,
+-        command: task.command,
+-        priority: task.priority,
+-        route: 'ASYNC_PATH',
+-        latencyMs: task.durationMs,
+-        latencyScope: 'processing_wall_time',
+-        tokensPerSec: null,
+-        tokensSource: 'unavailable',
+-        success: false,
+-        agentId: task.agentId,
+-      });
+-=======
+   private async processAsyncTask(task: VaosTask, controller: AbortController) {
+     const started = process.hrtime.bigint();
+     const timer = setTimeout(() => controller.abort(), this.attemptTimeout); timer.unref();
+@@ -535,7 +395,6 @@ export class VaosOrchestrator {
+     } finally {
+       clearTimeout(timer); this.active.delete(task.taskId);
+       this.leases.get(task.taskId)?.(); this.leases.delete(task.taskId); this.schedule();
+->>>>>>> 7ab086e (fix(i10): persist owned VAOS tasks and prevent silent duplicate generation)
+     }
+   }
+   private recordTaskTelemetry(task: VaosTask) {
+@@ -604,13 +463,8 @@ export function createVaosRouter(limits?: BackendLimits): Router {
+ 
+   // POST /api/vaos/dispatch
+   router.post('/dispatch', (req: Request, res: Response) => {
+-<<<<<<< 42f781b (verify: combine I08 timing with truthful labels and webhook outcomes)
+     const startTime = process.hrtime.bigint();
+-    const { command, agentId = 'exclusive-vladimir', forcePriority, injectedSkills = [] } = req.body;
+-=======
+-    const startTime = Date.now();
+     const { command, agentId = 'exclusive-vladimir', forcePriority, injectedSkills = [] } = req.body || {};
+->>>>>>> 7ab086e (fix(i10): persist owned VAOS tasks and prevent silent duplicate generation)
+ 
+     if (!command || typeof command !== 'string') {
+       return res.status(400).json({ error: 'Comando no especificado.' });
