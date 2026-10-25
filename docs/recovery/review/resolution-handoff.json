@@ -1,0 +1,119 @@
+[
+  {
+    "id": "H01",
+    "receiving_pr": 27,
+    "original_head": "d5dfa0d9c4a06b20682fc82bf842123f0000db4e",
+    "resolution_merge": "c3140d7b49bb3bbe2bf6221bdc55d9aad1041221",
+    "status": "PENDING in original PR; present only in consolidation",
+    "files": [
+      {
+        "path": "server.ts",
+        "resolved_blob": "b8337ba1514f486ae05c207b80bc909857fae627"
+      }
+    ],
+    "tests_to_retain": [
+      "tests/model-routing-regression.test.mjs",
+      "tests/push-delivery.test.mjs"
+    ],
+    "new_test_to_transfer": null,
+    "new_test_commit": null,
+    "review_diff": "H01-resolution-review.diff"
+  },
+  {
+    "id": "H02",
+    "receiving_pr": 32,
+    "original_head": "159817d7eb49b3b8e88256c501097655ed805b23",
+    "resolution_merge": "3d2e0272705bad2ffd118c40ffce9978aa86f5cd",
+    "status": "PENDING in original PR; present only in consolidation",
+    "files": [
+      {
+        "path": "src/App.tsx",
+        "resolved_blob": "27b71a24513128b928f955afa584162ad191e8c9"
+      }
+    ],
+    "tests_to_retain": [
+      "tests/backend-auth-regression.test.mjs",
+      "tests/action-confirmation.test.mjs",
+      "tests/intent-confirmation-browser.mjs"
+    ],
+    "new_test_to_transfer": null,
+    "new_test_commit": null,
+    "review_diff": "H02-resolution-review.diff"
+  },
+  {
+    "id": "H03",
+    "receiving_pr": 34,
+    "original_head": "2e256477e02e255c6664ed660ff055054c7458f9",
+    "resolution_merge": "42f781b837b834ecffb145628713021019e8b1d8",
+    "status": "PENDING in original PR; present only in consolidation",
+    "files": [
+      {
+        "path": "src/App.tsx",
+        "resolved_blob": "698ff3685c64ad419f503c292e4c408bb6b89103"
+      },
+      {
+        "path": "src/components/CalendarRemindersModal.tsx",
+        "resolved_blob": "aee68cb64e04487166e56351db26d34de816023f"
+      },
+      {
+        "path": "src/utils/ical.ts",
+        "resolved_blob": "52004ab9e36c2a7ae9874df89953d007907ffb6d"
+      }
+    ],
+    "tests_to_retain": [
+      "tests/temporal-regression.test.mjs",
+      "tests/temporal-adapters.test.mjs",
+      "tests/webhook-truthfulness.test.mjs",
+      "tests/temporal-browser.mjs"
+    ],
+    "new_test_to_transfer": null,
+    "new_test_commit": null,
+    "review_diff": "H03-resolution-review.diff"
+  },
+  {
+    "id": "H04",
+    "receiving_pr": 36,
+    "original_head": "7ab086e878e27e53fd58ef0b1280bbcd264deb3d",
+    "resolution_merge": "2bc17b4c4c4c2a9662e3018dc76cf9957f15a761",
+    "status": "PENDING in original PR; present only in consolidation",
+    "files": [
+      {
+        "path": "src/server/vaosOrchestrator.ts",
+        "resolved_blob": "29b4d713a542520f42500eedc3dbc1ea9d5dde1d"
+      },
+      {
+        "path": "src/components/TelemetryPanel.tsx",
+        "resolved_blob": "21cdf99e3d037379ccca1fc4c4417a92392db197"
+      }
+    ],
+    "tests_to_retain": [
+      "tests/vaos-recovery-http.test.mjs",
+      "tests/metric-provenance.test.mjs",
+      "tests/vaos-poll-browser.mjs"
+    ],
+    "new_test_to_transfer": null,
+    "new_test_commit": null,
+    "review_diff": "H04-resolution-review.diff"
+  },
+  {
+    "id": "H05",
+    "receiving_pr": 40,
+    "original_head": "5934384efab7010bd0d436bb9234df64f1960551",
+    "resolution_merge": "d34ca3d9f62aedaa6fe2e2056c6cafc6092339a3",
+    "status": "PENDING in original PR; present only in consolidation",
+    "files": [
+      {
+        "path": "src/server/providerEgress.ts",
+        "resolved_blob": "15b3981f9312eccf7a8ae98edea6be77b998f407"
+      }
+    ],
+    "tests_to_retain": [
+      "tests/provider-cancellation.test.mjs",
+      "tests/push-delivery.test.mjs",
+      "tests/egress-combination.test.mjs"
+    ],
+    "new_test_to_transfer": "tests/egress-combination.test.mjs",
+    "new_test_commit": "57fc012f2ed8894313cc7e2770504611a10cb05b",
+    "review_diff": "H05-resolution-review.diff"
+  }
+]

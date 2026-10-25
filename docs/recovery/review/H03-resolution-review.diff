@@ -1,0 +1,63 @@
+commit 42f781b837b834ecffb145628713021019e8b1d8
+Merge: 3d2e027 2e25647
+Author:     Jose Antonio Flores Solano <laotraoficial2024@gmail.com>
+AuthorDate: Sat Oct 24 23:34:28 2026 +0000
+Commit:     Jose Antonio Flores Solano <laotraoficial2024@gmail.com>
+CommitDate: Sat Oct 24 23:34:28 2026 +0000
+
+    verify: combine I08 timing with truthful labels and webhook outcomes
+
+diff --git a/src/App.tsx b/src/App.tsx
+remerge CONFLICT (content): Merge conflict in src/App.tsx
+index b1b6455..698ff36 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -176,13 +176,8 @@ const INITIAL_EVENTS: CalendarEvent[] = [
+   },
+   {
+     id: 'e2',
+-<<<<<<< 3d2e027 (verify: preserve authenticated routing and sensitive confirmation imports for PR #32)
+     title: 'Revisión de privacidad local',
+-    date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+-=======
+-    title: 'Revisión de Seguridad Zero-Knowledge',
+     date: addCalendarDays(localCalendarDate(), 1),
+->>>>>>> 2e25647 (fix(i08): validate civil dates and preserve explicit time zone intervals)
+     time: '16:00',
+     endTime: '17:00',
+     location: 'Laboratorio Cifrado',
+diff --git a/src/components/CalendarRemindersModal.tsx b/src/components/CalendarRemindersModal.tsx
+remerge CONFLICT (content): Merge conflict in src/components/CalendarRemindersModal.tsx
+index f1461ef..aee68cb 100644
+--- a/src/components/CalendarRemindersModal.tsx
++++ b/src/components/CalendarRemindersModal.tsx
+@@ -282,11 +282,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
+     let eventTime = newEventTime;
+     let eventEndTime = newEventEndTime;
+     let conflictNote: string | undefined = undefined;
+-<<<<<<< 3d2e027 (verify: preserve authenticated routing and sensitive confirmation imports for PR #32)
+-    let syncStatus: 'synced' | 'local' | 'conflict_resolved' = 'local';
+-=======
+     const syncStatus = 'local' as const;
+->>>>>>> 2e25647 (fix(i08): validate civil dates and preserve explicit time zone intervals)
+ 
+     if (conflictAnalysis.hasConflict) {
+       conflictNote = `Conflicto local pendiente con ${conflictAnalysis.conflictingEvents[0]?.title || 'evento existente'}. No se ha reajustado el horario.`;
+diff --git a/src/utils/ical.ts b/src/utils/ical.ts
+remerge CONFLICT (content): Merge conflict in src/utils/ical.ts
+index 7ac3506..52004ab 100644
+--- a/src/utils/ical.ts
++++ b/src/utils/ical.ts
+@@ -1,12 +1,9 @@
+ // Local iCalendar export; provider delivery is a separate operation.
+ import type { CalendarEvent, TaskItem } from '../types';
+-<<<<<<< 3d2e027 (verify: preserve authenticated routing and sensitive confirmation imports for PR #32)
+ import { executionOutcome } from '../shared/executionOutcome.ts';
+ import type { ExecutionOutcome } from '../shared/executionOutcome.ts';
+-=======
+ import { calendarEventLines } from './calendarSync.ts';
+ import { calendarDate, compactInstant, compactWall, foldICalLines, icalText, taskDueInstant, TemporalInputError, localCalendarDate } from './temporal.ts';
+->>>>>>> 2e25647 (fix(i08): validate civil dates and preserve explicit time zone intervals)
+ 
+ export function generateICSContent(events: CalendarEvent[], tasks: TaskItem[]): string {
+   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//VVC LIAM CORE//Agenda Export//ES', 'CALSCALE:GREGORIAN'];

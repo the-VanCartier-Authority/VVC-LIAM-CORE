@@ -1,0 +1,28 @@
+commit 3d2e0272705bad2ffd118c40ffce9978aa86f5cd
+Merge: 1e5fa2c 159817d
+Author:     Jose Antonio Flores Solano <laotraoficial2024@gmail.com>
+AuthorDate: Sat Oct 24 23:34:21 2026 +0000
+Commit:     Jose Antonio Flores Solano <laotraoficial2024@gmail.com>
+CommitDate: Sat Oct 24 23:34:21 2026 +0000
+
+    verify: preserve authenticated routing and sensitive confirmation imports for PR #32
+
+diff --git a/src/App.tsx b/src/App.tsx
+remerge CONFLICT (content): Merge conflict in src/App.tsx
+index 7afd2c3..27b71a2 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -5,13 +5,10 @@
+ 
+ import React, { useState, useEffect, useRef, useCallback } from 'react';
+ import { inferenceFailureText } from './shared/executionOutcome';
+-<<<<<<< 1e5fa2c (verify: combine PR #25 at 2b6cad2c0b287f8d4ac13f400258c924e9bb898e without merging its GitHub PR)
+ import { catalogModelProvider, cloudModelProvider } from './shared/modelRouting';
+ import { backendFetch } from './services/backendApi';
+-=======
+ import { createConfirmationGate, needsSensitiveConfirmation, sensitiveActionSummary } from './core/actionConfirmation';
+ import { SensitiveActionDialog } from './components/SensitiveActionDialog';
+->>>>>>> 159817d (fix: reject negated ambiguous intents and require bound one-time confirmation)
+ import { Header } from './components/Header';
+ import { VoiceOrbVisualizer } from './components/VoiceOrbVisualizer';
+ import { QuickCommandChips } from './components/QuickCommandChips';

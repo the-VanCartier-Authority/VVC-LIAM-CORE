@@ -1,0 +1,26 @@
+commit c3140d7b49bb3bbe2bf6221bdc55d9aad1041221
+Merge: dee2671 d5dfa0d
+Author:     Jose Antonio Flores Solano <laotraoficial2024@gmail.com>
+AuthorDate: Sat Oct 24 23:34:14 2026 +0000
+Commit:     Jose Antonio Flores Solano <laotraoficial2024@gmail.com>
+CommitDate: Sat Oct 24 23:34:14 2026 +0000
+
+    verify: preserve push delivery and provider routing imports for PR #27
+
+diff --git a/server.ts b/server.ts
+remerge CONFLICT (content): Merge conflict in server.ts
+index dde6e7e..b8337ba 100644
+--- a/server.ts
++++ b/server.ts
+@@ -11,11 +11,8 @@ import { ProviderRegistry, providerKey, postProvider, EgressPolicyError, Upstrea
+ import { executionOutcome } from './src/shared/executionOutcome.ts';
+ import { createFirebaseVerifier, firebaseIdentityMiddleware } from './src/server/firebaseIdentity.ts';
+ import { BackendLimits, resourceErrorHandler } from './src/server/backendLimits.ts';
+-<<<<<<< dee2671 (verify: combine PR #23 at 710426df0168aa427e50d4420815a282783cf9d4 without merging its GitHub PR)
+ import { PushDestinations, PushRegistry, PushError, createPushSender, pushPayload } from './src/server/pushDelivery.ts';
+-=======
+ import { providerModel, fallbackSelection, modelProvenance, ModelRoutingError } from './src/shared/modelRouting.ts';
+->>>>>>> d5dfa0d (fix: route models by provider and require explicit model fallbacks)
+ 
+ dotenv.config();
+ const providers = new ProviderRegistry(process.env.LLM_PROVIDERS_JSON || '[]');

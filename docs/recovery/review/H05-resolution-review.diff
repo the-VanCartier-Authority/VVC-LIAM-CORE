@@ -1,0 +1,83 @@
+commit d34ca3d9f62aedaa6fe2e2056c6cafc6092339a3
+Merge: 996e6d1 5934384
+Author:     Jose Antonio Flores Solano <laotraoficial2024@gmail.com>
+AuthorDate: Sat Oct 24 23:34:58 2026 +0000
+Commit:     Jose Antonio Flores Solano <laotraoficial2024@gmail.com>
+CommitDate: Sat Oct 24 23:34:58 2026 +0000
+
+    verify: combine I11b cancellation with B05 pinned binary and JSON transport
+
+diff --git a/src/server/providerEgress.ts b/src/server/providerEgress.ts
+remerge CONFLICT (content): Merge conflict in src/server/providerEgress.ts
+index 4597c01..15b3981 100644
+--- a/src/server/providerEgress.ts
++++ b/src/server/providerEgress.ts
+@@ -162,18 +162,18 @@ export function assertConnectedPeer(addresses: Address[], address: string | unde
+ // Host/SNI/certificate validation keep the registered hostname. No HTTP bytes leave
+ // until the actual peer and, for HTTPS, the authenticated TLS connection are checked.
+ export async function postProvider(provider: Provider, key: string, payload: unknown, timeoutMs = 45000,
+-<<<<<<< 996e6d1 (verify: combine PR #38 at a462cfbdee3bda796bb8dca7e65a64f5d3637eae without merging its GitHub PR)
+-  resolve?: Resolver): Promise<Response> {
++  resolve?: Resolver, signal?: AbortSignal): Promise<Response> {
++  assertNotAborted(signal);
+   return postEncoded(provider, Buffer.from(JSON.stringify(payload)), {
+     'Content-Type': 'application/json', Accept: 'application/json',
+     ...(key ? { Authorization: `Bearer ${key}` } : {}),
+-  }, timeoutMs, resolve);
++  }, timeoutMs, resolve, signal);
+ }
+ 
+ // For server-generated Web Push ciphertext only. No arbitrary headers, agents or
+ // caller-controlled connection options; the same pinned transport remains in use.
+ export async function postProviderBytes(provider: Provider, body: Buffer, headers: Record<string, string | number>,
+-  timeoutMs = 15000, resolve?: Resolver): Promise<Response> {
++  timeoutMs = 15000, resolve?: Resolver, signal?: AbortSignal): Promise<Response> {
+   const allowed = new Set(['authorization', 'content-type', 'content-encoding', 'ttl', 'urgency', 'topic', 'crypto-key', 'encryption']);
+   const validated: Record<string, string | number> = {};
+   for (const [name, value] of Object.entries(headers)) {
+@@ -182,15 +182,12 @@ export async function postProviderBytes(provider: Provider, body: Buffer, header
+     validated[name] = value;
+   }
+   if (!Buffer.isBuffer(body) || body.length > 4096) return deny();
+-  return postEncoded(provider, body, validated, timeoutMs, resolve);
++  return postEncoded(provider, body, validated, timeoutMs, resolve, signal);
+ }
+ 
+ async function postEncoded(provider: Provider, body: Buffer, headers: Record<string, string | number>,
+-  timeoutMs: number, resolve?: Resolver): Promise<Response> {
+-=======
+-  resolve?: Resolver, signal?: AbortSignal): Promise<Response> {
++  timeoutMs: number, resolve?: Resolver, signal?: AbortSignal): Promise<Response> {
+   assertNotAborted(signal);
+->>>>>>> 5934384 (docs(i11b): record passing CI and remaining integration boundary)
+   const started = Date.now();
+   let dnsTimer: ReturnType<typeof setTimeout>;
+   let addresses: Address[];
+@@ -205,12 +202,8 @@ async function postEncoded(provider: Provider, body: Buffer, headers: Record<str
+   } finally { clearTimeout(dnsTimer!); }
+   const deadline = started + timeoutMs;
+   for (let index = 0; index < addresses.length; index++) {
+-<<<<<<< 996e6d1 (verify: combine PR #38 at a462cfbdee3bda796bb8dca7e65a64f5d3637eae without merging its GitHub PR)
+-    try { return await sendPinned(provider, body, headers, addresses[index], deadline); }
+-=======
+     assertNotAborted(signal);
+-    try { return await sendPinned(provider, key, payload, addresses[index], deadline, signal); }
+->>>>>>> 5934384 (docs(i11b): record passing CI and remaining integration boundary)
++    try { return await sendPinned(provider, body, headers, addresses[index], deadline, signal); }
+     catch (error) {
+       // Dual-stack/network fallback is allowed only before any HTTP bytes were sent,
+       // to another IP in the same validated snapshot. TLS/policy errors stop here.
+@@ -220,12 +213,8 @@ async function postEncoded(provider: Provider, body: Buffer, headers: Record<str
+   throw new UpstreamError();
+ }
+ 
+-<<<<<<< 996e6d1 (verify: combine PR #38 at a462cfbdee3bda796bb8dca7e65a64f5d3637eae without merging its GitHub PR)
+-async function sendPinned(provider: Provider, body: Buffer, headers: Record<string, string | number>, pinned: Address, deadline: number): Promise<Response> {
+-=======
+-async function sendPinned(provider: Provider, key: string, payload: unknown, pinned: Address, deadline: number, signal?: AbortSignal): Promise<Response> {
++async function sendPinned(provider: Provider, body: Buffer, headers: Record<string, string | number>, pinned: Address, deadline: number, signal?: AbortSignal): Promise<Response> {
+   assertNotAborted(signal);
+->>>>>>> 5934384 (docs(i11b): record passing CI and remaining integration boundary)
+   const url = new URL(provider.endpoint);
+   return new Promise((resolveResponse, reject) => {
+     let transmitted = false;

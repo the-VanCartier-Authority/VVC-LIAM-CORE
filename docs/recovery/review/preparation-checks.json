@@ -1,0 +1,18 @@
+{
+  "reference_sha": "83873585c7f851da9aae435883739d448194a24d",
+  "source_heads_verified": 20,
+  "groups_verified": 13,
+  "handoffs_pending": 5,
+  "test_paths_unchanged": 58,
+  "scope": "docs only",
+  "new_functional_tests_executed": false,
+  "reference_ci": {
+    "run": 40143730974,
+    "status": "success",
+    "tests": 219
+  },
+  "future_group_ci": "pending",
+  "independent_reviewer": "unassigned",
+  "main": "2ffadf44c2c09bbc8dcde47046ee7d5c08a039f7",
+  "review_approval": false
+}
