@@ -4,6 +4,8 @@
  */
 
 import type { CalendarEvent, TaskItem } from '../types';
+import { executionOutcome } from '../shared/executionOutcome.ts';
+import type { ExecutionOutcome } from '../shared/executionOutcome.ts';
 
 /**
  * Format Date & Time into iCal timestamp format (YYYYMMDDTHHMMSSZ)
@@ -115,9 +117,15 @@ export async function dispatchTaskWebhook(
   webhookUrl: string,
   event: 'created' | 'completed' | 'notified' | 'modified',
   task: TaskItem
-): Promise<{ success: boolean; status?: number; error?: string }> {
-  if (!webhookUrl || !webhookUrl.startsWith('http')) {
-    return { success: false, error: 'URL de webhook inválida' };
+): Promise<{ success: boolean; delivery: 'accepted' | 'failed' | 'unverified' | 'not_attempted';
+  realExecution: false; outcome: ExecutionOutcome; status?: number; error?: string }> {
+  let destination: URL;
+  try {
+    destination = new URL(webhookUrl);
+    if (!['http:', 'https:'].includes(destination.protocol) || destination.username || destination.password || destination.hash) throw Error();
+  } catch {
+    return { success: false, delivery: 'not_attempted', realExecution: false,
+      outcome: executionOutcome('unavailable', 'webhook'), error: 'URL de webhook inválida.' };
   }
 
   const payload = {
@@ -133,23 +141,34 @@ export async function dispatchTaskWebhook(
       category: task.category,
       isCompleted: task.isCompleted,
       recurrence: task.recurrence,
-      subtasksCount: task.subtasks.length,
-      subtasksCompleted: task.subtasks.filter((s) => s.completed).length,
+      subtasksCount: task.subtasks?.length || 0,
+      subtasksCompleted: task.subtasks?.filter((s) => s.completed).length || 0,
     },
   };
 
   try {
-    const res = await fetch(webhookUrl, {
+    const res = await fetch(destination.href, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
-      mode: 'no-cors', // Allow testing with Slack / Zapier webhook endpoints from client
+      mode: 'cors', redirect: 'error', credentials: 'omit', signal: AbortSignal.timeout(15000),
     });
 
-    return { success: true, status: 200 };
-  } catch (err: any) {
-    return { success: false, error: err?.message || 'Error de conexión webhook' };
+    if (res.type === 'opaque' || res.type === 'opaqueredirect' || res.status === 0) return {
+      success: false, delivery: 'unverified', realExecution: false, outcome: executionOutcome('unavailable', 'webhook'),
+      error: 'No hay recibo HTTP legible; la entrega no está verificada.',
+    };
+    if (!res.ok) return { success: false, delivery: 'failed', realExecution: false, status: res.status,
+      outcome: executionOutcome('failed', 'webhook'), error: `El servicio devolvió HTTP ${res.status}.` };
+    return { success: true, delivery: 'accepted', status: res.status, realExecution: false,
+      outcome: executionOutcome('generated', 'webhook-payload') };
+  } catch {
+    // CORS, network, timeout or redirect errors may occur after transmission.
+    // Absence of a receipt proves neither delivery nor non-delivery.
+    return { success: false, delivery: 'unverified', realExecution: false,
+      outcome: executionOutcome('unavailable', 'webhook'),
+      error: 'No hay recibo verificable de red/CORS. La solicitud puede haber llegado; entrega desconocida.' };
   }
 }
