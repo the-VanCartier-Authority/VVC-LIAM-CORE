@@ -70,7 +70,12 @@ try {
     assert.equal(result.realExecution, false); assert.notEqual(result.outcome.status, 'executed');
     assert.doesNotMatch(JSON.stringify(result), /synthetic-sensitive-response/);
   }
-  assert.equal(received.length, 3); // CORS preflight blocks the unreadable endpoint's POST.
+  // CORS may reject before transmission or after a response. Neither proves that
+  // the service received nothing; the product must report unverified either way.
+  for (const path of ['/forbidden', '/accepted', '/redirect'])
+    assert.equal(received.filter(request => request.path === path).length, 1);
+  assert.ok(received.filter(request => request.path === '/cors-unreadable').length <= 1);
+  assert.ok(received.every(request => ['/forbidden', '/accepted', '/cors-unreadable', '/redirect'].includes(request.path)));
   for (const request of received) {
     assert.equal(request.cookie, undefined); assert.equal(request.authorization, undefined);
     assert.equal(request.payload.event, 'vvc_liam.task.created');
