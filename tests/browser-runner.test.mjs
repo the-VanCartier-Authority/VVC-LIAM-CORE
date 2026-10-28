@@ -29,6 +29,21 @@ const fixtureSource = `
     if (process.env.FIXTURE_EXIT === 'true') process.exit(0);
   });
 `;
+// Manus: no inherited output pipe keeps the runner alive. The detached child
+// survives a normal exit unless the supervisor retains OS-level ownership.
+const orphanFixtureSource = `
+  import { spawn } from 'node:child_process';
+  import { writeFileSync } from 'node:fs';
+  const child = spawn(process.execPath, ['-e', ${JSON.stringify(childSource)}], {
+    detached: true, stdio: ['ignore', 'ignore', 'ignore', 'ipc']
+  });
+  child.once('message', ({ port }) => {
+    writeFileSync(process.env.FIXTURE_STATE, JSON.stringify({ pid: process.pid, childPid: child.pid, port }));
+    child.disconnect(); child.unref();
+    console.log('SYNTHETIC_FIXTURE_READY');
+    process.exit(0);
+  });
+`;
 
 async function running(pid) {
   try {
@@ -43,7 +58,8 @@ async function running(pid) {
   }
 }
 
-async function launch(t, { fixtures = { 'a-browser.mjs': fixtureSource }, env = {}, shorten = false } = {}) {
+async function launch(t, { fixtures = { 'a-browser.mjs': fixtureSource }, env = {}, shorten = false,
+  supervisorWithoutProof = false } = {}) {
   const root = await mkdtemp(join(tmpdir(), 'g01-browser-runner-'));
   await mkdir(join(root, 'scripts')); await mkdir(join(root, 'tests'));
   await symlink(new URL('../node_modules', import.meta.url).pathname, join(root, 'node_modules'), 'dir');
@@ -57,6 +73,11 @@ async function launch(t, { fixtures = { 'a-browser.mjs': fixtureSource }, env = 
   await writeFile(join(root, 'scripts/run-browser-fixtures.mjs'), source);
   for (const [name, contents] of Object.entries(fixtures)) await writeFile(join(root, 'tests', name), contents);
   const statePath = join(root, 'state.json');
+  if (supervisorWithoutProof) {
+    await mkdir(join(root, 'bin'));
+    await writeFile(join(root, 'bin/python3'), '#!/bin/sh\nexit 0\n', { mode: 0o700 });
+    env = { ...env, PATH: `${join(root, 'bin')}:${process.env.PATH}` };
+  }
   const child = spawn(process.execPath, ['scripts/run-browser-fixtures.mjs'], {
     cwd: root, detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe'],
     env: { ...process.env, FIXTURE_STATE: statePath, ...env }
@@ -149,4 +170,39 @@ test('an empty browser fixture directory fails closed', async t => {
   const result = await run.done;
   assert.equal(result.watchdogFired, false); assert.notEqual(result.code, 0);
   assert.match(result.output, /NO_BROWSER_FIXTURES/);
+});
+
+test('Manus: normal exit cannot report PASS while a detached orphan holds a local port', async t => {
+  const run = await launch(t, { fixtures: { 'a-browser.mjs': orphanFixtureSource } });
+  const state = await run.ready();
+  const result = await run.done;
+  let parent;
+  try {
+    const stat = await readFile(`/proc/${state.childPid}/stat`, 'utf8');
+    parent = Number(stat.slice(stat.lastIndexOf(')') + 2).split(' ')[1]);
+  } catch { parent = null; }
+  const probe = createServer();
+  const portState = await new Promise(resolve => {
+    probe.once('error', error => resolve(error.code));
+    probe.listen(state.port, '127.0.0.1', () => probe.close(() => resolve('available')));
+  });
+  console.log(JSON.stringify({ regression: 'Manus detached orphan after normal exit',
+    runnerCode: result.code, runnerReportedPass: /"browserGate":"PASS"/.test(result.output),
+    liveOrphan: await running(state.childPid), orphanParent: parent, localPort: portState }));
+  assert.equal(result.watchdogFired, false);
+  assert.equal(result.code, 0, result.output);
+  assert.match(result.output, /"browserGate":"PASS"/);
+  await assertClean(state);
+  assert.equal(portState, 'available');
+  assert.match(result.output, /"cleanupVerified":true/);
+});
+
+test('a supervisor exiting zero without cleanup evidence cannot report PASS', async t => {
+  const run = await launch(t, { supervisorWithoutProof: true,
+    fixtures: { 'a-browser.mjs': 'console.log("UNEXPECTED_UNSUPERVISED_FIXTURE");' } });
+  const result = await run.done;
+  assert.equal(result.watchdogFired, false);
+  assert.notEqual(result.code, 0);
+  assert.match(result.output, /BROWSER_FIXTURE_CLEANUP_FAILED/);
+  assert.doesNotMatch(result.output, /"browserGate":"PASS"|UNEXPECTED_UNSUPERVISED_FIXTURE/);
 });
