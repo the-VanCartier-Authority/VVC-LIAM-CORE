@@ -1,0 +1,18 @@
+{
+  "executive_report": {
+    "filename": "1-Informe_ejecutivo_-_auditor\u00eda_independiente_de_VVC.pdf",
+    "sha256": "08c31989a8c60a6cd1f11772b05160e6397df6ffdf384f44bfb820c71def4db0"
+  },
+  "technical_report": {
+    "filename": "2-INFORME_TECNICO_VVC_LIAM_CORE_2026-10-25.pdf",
+    "sha256": "a94d042fae00372784e536159ec165dce9904f050be3eb730a1f7414ef4ccb2f"
+  },
+  "groups_csv": {
+    "filename": "3-MATRIZ_G01_G13.csv",
+    "sha256": "dbc0d077eebbefe7ce80fe6aa72518f7feb9600885e3a0bb8ba732a26c37465c"
+  },
+  "prs_csv": {
+    "filename": "1-MATRIZ_PR_19.csv",
+    "sha256": "34105282050b03ffd1aaa1e28c83dc7c45ef5739ed52dcc6ace3520d06bd7ead"
+  }
+}
