@@ -1,0 +1,100 @@
+✖ F01 blocks unregistered destination: NVIDIA primary / server key (426.025265ms)
+✖ F01 blocks unregistered destination: NVIDIA retry / server key (11.578883ms)
+✖ F01 blocks unregistered destination: custom chat / BYOK (6.114665ms)
+✖ F01 blocks unregistered destination: NVIDIA key test / server key (6.292167ms)
+✖ F01 blocks unregistered destination: custom key test / BYOK (5.422006ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 0
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 559.371835
+
+✖ failing tests:
+
+test at tests/f01-regression.test.mjs:27:3
+✖ F01 blocks unregistered destination: NVIDIA primary / server key (426.025265ms)
+  AssertionError [ERR_ASSERTION]: Untrusted HTTP sends: 1; synthetic server key: true; synthetic BYOK: false
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///workspace/VVC-LIAM-CORE/tests/f01-regression.test.mjs:32:12)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/f01-regression.test.mjs:27:3
+✖ F01 blocks unregistered destination: NVIDIA retry / server key (11.578883ms)
+  AssertionError [ERR_ASSERTION]: Untrusted HTTP sends: 2; synthetic server key: true; synthetic BYOK: false
+  
+  2 !== 0
+  
+      at TestContext.<anonymous> (file:///workspace/VVC-LIAM-CORE/tests/f01-regression.test.mjs:32:12)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/f01-regression.test.mjs:27:3
+✖ F01 blocks unregistered destination: custom chat / BYOK (6.114665ms)
+  AssertionError [ERR_ASSERTION]: Untrusted HTTP sends: 1; synthetic server key: false; synthetic BYOK: true
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///workspace/VVC-LIAM-CORE/tests/f01-regression.test.mjs:32:12)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/f01-regression.test.mjs:27:3
+✖ F01 blocks unregistered destination: NVIDIA key test / server key (6.292167ms)
+  AssertionError [ERR_ASSERTION]: Untrusted HTTP sends: 1; synthetic server key: true; synthetic BYOK: false
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///workspace/VVC-LIAM-CORE/tests/f01-regression.test.mjs:32:12)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/f01-regression.test.mjs:27:3
+✖ F01 blocks unregistered destination: custom key test / BYOK (5.422006ms)
+  AssertionError [ERR_ASSERTION]: Untrusted HTTP sends: 1; synthetic server key: false; synthetic BYOK: true
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///workspace/VVC-LIAM-CORE/tests/f01-regression.test.mjs:32:12)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

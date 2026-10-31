@@ -6,8 +6,17 @@ import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 import webpush from 'web-push';
 import { createVaosRouter } from './src/server/vaosOrchestrator.ts';
+import { ProviderRegistry, providerKey, postProvider, EgressPolicyError } from './src/server/providerEgress.ts';
 
 dotenv.config();
+const providers = new ProviderRegistry(process.env.LLM_PROVIDERS_JSON || '[]');
+
+function egressFailure(res: Response, error: unknown) {
+  const policy = error instanceof EgressPolicyError;
+  return res.status(policy ? 400 : 502).json({ success: false,
+    code: policy ? 'EGRESS_POLICY' : 'UPSTREAM_ERROR',
+    error: policy ? 'Destino o credencial no permitido por la política del servidor.' : 'No se pudo completar la petición al proveedor.' });
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,9 +29,6 @@ app.use(express.json({ limit: '15mb' }));
 
 // Mount VAOS Smart Routing Orchestrator (Policy Engine, Fast Path & Async Queue)
 app.use('/api/vaos', createVaosRouter());
-
-// NVIDIA Build default endpoint
-const NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
 
 // Neural voice mapping for Studio-grade Kokoro profiles
 const VOICE_MAP: Record<string, string> = {
@@ -417,7 +423,7 @@ async function generateGeminiReply(systemMsg: string, userMsg: string, apiKey: s
     });
     return response.text || 'Orden procesada por el núcleo de inteligencia.';
   } catch (err: any) {
-    console.warn('Gemini request notice:', err?.message);
+    console.warn('Gemini request notice: upstream request failed');
     return `[VVC LIAM CORE] ${userMsg.length > 0 ? `Comando procesado: "${userMsg}".` : 'Listo para asistirte.'} Todos los sistemas están sincronizados y operativos.`;
   }
 }
@@ -453,11 +459,11 @@ function cleanModelResponse(rawText: string): string {
 app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   try {
-    const { model, messages, apiKey: clientApiKey, geminiApiKey: clientGeminiApiKey, endpoint, temperature = 0.6, max_tokens = 800 } = req.body;
+    const { model, messages, apiKey: clientApiKey, geminiApiKey: clientGeminiApiKey, temperature = 0.6, max_tokens = 800 } = req.body;
 
-    const apiKey = (clientApiKey && clientApiKey.trim()) || (process.env.NVIDIA_API_KEY !== 'MY_NVIDIA_API_KEY' ? process.env.NVIDIA_API_KEY : '');
-    const geminiKey = (clientGeminiApiKey && clientGeminiApiKey.trim()) || (process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY' ? process.env.GEMINI_API_KEY : '');
-    const targetUrl = (endpoint && endpoint.trim()) || NVIDIA_BASE_URL;
+    const provider = providers.select('nvidia', req.body);
+    const apiKey = providerKey(provider, clientApiKey);
+    const geminiKey = providerKey(providers.select('gemini', {}), clientGeminiApiKey);
 
     const lastMsg = messages?.[messages.length - 1]?.content || 'Hola';
     const systemMsg = messages?.find((m: { role: string; content: string }) => m.role === 'system')?.content || '';
@@ -521,21 +527,7 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
     try {
       // Extended timeout for deep reasoning and massive code generation
       const timeoutDuration = (isDeepReasoning || isCodingModel) ? 60000 : 30000;
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
-
-      const response = await fetch(targetUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
+      const response = await postProvider(provider, apiKey, payload, timeoutDuration);
 
       if (response.ok) {
         const data = await response.json();
@@ -563,23 +555,12 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
 
       // If the chosen model failed on NVIDIA, try fast fallback only on true failure
       if (selectedModel !== 'meta/llama-3.2-11b-vision-instruct') {
-        const fastController = new AbortController();
-        const fastTimeout = setTimeout(() => fastController.abort(), 10000);
         try {
-          const fastRes = await fetch(targetUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${apiKey}`,
-            },
-            body: JSON.stringify({
+          const fastRes = await postProvider(provider, apiKey, {
               ...payload,
               model: 'meta/llama-3.2-11b-vision-instruct',
               max_tokens: 800,
-            }),
-            signal: fastController.signal,
-          });
-          clearTimeout(fastTimeout);
+            }, 10000);
           if (fastRes.ok) {
             const fastData = await fastRes.json();
             const fastText = cleanModelResponse(fastData.choices?.[0]?.message?.content || '');
@@ -592,12 +573,13 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
               });
             }
           }
-        } catch {
-          clearTimeout(fastTimeout);
+        } catch (error) {
+          if (error instanceof EgressPolicyError) throw error;
         }
       }
-    } catch (fetchErr: any) {
-      console.warn('NVIDIA request notice:', fetchErr?.message);
+    } catch (fetchErr: unknown) {
+      if (fetchErr instanceof EgressPolicyError) throw fetchErr;
+      console.warn('NVIDIA request notice: upstream request failed');
     }
 
     // Smooth fallback to Gemini or local core so the user always gets a clear answer
@@ -618,10 +600,7 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
       is_fallback: true,
     });
   } catch (error: any) {
-    console.error('Error in /api/chat/nvidia:', error);
-    return res.status(500).json({
-      error: error?.message || 'Error interno al comunicarse con el proveedor del modelo.',
-    });
+    return egressFailure(res, error);
   }
 });
 
@@ -630,7 +609,7 @@ app.post('/api/chat/gemini', async (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   try {
     const { prompt, systemInstruction, messages, apiKey: clientApiKey, model = 'gemini-2.5-flash' } = req.body;
-    const apiKey = (clientApiKey && clientApiKey.trim()) || (process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY' ? process.env.GEMINI_API_KEY : '');
+    const apiKey = providerKey(providers.select('gemini', req.body), clientApiKey);
 
     if (!apiKey) {
       return res.status(401).json({
@@ -665,10 +644,7 @@ app.post('/api/chat/gemini', async (req: Request, res: Response) => {
       text: responseText,
     });
   } catch (error: any) {
-    console.error('[Gemini Route Error]:', error);
-    return res.status(500).json({
-      error: error?.message || 'Error en comunicación con Google Gemini.',
-    });
+    return egressFailure(res, error);
   }
 });
 
@@ -676,47 +652,22 @@ app.post('/api/chat/gemini', async (req: Request, res: Response) => {
 app.post('/api/chat/custom', async (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   try {
-    const { endpoint, apiKey, model, messages, temperature = 0.6, max_tokens = 1000 } = req.body;
+    const { apiKey, model, messages, temperature = 0.6, max_tokens = 1000 } = req.body;
 
-    if (!endpoint || !endpoint.trim()) {
-      return res.status(400).json({
-        error: 'Debes especificar una URL de Endpoint válida para el LLM Personalizado.',
-        code: 'MISSING_ENDPOINT',
-      });
-    }
-
-    const targetUrl = endpoint.trim();
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    };
-
-    if (apiKey && apiKey.trim()) {
-      headers['Authorization'] = `Bearer ${apiKey.trim()}`;
-    }
+    const provider = providers.select('custom', req.body);
+    const key = providerKey(provider, apiKey);
 
     const targetModel = model?.trim() || 'default';
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000);
-
-    const response = await fetch(targetUrl, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
+    const response = await postProvider(provider, key, {
         model: targetModel,
         messages,
         temperature,
         max_tokens,
-      }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
+      });
 
     if (!response.ok) {
-      const errText = await response.text().catch(() => '');
       return res.status(response.status).json({
-        error: `Error en endpoint personalizado (${response.status}): ${errText.slice(0, 300)}`,
+        error: `Error en proveedor personalizado (${response.status}).`,
       });
     }
 
@@ -730,19 +681,16 @@ app.post('/api/chat/custom', async (req: Request, res: Response) => {
       model_used: `${targetModel} (Custom Endpoint)`,
     });
   } catch (error: any) {
-    console.error('[Custom LLM Error]:', error);
-    return res.status(500).json({
-      error: error?.message || 'Error al conectar con el endpoint LLM personalizado.',
-    });
+    return egressFailure(res, error);
   }
 });
 
 // Test API Key / Secret endpoint
 app.post('/api/secrets/test', async (req: Request, res: Response) => {
-  const { provider, apiKey, endpoint, model } = req.body;
+  const { provider, apiKey, model } = req.body;
   try {
     if (provider === 'gemini') {
-      const key = (apiKey && apiKey.trim()) || process.env.GEMINI_API_KEY || '';
+      const key = providerKey(providers.select('gemini', req.body), apiKey);
       if (!key) return res.status(400).json({ success: false, error: 'Clave no proporcionada' });
       const ai = new GoogleGenAI({ apiKey: key });
       const testRes = await ai.models.generateContent({
@@ -753,51 +701,37 @@ app.post('/api/secrets/test', async (req: Request, res: Response) => {
     }
 
     if (provider === 'nvidia') {
-      const key = (apiKey && apiKey.trim()) || process.env.NVIDIA_API_KEY || '';
+      const target = providers.select('nvidia', req.body);
+      const key = providerKey(target, apiKey);
       if (!key) return res.status(400).json({ success: false, error: 'Clave no proporcionada' });
-      const targetUrl = endpoint || NVIDIA_BASE_URL;
-      const resp = await fetch(targetUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${key}`,
-        },
-        body: JSON.stringify({
+      const resp = await postProvider(target, key, {
           model: 'meta/llama-3.2-11b-vision-instruct',
           messages: [{ role: 'user', content: 'Ping' }],
           max_tokens: 10,
-        }),
-      });
+        });
       if (!resp.ok) {
-        const text = await resp.text();
-        return res.status(resp.status).json({ success: false, error: `Error NVIDIA: ${text.slice(0, 200)}` });
+        return res.status(resp.status).json({ success: false, error: `Error NVIDIA (${resp.status}).` });
       }
       return res.json({ success: true, message: 'NVIDIA NIM API Key verificada con éxito' });
     }
 
     if (provider === 'custom') {
-      if (!endpoint) return res.status(400).json({ success: false, error: 'Endpoint URL requerido' });
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
-      const resp = await fetch(endpoint, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
+      const target = providers.select('custom', req.body);
+      const key = providerKey(target, apiKey);
+      const resp = await postProvider(target, key, {
           model: model || 'test',
           messages: [{ role: 'user', content: 'Ping' }],
           max_tokens: 10,
-        }),
-      });
+        });
       if (!resp.ok) {
-        const text = await resp.text();
-        return res.status(resp.status).json({ success: false, error: `Error Endpoint: ${text.slice(0, 200)}` });
+        return res.status(resp.status).json({ success: false, error: `Error proveedor (${resp.status}).` });
       }
       return res.json({ success: true, message: 'Endpoint personalizado verificado con éxito' });
     }
 
     return res.status(400).json({ success: false, error: 'Proveedor no soportado' });
   } catch (err: any) {
-    return res.status(500).json({ success: false, error: err?.message || 'Fallo de verificación de clave' });
+    return egressFailure(res, err);
   }
 });
 
