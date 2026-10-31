@@ -19,7 +19,8 @@ export async function startApp(extraEnv = {}, imports = []) {
   await once(reservation, 'listening');
   const port = reservation.address().port;
   await new Promise(resolve => reservation.close(resolve));
-  const child = spawn(process.execPath, [...[...imports, './tests/fixtures/mock-firebase-jwks.mjs'].flatMap(p => ['--import', p]), 'server.ts'], {
+  const child = spawn(process.execPath, [...['./tests/fixtures/block-external-fetch.mjs', ...imports,
+    './tests/fixtures/mock-firebase-jwks.mjs'].flatMap(p => ['--import', p]), 'server.ts'], {
     cwd: new URL('../', import.meta.url),
     env: { ...process.env, NODE_ENV: 'production', PORT: String(port),
       NVIDIA_API_KEY: '', GEMINI_API_KEY: '', LLM_PROVIDERS_JSON: '[]',
