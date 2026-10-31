@@ -1290,5 +1290,5 @@ export function generateRTLiteResponse(prompt: string, activeEngine: ModelType =
 • "Probar notificación push en segundo plano"`;
   }
 
-  return `${enginePrefix} Procesado localmente en el dispositivo: "${prompt}". Operación ejecutada con cero latencia, cifrado total y control completo del teléfono.`;
+  return `${enginePrefix} Solicitud no reconocida por el motor local. No se ha ejecutado ninguna acción.`;
 }

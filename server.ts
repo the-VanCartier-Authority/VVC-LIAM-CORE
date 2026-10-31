@@ -6,7 +6,8 @@ import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 import webpush from 'web-push';
 import { createVaosRouter } from './src/server/vaosOrchestrator.ts';
-import { ProviderRegistry, providerKey, postProvider, EgressPolicyError } from './src/server/providerEgress.ts';
+import { ProviderRegistry, providerKey, postProvider, EgressPolicyError, UpstreamError } from './src/server/providerEgress.ts';
+import { executionOutcome } from './src/shared/executionOutcome.ts';
 
 dotenv.config();
 const providers = new ProviderRegistry(process.env.LLM_PROVIDERS_JSON || '[]');
@@ -14,6 +15,8 @@ const providers = new ProviderRegistry(process.env.LLM_PROVIDERS_JSON || '[]');
 function egressFailure(res: Response, error: unknown) {
   const policy = error instanceof EgressPolicyError;
   return res.status(policy ? 400 : 502).json({ success: false,
+    outcome: executionOutcome('failed', 'provider'),
+    realExecution: false,
     code: policy ? 'EGRESS_POLICY' : 'UPSTREAM_ERROR',
     error: policy ? 'Destino o credencial no permitido por la política del servidor.' : 'No se pudo completar la petición al proveedor.' });
 }
@@ -421,10 +424,11 @@ async function generateGeminiReply(systemMsg: string, userMsg: string, apiKey: s
       model: modelName,
       contents: `${systemMsg ? `[Instrucción del sistema: ${systemMsg}]\n\n` : ''}${userMsg}`,
     });
-    return response.text || 'Orden procesada por el núcleo de inteligencia.';
+    if (!response.text?.trim()) throw new UpstreamError();
+    return response.text;
   } catch (err: any) {
     console.warn('Gemini request notice: upstream request failed');
-    return `[VVC LIAM CORE] ${userMsg.length > 0 ? `Comando procesado: "${userMsg}".` : 'Listo para asistirte.'} Todos los sistemas están sincronizados y operativos.`;
+    throw new UpstreamError();
   }
 }
 
@@ -477,6 +481,8 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
           choices: [{ message: { role: 'assistant', content: text } }],
           model_used: 'Google Gemini 2.5 Flash (Relay Cloud)',
           is_fallback: true,
+          outcome: executionOutcome('generated', 'gemini'),
+          realExecution: false,
         });
       }
 
@@ -484,6 +490,8 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
         error: 'Se requiere una API Key de NVIDIA para utilizar modelos en la nube. Configura tu clave secreta o utiliza un motor local RT-Lite On-Device.',
         code: 'MISSING_API_KEY',
         requiresKey: 'nvidia',
+        outcome: executionOutcome('unavailable', 'nvidia'),
+        realExecution: false,
       });
     }
 
@@ -549,6 +557,8 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
             ...data,
             model_used: selectedModel,
             is_fallback: false,
+            outcome: executionOutcome('generated', provider.id),
+            realExecution: false,
           });
         }
       }
@@ -569,7 +579,9 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
               return res.json({
                 ...fastData,
                 model_used: `Llama 3.2 11B (NVIDIA Build Cloud · Respaldo Rápido)`,
-                is_fallback: false,
+                is_fallback: true,
+                outcome: executionOutcome('generated', provider.id),
+                realExecution: false,
               });
             }
           }
@@ -588,17 +600,14 @@ app.post('/api/chat/nvidia', async (req: Request, res: Response) => {
       return res.json({
         id: `auto-backup-${Date.now()}`,
         choices: [{ message: { role: 'assistant', content: text } }],
-        model_used: `${selectedModel} (Motor Inteligente Optimizado)`,
+        model_used: 'Google Gemini 2.5 Flash (Respaldo)',
         is_fallback: true,
+        outcome: executionOutcome('generated', 'gemini'),
+        realExecution: false,
       });
     }
 
-    return res.json({
-      id: `local-${Date.now()}`,
-      choices: [{ message: { role: 'assistant', content: `Comando recibido y procesado por el núcleo VVC LIAM CORE. Todos los módulos operativos.` } }],
-      model_used: `VVC LIAM CORE (Local)`,
-      is_fallback: true,
-    });
+    return egressFailure(res, new UpstreamError());
   } catch (error: any) {
     return egressFailure(res, error);
   }
@@ -616,6 +625,8 @@ app.post('/api/chat/gemini', async (req: Request, res: Response) => {
         error: 'Se requiere una API Key de Google Gemini para utilizar este modelo. Ingrésala en la Bóveda de Secretos.',
         code: 'MISSING_API_KEY',
         requiresKey: 'gemini',
+        outcome: executionOutcome('unavailable', 'gemini'),
+        realExecution: false,
       });
     }
 
@@ -635,13 +646,16 @@ app.post('/api/chat/gemini', async (req: Request, res: Response) => {
       contents: fullContents,
     });
 
-    const responseText = cleanModelResponse(response.text || 'Respuesta generada por Google Gemini.');
+    const responseText = cleanModelResponse(response.text || '');
+    if (!responseText.trim()) throw new UpstreamError();
 
     return res.json({
       id: `gemini-${Date.now()}`,
       choices: [{ message: { role: 'assistant', content: responseText } }],
       model_used: `Google ${targetModel} (Cloud)`,
       text: responseText,
+      outcome: executionOutcome('generated', 'gemini'),
+      realExecution: false,
     });
   } catch (error: any) {
     return egressFailure(res, error);
@@ -668,17 +682,22 @@ app.post('/api/chat/custom', async (req: Request, res: Response) => {
     if (!response.ok) {
       return res.status(response.status).json({
         error: `Error en proveedor personalizado (${response.status}).`,
+        outcome: executionOutcome('failed', provider.id),
+        realExecution: false,
       });
     }
 
     const data = await response.json();
     const rawContent = data.choices?.[0]?.message?.content || data.text || '';
     const cleaned = cleanModelResponse(rawContent);
+    if (!cleaned.trim()) throw new UpstreamError();
 
     return res.json({
       ...data,
-      choices: [{ message: { role: 'assistant', content: cleaned || 'Comando ejecutado por Custom LLM.' } }],
+      choices: [{ message: { role: 'assistant', content: cleaned } }],
       model_used: `${targetModel} (Custom Endpoint)`,
+      outcome: executionOutcome('generated', provider.id),
+      realExecution: false,
     });
   } catch (error: any) {
     return egressFailure(res, error);

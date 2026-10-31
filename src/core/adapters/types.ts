@@ -30,7 +30,7 @@ export interface DeviceCapabilities {
 
 export type TaskPriority = 'P0_CRITICAL' | 'P1_HIGH' | 'P2_LOW';
 export type TaskRoute = 'FAST_PATH' | 'ASYNC_PATH';
-export type TaskExecutionStatus = 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+export type TaskExecutionStatus = 'QUEUED' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'UNAVAILABLE';
 
 export interface VaosDispatchPayload {
   command: string;

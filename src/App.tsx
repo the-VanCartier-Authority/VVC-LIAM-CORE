@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { inferenceFailureText } from './shared/executionOutcome';
 import { Header } from './components/Header';
 import { VoiceOrbVisualizer } from './components/VoiceOrbVisualizer';
 import { QuickCommandChips } from './components/QuickCommandChips';
@@ -1102,7 +1103,8 @@ export default function App() {
           }
 
           const data = await res.json();
-          responseText = data.choices?.[0]?.message?.content || data.text || 'Comando procesado por Gemini.';
+          responseText = data.choices?.[0]?.message?.content || data.text || '';
+          if (!responseText.trim()) throw new Error('Respuesta vacía del proveedor.');
           modelTag = data.model_used || currentModel;
         } 
         // Route B: Custom LLM (OpenAI-compatible / Groq / Ollama)
@@ -1138,7 +1140,8 @@ export default function App() {
           }
 
           const data = await res.json();
-          responseText = data.choices?.[0]?.message?.content || data.text || 'Comando procesado por Custom LLM.';
+          responseText = data.choices?.[0]?.message?.content || data.text || '';
+          if (!responseText.trim()) throw new Error('Respuesta vacía del proveedor.');
           modelTag = data.model_used || `${custModel} (Custom)`;
         }
         // Route C: NVIDIA NIM Catalog
@@ -1171,7 +1174,8 @@ export default function App() {
           }
 
           const data = await res.json();
-          responseText = data.choices?.[0]?.message?.content || data.text || 'Comando procesado.';
+          responseText = data.choices?.[0]?.message?.content || data.text || '';
+          if (!responseText.trim()) throw new Error('Respuesta vacía del proveedor.');
           modelTag = data.model_used || currentModel;
         }
 
@@ -1200,8 +1204,8 @@ export default function App() {
           },
         ]);
       } catch (err: any) {
-        console.warn('Inference error, falling back to RT-Lite local:', err);
-        const fallbackText = generateRTLiteResponse(commandText);
+        console.warn('Inference request failed; no action was executed.');
+        const fallbackText = inferenceFailureText();
         if (!deviceState.isMuted) {
           setIsSpeaking(true);
           speakKokoro(fallbackText, selectedVoiceId, {
@@ -1217,9 +1221,9 @@ export default function App() {
           {
             id: `a-${Date.now()}`,
             sender: 'assistant',
-            text: `${fallbackText}\n\n[Nota: Servicio Cloud (${err.message}). Ejecutado con RT-Lite On-Device].`,
+            text: fallbackText,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-            modelUsed: 'RT-Lite Local (Fallback)',
+            modelUsed: 'Proveedor no disponible',
             isE2EE: true,
           },
         ]);
