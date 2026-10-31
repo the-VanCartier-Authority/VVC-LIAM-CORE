@@ -1,0 +1,84 @@
+✖ D01: an observed webhook HTTP error cannot be turned into status 200/success (36.039656ms)
+✖ D01: opaque/no-cors or missing receipts mean unverified delivery (0.506215ms)
+✖ D01: observed acceptance preserves HTTP status and never proves downstream execution (0.439567ms)
+✖ D01: network/CORS failure has no receipt and must not invent one (0.719999ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 46.526039
+
+✖ failing tests:
+
+test at tests/webhook-truthfulness.test.mjs:8:1
+✖ D01: an observed webhook HTTP error cannot be turned into status 200/success (36.039656ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-d01/tests/webhook-truthfulness.test.mjs:11:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/webhook-truthfulness.test.mjs:15:1
+✖ D01: opaque/no-cors or missing receipts mean unverified delivery (0.506215ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-d01/tests/webhook-truthfulness.test.mjs:20:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/webhook-truthfulness.test.mjs:24:1
+✖ D01: observed acceptance preserves HTTP status and never proves downstream execution (0.439567ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 202
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-d01/tests/webhook-truthfulness.test.mjs:31:46)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 202,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/webhook-truthfulness.test.mjs:36:1
+✖ D01: network/CORS failure has no receipt and must not invent one (0.719999ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + undefined
+  - 'unverified'
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-d01/tests/webhook-truthfulness.test.mjs:39:47)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'unverified',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
