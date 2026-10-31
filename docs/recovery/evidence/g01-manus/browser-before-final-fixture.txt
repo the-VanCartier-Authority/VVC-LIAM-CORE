@@ -1,0 +1,19 @@
+{"browser":"154.0.8037.57","results":{"/forbidden":{"success":true,"status":200},"/accepted":{"success":true,"status":200},"/cors-unreadable":{"success":true,"status":200},"/redirect":{"success":false,"error":"Failed to fetch"},"invalid":{"success":false,"error":"Failed to execute 'fetch' on 'Window': Request cannot be constructed from a URL that includes credentials: https://user:synthetic@external.invalid/hook"}},"observedPosts":4,"blockedExternalRequests":[],"realExternalCalls":0}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+true !== false
+
+    at file:///workspace/vvc-g01-before/tests/webhook-truthfulness-browser.mjs:58:10 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: true,
+  expected: false,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

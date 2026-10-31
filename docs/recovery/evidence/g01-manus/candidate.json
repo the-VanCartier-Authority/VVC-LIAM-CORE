@@ -1,0 +1,23 @@
+{
+  "group": "G01",
+  "base_main": "2ffadf44c2c09bbc8dcde47046ee7d5c08a039f7",
+  "pr3_unchanged": "0be6e86a0099c2c6f4947695b69522a2ba5e864f",
+  "pr5_unchanged": "d9df435f0afc34f6064223f962df4858616a2cf0",
+  "pr7_initial": "7f0cffdd39a95eda359b0aebe670ba7405f0955e",
+  "candidate_code_sha": "fb474b91ab32f6b0bff7a9e74caf0125d32473b9",
+  "candidate_code_tree": "8e1a0504179dc476a9b01578165ae9c8a01c7762",
+  "published_head_and_final_ci": "Recorded on PR #7 and Issue #2; documentary descendant requires its own CI",
+  "product_code_matches_historical_g01": true,
+  "product_code_matches_current_d01": true,
+  "preserved_test_paths": 13,
+  "production_dependencies_unchanged": true,
+  "new_dev_dependency": "playwright-core@1.64.1",
+  "node_tests": 76,
+  "browser_fixture_count": 1,
+  "browser_cases": 5,
+  "local_browser": "154.0.8037.57",
+  "ci_expected_bundled_browser": "156.0.8078.4 / revision1248",
+  "review": "PENDING independent review of published final SHA",
+  "following_groups": "BLOCKED by G01 review; not prepared in this cycle",
+  "integrated": false
+}

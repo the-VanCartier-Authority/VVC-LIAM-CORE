@@ -4,7 +4,10 @@
   "version": "1.0.0",
   "description": "VVC LIAM CORE // Control · Analyze · Execute - Multiplatform Voice & Task Orchestrator (VAOS)",
   "type": "module",
+  "packageManager": "bun@1.4.4",
+  "engines": { "node": "24.19.0" },
   "scripts": {
+    "check:runtime": "node scripts/check-runtime.mjs",
     "dev": "tsx server.ts",
     "build": "vite build",
     "build:android": "vite build",
@@ -15,6 +18,7 @@
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "test": "node --test --test-timeout=15000 tests/*.test.mjs",
+    "test:browser": "node scripts/run-browser-fixtures.mjs",
     "smoke:production": "node tests/smoke-production.mjs"
   },
   "dependencies": {
@@ -44,6 +48,7 @@
     "@types/web-push": "^3.6.4",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.0",
+    "playwright-core": "1.64.1",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
     "typescript": "^7.0.2",

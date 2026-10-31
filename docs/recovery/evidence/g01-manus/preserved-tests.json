@@ -1,0 +1,127 @@
+[
+  {
+    "source": "7f0cffdd39a95eda359b0aebe670ba7405f0955e",
+    "path": "tests/f01-regression.test.mjs",
+    "blob": "c77f11dcc4ceeac23c0376bca8d2b700c998c8d0"
+  },
+  {
+    "source": "7f0cffdd39a95eda359b0aebe670ba7405f0955e",
+    "path": "tests/fixtures/capture-fetch.mjs",
+    "blob": "a6bace11cb56058c5b945ce30d7ce5280806effa"
+  },
+  {
+    "source": "7f0cffdd39a95eda359b0aebe670ba7405f0955e",
+    "path": "tests/fixtures/fail-gemini.mjs",
+    "blob": "76b5646cbc3f932dbe37c5506f14710afad48669"
+  },
+  {
+    "source": "7f0cffdd39a95eda359b0aebe670ba7405f0955e",
+    "path": "tests/fixtures/mock-gemini.mjs",
+    "blob": "348bae775952eec2d1b6d4bcb295c50e3b2308b1"
+  },
+  {
+    "source": "7f0cffdd39a95eda359b0aebe670ba7405f0955e",
+    "path": "tests/gemini-compat.test.mjs",
+    "blob": "081a0a515938aedcf6b9d61977d61ca92b5e9390"
+  },
+  {
+    "source": "7f0cffdd39a95eda359b0aebe670ba7405f0955e",
+    "path": "tests/local-exception-review.test.mjs",
+    "blob": "efd21d3989ce4d5d4c9713b1be31fa096342fc9d"
+  },
+  {
+    "source": "7f0cffdd39a95eda359b0aebe670ba7405f0955e",
+    "path": "tests/provider-egress.test.mjs",
+    "blob": "eee95c55df20b971c16af8b25e75101f5c0c4a09"
+  },
+  {
+    "source": "7f0cffdd39a95eda359b0aebe670ba7405f0955e",
+    "path": "tests/provider-http.test.mjs",
+    "blob": "ea962da2ab709b3811e85763eee9823b188d78fb"
+  },
+  {
+    "source": "7f0cffdd39a95eda359b0aebe670ba7405f0955e",
+    "path": "tests/server-helper.mjs",
+    "blob": "008a5967d812d8b823e7cb9e945c1ce4eabf45ef"
+  },
+  {
+    "source": "7f0cffdd39a95eda359b0aebe670ba7405f0955e",
+    "path": "tests/smoke-production.mjs",
+    "blob": "7f3656963c9d4aaaa1d6718371ef6fd2ada7132f"
+  },
+  {
+    "source": "7f0cffdd39a95eda359b0aebe670ba7405f0955e",
+    "path": "tests/truthfulness-http.test.mjs",
+    "blob": "1bd2bb3a86acc44229cbd50ed3077587e1a2caf9"
+  },
+  {
+    "source": "7f0cffdd39a95eda359b0aebe670ba7405f0955e",
+    "path": "tests/truthfulness-unit.test.mjs",
+    "blob": "4d9fbc166077803f4ea7d3b265dfe7e22bd8292b"
+  },
+  {
+    "source": "d9df435f0afc34f6064223f962df4858616a2cf0",
+    "path": "tests/f01-regression.test.mjs",
+    "blob": "c77f11dcc4ceeac23c0376bca8d2b700c998c8d0"
+  },
+  {
+    "source": "d9df435f0afc34f6064223f962df4858616a2cf0",
+    "path": "tests/fixtures/capture-fetch.mjs",
+    "blob": "a6bace11cb56058c5b945ce30d7ce5280806effa"
+  },
+  {
+    "source": "d9df435f0afc34f6064223f962df4858616a2cf0",
+    "path": "tests/fixtures/fail-gemini.mjs",
+    "blob": "76b5646cbc3f932dbe37c5506f14710afad48669"
+  },
+  {
+    "source": "d9df435f0afc34f6064223f962df4858616a2cf0",
+    "path": "tests/fixtures/mock-gemini.mjs",
+    "blob": "348bae775952eec2d1b6d4bcb295c50e3b2308b1"
+  },
+  {
+    "source": "d9df435f0afc34f6064223f962df4858616a2cf0",
+    "path": "tests/gemini-compat.test.mjs",
+    "blob": "081a0a515938aedcf6b9d61977d61ca92b5e9390"
+  },
+  {
+    "source": "d9df435f0afc34f6064223f962df4858616a2cf0",
+    "path": "tests/local-exception-review.test.mjs",
+    "blob": "efd21d3989ce4d5d4c9713b1be31fa096342fc9d"
+  },
+  {
+    "source": "d9df435f0afc34f6064223f962df4858616a2cf0",
+    "path": "tests/provider-egress.test.mjs",
+    "blob": "eee95c55df20b971c16af8b25e75101f5c0c4a09"
+  },
+  {
+    "source": "d9df435f0afc34f6064223f962df4858616a2cf0",
+    "path": "tests/provider-http.test.mjs",
+    "blob": "ea962da2ab709b3811e85763eee9823b188d78fb"
+  },
+  {
+    "source": "d9df435f0afc34f6064223f962df4858616a2cf0",
+    "path": "tests/server-helper.mjs",
+    "blob": "008a5967d812d8b823e7cb9e945c1ce4eabf45ef"
+  },
+  {
+    "source": "d9df435f0afc34f6064223f962df4858616a2cf0",
+    "path": "tests/smoke-production.mjs",
+    "blob": "7f3656963c9d4aaaa1d6718371ef6fd2ada7132f"
+  },
+  {
+    "source": "d9df435f0afc34f6064223f962df4858616a2cf0",
+    "path": "tests/truthfulness-http.test.mjs",
+    "blob": "1bd2bb3a86acc44229cbd50ed3077587e1a2caf9"
+  },
+  {
+    "source": "d9df435f0afc34f6064223f962df4858616a2cf0",
+    "path": "tests/truthfulness-unit.test.mjs",
+    "blob": "4d9fbc166077803f4ea7d3b265dfe7e22bd8292b"
+  },
+  {
+    "source": "d9df435f0afc34f6064223f962df4858616a2cf0",
+    "path": "tests/webhook-truthfulness.test.mjs",
+    "blob": "44738f31bce082ecb14a67c947310cb5eeb52673"
+  }
+]

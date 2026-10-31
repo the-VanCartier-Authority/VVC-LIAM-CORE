@@ -1,0 +1,93 @@
+
+> vvc-liam-core@1.0.0 test
+> node --test --test-timeout=15000 tests/*.test.mjs
+
+✔ F01 blocks unregistered destination: NVIDIA primary / server key (405.163417ms)
+✔ F01 blocks unregistered destination: NVIDIA retry / server key (10.622089ms)
+✔ F01 blocks unregistered destination: custom chat / BYOK (6.961405ms)
+✔ F01 blocks unregistered destination: NVIDIA key test / server key (6.540726ms)
+✔ F01 blocks unregistered destination: custom key test / BYOK (5.50501ms)
+✔ Gemini SDK keeps fixed Google origin for server key, BYOK, key test and NVIDIA fallback (mock only) (398.416032ms)
+✔ Gemini client cannot replace the registered origin or select another provider (21.949942ms)
+✔ review: local DNS cannot move a provider to another address in the private ranges (4.606677ms)
+✔ review: a local DNS exception must enumerate exact IP addresses (0.524553ms)
+✔ registry alone defines destinations; legacy endpoints select an exact registered URL (4.905696ms)
+✔ registry rejects malformed URLs, duplicate IDs/targets, unscoped exceptions and reused default secrets (1.91388ms)
+✔ keys are bound to the selected provider and BYOK permission; placeholders never leave (0.559925ms)
+✔ blocks non-public address 0.0.0.0 (0.417946ms)
+✔ blocks non-public address 10.0.0.1 (0.786479ms)
+✔ blocks non-public address 100.64.0.1 (0.105996ms)
+✔ blocks non-public address 127.0.0.1 (0.121619ms)
+✔ blocks non-public address 169.254.169.254 (0.169299ms)
+✔ blocks non-public address 172.16.0.1 (0.307332ms)
+✔ blocks non-public address 192.0.0.1 (0.27093ms)
+✔ blocks non-public address 192.0.2.1 (0.138805ms)
+✔ blocks non-public address 192.88.99.1 (0.290979ms)
+✔ blocks non-public address 192.168.1.1 (0.080528ms)
+✔ blocks non-public address 198.18.0.1 (0.05383ms)
+✔ blocks non-public address 198.51.100.1 (0.041551ms)
+✔ blocks non-public address 203.0.113.1 (0.043714ms)
+✔ blocks non-public address 224.0.0.1 (0.038006ms)
+✔ blocks non-public address 255.255.255.255 (0.037295ms)
+✔ blocks non-public address :: (2.284335ms)
+✔ blocks non-public address ::1 (0.717928ms)
+✔ blocks non-public address ::ffff:127.0.0.1 (0.140788ms)
+✔ blocks non-public address ::ffff:7f00:1 (0.054781ms)
+✔ blocks non-public address ::ffff:8.8.8.8 (0.044215ms)
+✔ blocks non-public address fe80::1 (0.042232ms)
+✔ blocks non-public address fc00::1 (0.04082ms)
+✔ blocks non-public address ff02::1 (0.037656ms)
+✔ blocks non-public address 64:ff9b::a00:1 (0.04074ms)
+✔ blocks non-public address 2001::1 (0.150192ms)
+✔ blocks non-public address 2001:db8::1 (0.063413ms)
+✔ blocks non-public address 2002:7f00:1::1 (0.043334ms)
+✔ blocks non-public address 3fff::1 (0.077644ms)
+✔ blocks non-public address not-an-ip (0.038527ms)
+✔ public IPv4 and IPv6 remain eligible; every DNS answer must pass (1.437137ms)
+✔ URL-normalized numeric IPv4 aliases cannot bypass IP checks (0.845765ms)
+✔ local exceptions are exact and exclude metadata, unspecified, mapped and multicast addresses (2.377282ms)
+✔ connected peer must equal the validated IP and port before HTTP headers are sent (0.565253ms)
+✔ transport pins DNS once per connection and rejects changed DNS on the next attempt (26.407905ms)
+✔ DNS errors/timeouts and body timeouts produce sanitized errors and no retries (63.311933ms)
+✔ network address fallback uses only validated IPs and never duplicates a transmitted request (6.534427ms)
+✔ NVIDIA primary, retry and key test use only the registered NIM and its own key (433.596121ms)
+✔ preserves openai OpenAI chat contract, BYOK and key test (15.733959ms)
+✔ preserves ollama OpenAI chat contract, BYOK and key test (11.51863ms)
+✔ preserves vllm OpenAI chat contract, BYOK and key test (11.657995ms)
+✔ preserves ipv6 OpenAI chat contract, BYOK and key test (7.455223ms)
+✔ legacy exact registered endpoint works; credential-free Ollama never inherits NVIDIA key (7.900849ms)
+✔ request cannot enlarge local exceptions, switch provider keys, disable TLS or change registered paths (14.171608ms)
+✔ rejects HTTP 301 without forwarding server keys or BYOK (10.904835ms)
+✔ rejects HTTP 302 without forwarding server keys or BYOK (9.177661ms)
+✔ rejects HTTP 303 without forwarding server keys or BYOK (9.749137ms)
+✔ rejects HTTP 307 without forwarding server keys or BYOK (9.522914ms)
+✔ rejects HTTP 308 without forwarding server keys or BYOK (7.644012ms)
+✔ NVIDIA policy error stops retry and fallback; secret test rejects redirects too (8.48486ms)
+✔ HTTPS verifies CA and hostname and preserves SNI before sending credentials (29.677001ms)
+✔ provider error bodies cannot echo keys; oversized bodies fail without exposing them (50.351233ms)
+✔ F11: fast path reports simulation and never verifies a requested action (323.444225ms)
+✔ VAOS distinguishes real model generation from failed generation (HTTP mocks) (608.499637ms)
+✔ untrusted provider metadata cannot assert execution of an external action (299.890021ms)
+✔ F11: asynchronous request without a provider is unavailable, never completed/executed (314.688019ms)
+✔ F09: failed Gemini fallback returns failure instead of synthetic success (349.667316ms)
+✔ F09: failed NVIDIA retries and empty custom output cannot become local execution success (363.568834ms)
+✔ generated text, simulation, failures and unavailability cannot establish verified execution (1.333285ms)
+✔ RT Lite preserves local information but cannot claim execution of an unrecognized request (36.424161ms)
+✔ D01: an observed webhook HTTP error cannot be turned into status 200/success (25.904714ms)
+✔ D01: opaque/no-cors or missing receipts mean unverified delivery (0.418907ms)
+✔ D01: observed acceptance preserves HTTP status and never proves downstream execution (0.362464ms)
+✔ D01: network/CORS failure has no receipt and must not invent one (0.279632ms)
+✔ D01: invalid or credential-bearing webhook URLs have no attempted request (0.397616ms)
+ℹ tests 76
+ℹ suites 0
+ℹ pass 76
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4799.526423
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice

@@ -1,0 +1,14 @@
+
+> vvc-liam-core@1.0.0 test:browser
+> node scripts/run-browser-fixtures.mjs
+
+{"gate":"Chromium fixtures","fixtures":["webhook-truthfulness-browser.mjs"],"executable":"/usr/bin/chromium","node":"v24.19.0"}
+Browser fixture: tests/webhook-truthfulness-browser.mjs
+{"browser":"154.0.8037.57","results":{"/forbidden":{"success":false,"delivery":"failed","realExecution":false,"status":403,"outcome":{"status":"failed","realExecution":false,"source":"webhook"},"error":"El servicio devolvió HTTP 403."},"/accepted":{"success":true,"delivery":"accepted","status":202,"realExecution":false,"outcome":{"status":"generated","realExecution":false,"source":"webhook-payload"}},"/cors-unreadable":{"success":false,"delivery":"unverified","realExecution":false,"outcome":{"status":"unavailable","realExecution":false,"source":"webhook"},"error":"No hay recibo verificable de red/CORS. La solicitud puede haber llegado; entrega desconocida."},"/redirect":{"success":false,"delivery":"unverified","realExecution":false,"outcome":{"status":"unavailable","realExecution":false,"source":"webhook"},"error":"No hay recibo verificable de red/CORS. La solicitud puede haber llegado; entrega desconocida."},"invalid":{"success":false,"delivery":"not_attempted","realExecution":false,"outcome":{"status":"unavailable","realExecution":false,"source":"webhook"},"error":"URL de webhook inválida."}},"observedPosts":4,"blockedExternalRequests":[],"realExternalCalls":0}
+{"result":"PASS","fixtures":1,"cases":5,"realExternalCalls":0}
+{"browserGate":"PASS","fixturesExecuted":1}
+npm notice
+npm notice New major version of npm available! 11.9.0 -> 12.2.1
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+npm notice To update run: npm install -g npm@12.2.1
+npm notice
