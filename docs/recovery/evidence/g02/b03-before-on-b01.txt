@@ -1,0 +1,160 @@
+▶ B03: two valid Firebase users cannot read each other tasks or telemetry
+  ✖ detail is private even when its ID is known (5.432684ms)
+  ✖ list is scoped before applying the result limit (7.893219ms)
+  ✖ telemetry points and stats exclude other users and system boot probes (5.926693ms)
+  ✖ other users cannot push an owned task out of its per-user result window (210.815309ms)
+✖ B03: two valid Firebase users cannot read each other tasks or telemetry (1528.198328ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 0
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1909.438484
+
+✖ failing tests:
+
+test at tests/vaos-ownership.test.mjs:12:11
+✖ detail is private even when its ID is known (5.432684ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  200 !== 404
+
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-b03-before/tests/vaos-ownership.test.mjs:13:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/vvc-g02-b03-before/tests/vaos-ownership.test.mjs:12:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 404,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/vaos-ownership.test.mjs:16:11
+✖ list is scoped before applying the result limit (7.893219ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+  + [
+  +   {
+  +     agentId: 'exclusive-vladimir',
+  +     command: 'crear documento fixture-privado-a',
+  +     completedAt: 1793469102814,
+  +     createdAt: 1793469102812,
+  +     durationMs: 0,
+  +     injectedSkills: [],
+  +     priority: 'P1_HIGH',
+  +     result: {
+  +       actionType: 'not_executed',
+  +       data: {
+  +         realExecution: false
+  +       },
+  +       outcome: {
+  +         realExecution: false,
+  +         source: 'vaos',
+  +         status: 'unavailable'
+  +       },
+  +       text: 'Proveedor no disponible. No se ha ejecutado ninguna acción.'
+  +     },
+  +     route: 'ASYNC_PATH',
+  +     startedAt: 1793469102814,
+  +     status: 'UNAVAILABLE',
+  +     taskId: 'liam-task-1793469102812-iuaql'
+  +   }
+  + ]
+  - []
+
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-b03-before/tests/vaos-ownership.test.mjs:20:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/vvc-g02-b03-before/tests/vaos-ownership.test.mjs:16:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ { taskId: 'liam-task-1793469102812-iuaql', command: 'crear documento fixture-privado-a', agentId: 'exclusive-vladimir', priority: 'P1_HIGH', route: 'ASYNC_PATH', status: 'UNAVAILABLE', createdAt: 1793469102812, injectedSkills: [], startedAt: 1793469102814, completedAt: 1793469102814, durationMs: 0, result: [Object] } ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests/vaos-ownership.test.mjs:22:11
+✖ telemetry points and stats exclude other users and system boot probes (5.926693ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+  + [
+  +   {
+  +     agentId: 'core-kernel',
+  +     command: 'Autoverificación de Arranque VAOS // Fast Path SLA',
+  +     latencyMs: 1,
+  +     priority: 'P2_LOW',
+  +     route: 'FAST_PATH',
+  +     success: true,
+  +     taskId: 'boot-probe-01',
+  +     timestamp: 1793469102682,
+  +     tokensPerSec: 64
+  +   },
+  +   {
+  +     agentId: 'exclusive-vladimir',
+  +     command: 'crear documento fixture-privado-a',
+  +     latencyMs: 0,
+  +     priority: 'P1_HIGH',
+  +     route: 'ASYNC_PATH',
+  +     success: false,
+  +     taskId: 'liam-task-1793469102812-iuaql',
+  +     timestamp: 1793469102814,
+  +     tokensPerSec: 0
+  +   },
+  +   {
+  +     agentId: 'exclusive-vladimir',
+  +     command: 'fixture-telemetria-privada-a',
+  +     latencyMs: 1,
+  +     priority: 'P2_LOW',
+  +     route: 'FAST_PATH',
+  +     success: true,
+  +     taskId: 'fast-1793469102822',
+  +     timestamp: 1793469102822,
+  +     tokensPerSec: 850
+  +   }
+  + ]
+  - []
+
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-b03-before/tests/vaos-ownership.test.mjs:26:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/vvc-g02-b03-before/tests/vaos-ownership.test.mjs:22:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ { timestamp: 1793469102682, taskId: 'boot-probe-01', command: 'Autoverificación de Arranque VAOS // Fast Path SLA', priority: 'P2_LOW', route: 'FAST_PATH', latencyMs: 1, tokensPerSec: 64, success: true, agentId: 'core-kernel' }, { timestamp: 1793469102814, taskId: 'liam-task-1793469102812-iuaql', command: 'crear documento fixture-privado-a', priority: 'P1_HIGH', route: 'ASYNC_PATH', latencyMs: 0, tokensPerSec: 0, success: false, agentId: 'exclusive-vladimir' }, { timestamp: 1793469102822, taskId: 'fast-1793469102822', command: 'fixture-telemetria-privada-a', priority: 'P2_LOW', route: 'FAST_PATH', latencyMs: 1, tokensPerSec: 850, success: true, agentId: 'exclusive-vladimir' } ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests/vaos-ownership.test.mjs:29:11
+✖ other users cannot push an owned task out of its per-user result window (210.815309ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+    assert.ok(tasksA.some(task => task.taskId === asyncTask.taskId))
+
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-b03-before/tests/vaos-ownership.test.mjs:38:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/vvc-g02-b03-before/tests/vaos-ownership.test.mjs:29:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

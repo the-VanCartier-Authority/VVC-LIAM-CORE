@@ -1,0 +1,4 @@
+unidad,PR,head_inicial,base_inicial,dependencia_requerida,head_preparado_o_referencia,conflictos_y_resolucion,siguiente_condicion
+G01,3+5+7,671b1ae36410dc3f3d1974d6067eb4576919f2d1,main,baf5f8bc5ef5cce1ce80e598cd522f3c8607356d,Integrado; CI41217390405 success;83Node+5Chromium,Ninguno,Base inmutable; no cambiar
+B01,9,f5362170157dd102f890d3378450c7afd46733c9,fix/p0-e01-ci; snapshot7f0cffdd; tip671b1ae,main@baf5f8bc5ef5cce1ce80e598cd522f3c8607356d,4f0a8857e6edc21d8b176274afe8b804f6f6d5cd,Sin conflictos; auto-merge package.json y bun.lock; JOSE+Playwright conservados,Retarget #9 a main; revisar head exacto/CI
+B03,11,6f94b7c61cf45536fd99cbecc8bed5ffcb8fa7af,fix/p0-b01-backend-auth@f5362170157dd102f890d3378450c7afd46733c9,B01@4f0a8857e6edc21d8b176274afe8b804f6f6d5cd,Head final de #11 / Issue #2 (incluye este archivo),Sin conflictos; solo ownership/test/documentación sobre B01,Candidato aislado; CI y revisión independiente del SHA final; no fusionar
