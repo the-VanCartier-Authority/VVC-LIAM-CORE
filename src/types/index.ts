@@ -652,7 +652,7 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     domain: 'offline_device',
     tier: 'Local On-Device',
     description: 'Cifrado E2EE de grado militar AES-GCM-256, service worker y alertas push nativas en segundo plano.',
-    bestFor: 'Bóveda de credenciales, notas secretas y notificaciones push persistentes',
+    bestFor: 'Bóveda de credenciales y notas secretas; notificaciones deshabilitadas',
     contextWindow: 'Local',
     maxTokens: 1024,
     isFreeEndpoint: true,

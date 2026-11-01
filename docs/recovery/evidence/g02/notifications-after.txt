@@ -1,0 +1,28 @@
+{"case":"registered worker schedule","timers":0,"show":0}
+{"case":"worker immediate","show":0}
+{"case":"incoming push","show":0,"payloadReads":0}
+✔ actual public/sw.js rejects SCHEDULE_BACKGROUND_NOTIFICATION without a timer (48.57808ms)
+✔ actual public/sw.js rejects SHOW_BACKGROUND_NOTIFICATION (1.039044ms)
+✔ actual public/sw.js ignores incoming push payload and never shows it (0.800255ms)
+✔ worker activation preserves unrelated and legacy caches (2.465111ms)
+{"case":"client notification calls","identity":"synthetic-a","counts":{"permission":0,"subscribe":0,"unsubscribe":0,"show":0,"native":0,"messages":0,"fetch":0,"register":0},"subscriptionSuccess":false}
+{"case":"client notification calls","identity":"synthetic-b","counts":{"permission":0,"subscribe":0,"unsubscribe":0,"show":0,"native":0,"messages":0,"fetch":0,"register":0},"subscriptionSuccess":false}
+✔ client entry points create no permission, subscription, scheduling or local notification effects for two identities (157.607942ms)
+{"case":"503 subscription / fallback","success":false,"fetchCalls":0,"fallbackFetchCalls":0,"native":0}
+✔ 503 PUSH_DISABLED cannot become subscription/test success or a new Notification fallback (95.642552ms)
+{"case":"DeviceAdapter","permission":"denied","shown":false,"counts":{"permission":0,"subscribe":0,"unsubscribe":0,"show":0,"native":0,"messages":0,"fetch":0,"register":0}}
+✔ DeviceAdapter cannot request permission or deliver a native notification (62.552875ms)
+✔ actual SettingsModal renders a disabled state without activation/test/scheduling controls (80.070523ms)
+✔ worker rejects message commands explicitly and identifies the disabled policy (28.017752ms)
+✔ public worker retains a cached response when network is unavailable (12.60298ms)
+✔ legacy notification clicks do not open a URL or dispatch a task (11.375041ms)
+✔ status preserves the difference between disabled delivery and an unknown legacy subscription (59.714993ms)
+✔ worker confirmation requires the exact disabled acknowledgement; a silent old worker expires (1533.757488ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2358.605174

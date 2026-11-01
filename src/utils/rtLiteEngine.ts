@@ -1,3 +1,4 @@
+import { NOTIFICATIONS_DISABLED_MESSAGE } from '../shared/notificationPolicy';
 import type { 
   DeviceState, 
   PhoneContact, 
@@ -1039,24 +1040,8 @@ export function parseNaturalVoiceCommand(
     query.includes('service worker') ||
     query.includes('push')
   ) {
-    if (query.includes('probar') || query.includes('test') || query.includes('alerta') || query.includes('enviar')) {
-      return {
-        isHandled: true,
-        spokenResponse: 'Disparando notificación push nativa en segundo plano mediante Service Worker.',
-        actionType: 'security',
-        actionDetails: 'Alerta push nativa disparada',
-        triggerPushTest: true,
-      };
-    }
-    if (query.includes('activar') || query.includes('habilitar') || query.includes('configurar') || query.includes('abrir')) {
-      return {
-        isHandled: true,
-        spokenResponse: 'Abriendo panel de configuración de Service Worker y notificaciones en segundo plano.',
-        actionType: 'security',
-        actionDetails: 'Ajustes de Service Worker y Push desplegados',
-        openSettings: true,
-      };
-    }
+    return { isHandled: true, spokenResponse: NOTIFICATIONS_DISABLED_MESSAGE,
+      actionType: 'security', actionDetails: NOTIFICATIONS_DISABLED_MESSAGE };
   }
 
   // 22. GENERACIÓN DE ARCHIVOS DE TEXTO Y HOJAS DE CÁLCULO CON EXPORTACIÓN A PDF
@@ -1170,7 +1155,7 @@ El presente informe documenta el estado operativo y los parámetros clave de "${
 2. PUNTOS CLAVE Y DIAGNÓSTICO
 • Sincronización multi-proveedor: Google Calendar, Outlook y Apple Calendar vinculados.
 • Detección y resolución de conflictos de agenda: Algoritmo heurístico activo.
-• Alertas de segundo plano y Service Worker: Configuración de notificaciones push operativa.
+• Alertas de segundo plano: notificaciones push y locales deshabilitadas hasta revisión de B05.
 • Control de hardware del teléfono: Motores RT-Lite disponibles para linterna, volumen, brillo y telecomunicaciones.
 
 3. RESOLUCIONES Y CONCLUSIONES
@@ -1273,7 +1258,7 @@ export function generateRTLiteResponse(prompt: string, activeEngine: ModelType =
 2. RT-Lite Telephony: Llamadas directas, mensajería SMS, WhatsApp y libreta de contactos.
 3. RT-Lite Agenda: Programación compleja, detección/resolución de conflictos y sync Google/Outlook/Apple.
 4. RT-Lite Docs: Generación de documentos de texto, hojas de cálculo y exportación a PDF.
-5. RT-Lite Security: Bóveda E2EE AES-GCM-256, service worker y notificaciones push nativas.
+5. RT-Lite Security: Bóveda E2EE AES-GCM-256. Notificaciones push y locales deshabilitadas.
 6. RT-Lite Master Omni-Engine: Control global coordinado en el dispositivo.`;
   }
 

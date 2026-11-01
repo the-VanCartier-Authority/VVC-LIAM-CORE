@@ -11,11 +11,13 @@ import { ProviderRegistry, providerKey, postProvider, EgressPolicyError, Upstrea
 import { executionOutcome } from './src/shared/executionOutcome.ts';
 import { createFirebaseVerifier, firebaseIdentityMiddleware } from './src/server/firebaseIdentity.ts';
 
+import { NOTIFICATIONS_ENABLED } from './src/shared/notificationPolicy.ts';
+
 dotenv.config();
 const providers = new ProviderRegistry(process.env.LLM_PROVIDERS_JSON || '[]');
 // Temporary G02 release gate. Re-enabling push requires reviewed code/B05;
 // neither environment variables nor requests can enable it in this candidate.
-const PUSH_ENABLED = false;
+const PUSH_ENABLED = NOTIFICATIONS_ENABLED;
 
 function egressFailure(res: Response, error: unknown) {
   const policy = error instanceof EgressPolicyError;

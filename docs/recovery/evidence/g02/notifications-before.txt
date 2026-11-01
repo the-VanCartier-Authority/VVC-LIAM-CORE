@@ -1,0 +1,166 @@
+{"case":"registered worker schedule","timers":1,"show":0}
+{"case":"worker immediate","show":1}
+{"case":"incoming push","show":1,"payloadReads":1}
+✖ actual public/sw.js rejects SCHEDULE_BACKGROUND_NOTIFICATION without a timer (20.396558ms)
+✖ actual public/sw.js rejects SHOW_BACKGROUND_NOTIFICATION (1.038663ms)
+✖ actual public/sw.js ignores incoming push payload and never shows it (1.09608ms)
+✖ worker activation preserves unrelated and legacy caches (1.582132ms)
+{"case":"client notification calls","identity":"synthetic-a","counts":{"permission":2,"subscribe":4,"unsubscribe":0,"show":2,"native":0,"messages":1,"fetch":9,"register":1},"subscriptionSuccess":true}
+✖ client entry points create no permission, subscription, scheduling or local notification effects for two identities (71.280019ms)
+{"case":"503 subscription / fallback","success":true,"fetchCalls":1,"fallbackFetchCalls":1,"native":1}
+✖ 503 PUSH_DISABLED cannot become subscription/test success or a new Notification fallback (24.260869ms)
+{"case":"DeviceAdapter","permission":"granted","shown":true,"counts":{"permission":1,"subscribe":0,"unsubscribe":0,"show":1,"native":0,"messages":0,"fetch":0,"register":0}}
+✖ DeviceAdapter cannot request permission or deliver a native notification (9.981123ms)
+✖ actual SettingsModal renders a disabled state without activation/test/scheduling controls (18.67032ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 0
+ℹ fail 8
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 231.458988
+
+✖ failing tests:
+
+test at tests/notifications-disabled.test.mjs:7:1
+✖ actual public/sw.js rejects SCHEDULE_BACKGROUND_NOTIFICATION without a timer (20.396558ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-notifications-b01/tests/notifications-disabled.test.mjs:10:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/notifications-disabled.test.mjs:12:1
+✖ actual public/sw.js rejects SHOW_BACKGROUND_NOTIFICATION (1.038663ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-notifications-b01/tests/notifications-disabled.test.mjs:15:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/notifications-disabled.test.mjs:17:1
+✖ actual public/sw.js ignores incoming push payload and never shows it (1.09608ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-notifications-b01/tests/notifications-disabled.test.mjs:20:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/notifications-disabled.test.mjs:22:1
+✖ worker activation preserves unrelated and legacy caches (1.582132ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + [
+  +   'unrelated-user-cache',
+  +   'vvc-liam-core-cache-v1'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-notifications-b01/tests/notifications-disabled.test.mjs:24:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'unrelated-user-cache', 'vvc-liam-core-cache-v1' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests/notifications-disabled.test.mjs:26:1
+✖ client entry points create no permission, subscription, scheduling or local notification effects for two identities (71.280019ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-notifications-b01/tests/notifications-disabled.test.mjs:36:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/notifications-disabled.test.mjs:42:1
+✖ 503 PUSH_DISABLED cannot become subscription/test success or a new Notification fallback (24.260869ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-notifications-b01/tests/notifications-disabled.test.mjs:49:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/notifications-disabled.test.mjs:52:1
+✖ DeviceAdapter cannot request permission or deliver a native notification (9.981123ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-notifications-b01/tests/notifications-disabled.test.mjs:56:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/notifications-disabled.test.mjs:59:1
+✖ actual SettingsModal renders a disabled state without activation/test/scheduling controls (18.67032ms)
+  AssertionError [ERR_ASSERTION]: settings must declare disabled delivery
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-notifications-b01/tests/notifications-disabled.test.mjs:66:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
