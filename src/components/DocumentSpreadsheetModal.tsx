@@ -61,7 +61,7 @@ El sistema de asistencia de voz VVC LIAM CORE ha operado con un índice de dispo
 • Sincronización de Agenda: Compatibilidad multi-plataforma Google, Outlook y Apple Calendar activa.
 
 3. CONCLUSIONES Y ACCIONES SUGERIDAS
-Se recomienda mantener activadas las alertas en segundo plano mediante Service Worker para garantizar la recepción de notificaciones críticas. Todos los subsistemas permanecen sincronizados.`
+Las notificaciones push y locales están deshabilitadas hasta la revisión y autorización de B05. No se emiten alertas en segundo plano.`
   },
   {
     id: 'doc-2',

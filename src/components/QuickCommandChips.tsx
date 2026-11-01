@@ -86,12 +86,6 @@ const CHIPS: ChipItem[] = [
     category: 'calendar',
   },
   {
-    label: '🔔 Probar Push SW',
-    command: 'Probar notificación push en segundo plano',
-    icon: <Bell className="w-3 h-3 text-[#00f0ff]" />,
-    category: 'sync',
-  },
-  {
     label: '🎨 Amber Terminal',
     command: 'Cambiar tema a Amber Terminal',
     icon: <Palette className="w-3 h-3 text-amber-400" />,

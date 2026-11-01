@@ -1,5 +1,7 @@
 # G02 · Cierre temporal de push, pendiente de revisión incremental
 
+> Registro histórico del cierre **sólo HTTP** del 31 de octubre. Manus lo consideró insuficiente en a34d89e…: cliente y workers seguían emitiendo avisos. La corrección integral vigente y sus límites se documentan en [G02-NOTIFICATIONS-DISABLED.md](G02-NOTIFICATIONS-DISABLED.md). Las cifras y afirmaciones siguientes corresponden a aquel candidato anterior.
+
 Base main esperada e intacta: baf5f8bc5ef5cce1ce80e598cd522f3c8607356d.
 B01 anterior revisado: 4f0a8857e6edc21d8b176274afe8b804f6f6d5cd.
 Candidato G02 anterior: 20a769151e5930a4f7326f77cb5499344c7af352.

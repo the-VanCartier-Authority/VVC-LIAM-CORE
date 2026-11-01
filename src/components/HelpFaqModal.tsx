@@ -1,3 +1,4 @@
+import { NOTIFICATIONS_DISABLED_MESSAGE } from '../shared/notificationPolicy';
 import React, { useState, useMemo } from 'react';
 import {
   HelpCircle,
@@ -145,7 +146,7 @@ const VOICE_COMMANDS: VoiceCommandExample[] = [
     title: 'Crear Tarea con Prioridad',
     command: 'Crear tarea urgente revisar presupuesto para mañana a las 10:00',
     category: 'agenda',
-    purpose: 'Añade una tarea crítica con notificación push y sincronización en Firestore.',
+    purpose: 'Añade una tarea crítica. Las notificaciones push y locales están deshabilitadas.',
   },
   {
     title: 'Posponer Recordatorio',
@@ -312,7 +313,7 @@ const FAQS: FaqItem[] = [
     badge: 'Push Notifications',
     question: '¿Cómo funcionan las alertas en segundo plano cuando la app está minimizada?',
     answer:
-      'El Service Worker en segundo plano (sw-push.js) mantiene un temporizador continuo. Cuando una tarea o recordatorio alcanza su hora programada, el Service Worker despierta el canal y emite una notificación nativa en tu barra de notificaciones del sistema con vibración y sonido.',
+      NOTIFICATIONS_DISABLED_MESSAGE + ' La agenda y el cronómetro siguen disponibles; no se emiten avisos de tareas o temporizadores. Una instalación antigua sin actualizar puede conservar código anterior.',
   },
 ];
 
@@ -1018,7 +1019,7 @@ export const HelpFaqModal: React.FC<HelpFaqModalProps> = ({
                     <li>Síntesis Vocal Kokoro TTS Neural</li>
                     <li>Telemetría D3.js en Tiempo Real</li>
                     <li>Exportación RFC 5545 iCal & PDF</li>
-                    <li>Push Notifications en Segundo Plano</li>
+                    <li>Notificaciones push y locales deshabilitadas</li>
                   </ul>
                 </div>
               </div>
