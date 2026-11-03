@@ -1,0 +1,137 @@
+{"command":"Crear tarea urgente revisar informe para mañana a las 14:35 diario","spokenResponse":"Tarea \"revisar informe\" creada con prioridad critica para las 14:35. Notificación en tiempo real y sincronización listas.","priority":"critica"}
+{"command":"Crear tarea prioridad baja revisar informe para mañana a las 14:35 diario","spokenResponse":"Tarea \"revisar informe\" creada con prioridad baja para las 14:35. Notificación en tiempo real y sincronización listas.","priority":"baja"}
+{"command":"Crear tarea media revisar informe para mañana a las 14:35 diario","spokenResponse":"Tarea \"media revisar informe\" creada con prioridad media para las 14:35. Notificación en tiempo real y sincronización listas.","priority":"media"}
+{"command":"Crear tarea revisar informe para mañana a las 14:35 diario","spokenResponse":"Tarea \"revisar informe\" creada con prioridad alta para las 14:35. Notificación en tiempo real y sincronización listas.","priority":"alta"}
+{"query":"ayuda","offersPushTest":true}
+✖ task response is truthful and preserves critica task data (4.690688ms)
+✖ task response is truthful and preserves baja task data (0.8508ms)
+✖ task response is truthful and preserves media task data (0.247292ms)
+✖ task response is truthful and preserves alta task data (0.252249ms)
+✖ RT Lite help preserves task creation without offering a disabled push test (0.550489ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 0
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 78.258614
+
+✖ failing tests:
+
+test at tests/task-message-truthfulness.test.mjs:26:3
+✖ task response is truthful and preserves critica task data (4.690688ms)
+  AssertionError [ERR_ASSERTION]: The input was expected to not match the regular expression /notificaci[oó]n en tiempo real|sincronizaci[oó]n listas|sincronizad[oa]s? (?:con|en)/i. Input:
+  
+  'Tarea "revisar informe" creada con prioridad critica para las 14:35. Notificación en tiempo real y sincronización listas.'
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-task-messages-b01/tests/task-message-truthfulness.test.mjs:39:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Tarea "revisar informe" creada con prioridad critica para las 14:35. Notificación en tiempo real y sincronización listas.',
+    expected: /notificaci[oó]n en tiempo real|sincronizaci[oó]n listas|sincronizad[oa]s? (?:con|en)/i,
+    operator: 'doesNotMatch',
+    diff: 'simple'
+  }
+
+test at tests/task-message-truthfulness.test.mjs:26:3
+✖ task response is truthful and preserves baja task data (0.8508ms)
+  AssertionError [ERR_ASSERTION]: The input was expected to not match the regular expression /notificaci[oó]n en tiempo real|sincronizaci[oó]n listas|sincronizad[oa]s? (?:con|en)/i. Input:
+  
+  'Tarea "revisar informe" creada con prioridad baja para las 14:35. Notificación en tiempo real y sincronización listas.'
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-task-messages-b01/tests/task-message-truthfulness.test.mjs:39:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Tarea "revisar informe" creada con prioridad baja para las 14:35. Notificación en tiempo real y sincronización listas.',
+    expected: /notificaci[oó]n en tiempo real|sincronizaci[oó]n listas|sincronizad[oa]s? (?:con|en)/i,
+    operator: 'doesNotMatch',
+    diff: 'simple'
+  }
+
+test at tests/task-message-truthfulness.test.mjs:26:3
+✖ task response is truthful and preserves media task data (0.247292ms)
+  AssertionError [ERR_ASSERTION]: The input was expected to not match the regular expression /notificaci[oó]n en tiempo real|sincronizaci[oó]n listas|sincronizad[oa]s? (?:con|en)/i. Input:
+  
+  'Tarea "media revisar informe" creada con prioridad media para las 14:35. Notificación en tiempo real y sincronización listas.'
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-task-messages-b01/tests/task-message-truthfulness.test.mjs:39:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Tarea "media revisar informe" creada con prioridad media para las 14:35. Notificación en tiempo real y sincronización listas.',
+    expected: /notificaci[oó]n en tiempo real|sincronizaci[oó]n listas|sincronizad[oa]s? (?:con|en)/i,
+    operator: 'doesNotMatch',
+    diff: 'simple'
+  }
+
+test at tests/task-message-truthfulness.test.mjs:26:3
+✖ task response is truthful and preserves alta task data (0.252249ms)
+  AssertionError [ERR_ASSERTION]: The input was expected to not match the regular expression /notificaci[oó]n en tiempo real|sincronizaci[oó]n listas|sincronizad[oa]s? (?:con|en)/i. Input:
+  
+  'Tarea "revisar informe" creada con prioridad alta para las 14:35. Notificación en tiempo real y sincronización listas.'
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-task-messages-b01/tests/task-message-truthfulness.test.mjs:39:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Tarea "revisar informe" creada con prioridad alta para las 14:35. Notificación en tiempo real y sincronización listas.',
+    expected: /notificaci[oó]n en tiempo real|sincronizaci[oó]n listas|sincronizad[oa]s? (?:con|en)/i,
+    operator: 'doesNotMatch',
+    diff: 'simple'
+  }
+
+test at tests/task-message-truthfulness.test.mjs:44:1
+✖ RT Lite help preserves task creation without offering a disabled push test (0.550489ms)
+  AssertionError [ERR_ASSERTION]: The input was expected to not match the regular expression /probar notificaci[oó]n push/i. Input:
+  
+  '[RT-Lite Master Omni-Engine] Comandos disponibles:\n' +
+    '• "Agendar reunión con [nombre] [fecha] a las [hora] hasta las [hora]"\n' +
+    '• "Comprobar conflictos en el calendario" / "Resolver conflictos"\n' +
+    '• "Sincronizar con Google Calendar / Outlook / Apple Calendar"\n' +
+    '• "Generar documento de texto sobre [tema]" / "Exportar a PDF"\n' +
+    '• "Crear hoja de cálculo de [gastos/presupuesto/inventario]"\n' +
+    '• "Llamar a [contacto]" / "WhatsApp a [contacto]: [mensaje]"\n' +
+    '• "Encender linterna" / "Linterna de pantalla"\n' +
+    '• "Crear tarea urgente [nombre] para las [hora]"\n' +
+    '• "Probar notificación push en segundo plano"'
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-task-messages-b01/tests/task-message-truthfulness.test.mjs:49:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '[RT-Lite Master Omni-Engine] Comandos disponibles:\n• "Agendar reunión con [nombre] [fecha] a las [hora] hasta las [hora]"\n• "Comprobar conflictos en el calendario" / "Resolver conflictos"\n• "Sincronizar con Google Calendar / Outlook / Apple Calendar"\n• "Generar documento de texto sobre [tema]" / "Exportar a PDF"\n• "Crear hoja de cálculo de [gastos/presupuesto/inventario]"\n• "Llamar a [contacto]" / "WhatsApp a [contacto]: [mensaje]"\n• "Encender linterna" / "Linterna de pantalla"\n• "Crear tarea urgente [nombre] para las [hora]"\n• "Probar notificación push en segundo plano"',
+    expected: /probar notificaci[oó]n push/i,
+    operator: 'doesNotMatch',
+    diff: 'simple'
+  }
