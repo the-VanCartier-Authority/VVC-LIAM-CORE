@@ -1,0 +1,20 @@
+{"command":"Crear tarea urgente revisar informe para mañana a las 14:35 diario","spokenResponse":"Tarea \"revisar informe\" creada con prioridad critica para las 14:35. Las notificaciones push y locales están deshabilitadas.","priority":"critica"}
+{"command":"Crear tarea prioridad baja revisar informe para mañana a las 14:35 diario","spokenResponse":"Tarea \"revisar informe\" creada con prioridad baja para las 14:35. Las notificaciones push y locales están deshabilitadas.","priority":"baja"}
+{"command":"Crear tarea media revisar informe para mañana a las 14:35 diario","spokenResponse":"Tarea \"media revisar informe\" creada con prioridad media para las 14:35. Las notificaciones push y locales están deshabilitadas.","priority":"media"}
+{"command":"Crear tarea revisar informe para mañana a las 14:35 diario","spokenResponse":"Tarea \"revisar informe\" creada con prioridad alta para las 14:35. Las notificaciones push y locales están deshabilitadas.","priority":"alta"}
+{"query":"ayuda","offersPushTest":false}
+{"query":"comandos","offersPushTest":false}
+{"query":"que puedes hacer","offersPushTest":false}
+✔ task response is truthful and preserves critica task data (5.135277ms)
+✔ task response is truthful and preserves baja task data (0.825502ms)
+✔ task response is truthful and preserves media task data (0.253782ms)
+✔ task response is truthful and preserves alta task data (0.375014ms)
+✔ RT Lite help preserves task creation without offering a disabled push test (0.436497ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 101.798416

@@ -475,7 +475,7 @@ export function parseNaturalVoiceCommand(
 
     return {
       isHandled: true,
-      spokenResponse: `Tarea "${title}" creada con prioridad ${priority} para las ${timeDue}. Notificación en tiempo real y sincronización listas.`,
+      spokenResponse: `Tarea "${title}" creada con prioridad ${priority} para las ${timeDue}. Las notificaciones push y locales están deshabilitadas.`,
       actionType: 'task',
       actionDetails: `Tarea registrada: "${title}" [${priority.toUpperCase()}] Fecha: ${dueDate} ${timeDue}`,
       newTask: {
@@ -1272,7 +1272,7 @@ export function generateRTLiteResponse(prompt: string, activeEngine: ModelType =
 • "Llamar a [contacto]" / "WhatsApp a [contacto]: [mensaje]"
 • "Encender linterna" / "Linterna de pantalla"
 • "Crear tarea urgente [nombre] para las [hora]"
-• "Probar notificación push en segundo plano"`;
+• Las notificaciones push y locales están deshabilitadas.`;
   }
 
   return `${enginePrefix} Solicitud no reconocida por el motor local. No se ha ejecutado ninguna acción.`;

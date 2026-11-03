@@ -1,0 +1,40 @@
+{"identity":"synthetic-a","case":"task text/voice","priority":"critica","truthful":false,"response":"Tarea \"revisar informe\" creada con prioridad critica para las 14:35. Notificación en tiempo real y sincronización listas.","effects":{"permission":0,"subscribe":0,"native":0,"show":0,"messages":0}}
+{"identity":"synthetic-a","case":"task text/voice","priority":"baja","truthful":false,"response":"Tarea \"respaldo local\" creada con prioridad baja para las 16:40. Notificación en tiempo real y sincronización listas.","effects":{"permission":0,"subscribe":0,"native":0,"show":0,"messages":0}}
+{"identity":"synthetic-a","case":"help text/voice","truthful":false,"offersPushTest":true}
+{"identity":"synthetic-b","case":"task text/voice","priority":"critica","truthful":false,"response":"Tarea \"revisar informe\" creada con prioridad critica para las 14:35. Notificación en tiempo real y sincronización listas.","effects":{"permission":0,"subscribe":0,"native":0,"show":0,"messages":0}}
+{"identity":"synthetic-b","case":"task text/voice","priority":"baja","truthful":false,"response":"Tarea \"respaldo local\" creada con prioridad baja para las 16:40. Notificación en tiempo real y sincronización listas.","effects":{"permission":0,"subscribe":0,"native":0,"show":0,"messages":0}}
+{"identity":"synthetic-b","case":"help text/voice","truthful":false,"offersPushTest":true}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
++ [
++   'synthetic-a: critica task text/voice promises unavailable notifications or sync',
++   'synthetic-a: baja task text/voice promises unavailable notifications or sync',
++   'synthetic-a: help text/voice offers disabled push test',
++   'synthetic-b: critica task text/voice promises unavailable notifications or sync',
++   'synthetic-b: baja task text/voice promises unavailable notifications or sync',
++   'synthetic-b: help text/voice offers disabled push test'
++ ]
+- []
+
+    at file:///workspace/vvc-g02-task-messages-b01/tests/task-message-truthfulness-browser.mjs:128:10 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [
+    'synthetic-a: critica task text/voice promises unavailable notifications or sync',
+    'synthetic-a: baja task text/voice promises unavailable notifications or sync',
+    'synthetic-a: help text/voice offers disabled push test',
+    'synthetic-b: critica task text/voice promises unavailable notifications or sync',
+    'synthetic-b: baja task text/voice promises unavailable notifications or sync',
+    'synthetic-b: help text/voice offers disabled push test'
+  ],
+  expected: [],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0
