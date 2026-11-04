@@ -1,0 +1,23 @@
+{"case":"local task flags","priority":"critica","flags":{"googleCalendar":false,"notion":false,"todoist":false,"slackWebhook":false},"externalCalls":0}
+{"case":"local task flags","priority":"baja","flags":{"googleCalendar":false,"notion":false,"todoist":false,"slackWebhook":false},"externalCalls":0}
+{"case":"local task flags","priority":"media","flags":{"googleCalendar":false,"notion":false,"todoist":false,"slackWebhook":false},"externalCalls":0}
+{"case":"local task flags","priority":"alta","flags":{"googleCalendar":false,"notion":false,"todoist":false,"slackWebhook":false},"externalCalls":0}
+{"case":"legacy true","labels":{"google":false,"notion":false},"externalCalls":0}
+{"case":"legacy partial","labels":{"google":false,"notion":false},"externalCalls":0}
+{"case":"false","labels":{"google":false,"notion":false},"externalCalls":0}
+{"case":"unknown","labels":{"google":false,"notion":false},"externalCalls":0}
+{"case":"untrusted pending/failed payload","labels":{"google":false,"notion":false},"externalCalls":0}
+✔ new local tasks preserve their fields without claiming any completed external synchronization (21.111297ms)
+✔ task UI does not treat legacy true indicators as evidence or mutate historical data (15.522702ms)
+✔ task UI does not treat legacy partial indicators as evidence or mutate historical data (10.200538ms)
+✔ task UI does not treat false indicators as evidence or mutate historical data (6.003049ms)
+✔ task UI does not treat unknown indicators as evidence or mutate historical data (6.464263ms)
+✔ task UI does not treat untrusted pending/failed payload indicators as evidence or mutate historical data (4.911625ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 268.888715

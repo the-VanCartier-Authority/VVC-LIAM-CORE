@@ -904,6 +904,9 @@ export interface TaskItem {
   recurrence: 'none' | 'daily' | 'weekly' | 'weekdays' | 'monthly';
   subtasks: SubtaskItem[];
   calendarEventId?: string;
+  // Compatibility metadata, not a receipt: legacy/client values may be fictitious.
+  // New local tasks use false. These booleans alone never authorize success labels;
+  // a future task-sync adapter must provide independently verified completion.
   syncedToThirdParty?: {
     googleCalendar?: boolean;
     notion?: boolean;

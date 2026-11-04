@@ -1,0 +1,8 @@
+{"identity":"synthetic-a","case":"parser task text/voice","flags":{"googleCalendar":false,"notion":false,"todoist":false,"slackWebhook":false}}
+{"identity":"synthetic-a","case":"new and legacy task badges","badges":{"google":0,"notion":0}}
+{"identity":"synthetic-a","case":"legacy preserved after reload","unchanged":true,"effects":{"permission":0,"subscribe":0,"native":0,"show":0,"messages":0},"externalCalls":0}
+{"identity":"synthetic-b","case":"parser task text/voice","flags":{"googleCalendar":false,"notion":false,"todoist":false,"slackWebhook":false}}
+{"identity":"synthetic-b","case":"new and legacy task badges","badges":{"google":0,"notion":0}}
+{"identity":"synthetic-b","case":"legacy preserved after reload","unchanged":true,"effects":{"permission":0,"subscribe":0,"native":0,"show":0,"messages":0},"externalCalls":0}
+{"case":"fresh local defaults","flags":[{"googleCalendar":false,"notion":false,"todoist":false},{"googleCalendar":false,"notion":false,"todoist":false},{"googleCalendar":false,"notion":false,"todoist":false}]}
+{"fixture":"G02 conservative task sync","result":"PASS","cases":9,"identities":2,"browser":"156.0.8078.4","realExternalCalls":0}
