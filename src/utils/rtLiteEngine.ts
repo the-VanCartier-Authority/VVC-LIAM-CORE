@@ -488,10 +488,10 @@ export function parseNaturalVoiceCommand(
         recurrence,
         subtasks: [],
         syncedToThirdParty: {
-          googleCalendar: true,
-          notion: true,
-          todoist: true,
-          slackWebhook: true,
+          googleCalendar: false,
+          notion: false,
+          todoist: false,
+          slackWebhook: false,
         },
       },
     };

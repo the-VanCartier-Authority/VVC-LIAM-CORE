@@ -1,0 +1,43 @@
+{"identity":"synthetic-a","case":"parser task text/voice","flags":{"googleCalendar":true,"notion":true,"todoist":true,"slackWebhook":true}}
+{"identity":"synthetic-a","case":"new and legacy task badges","badges":{"google":2,"notion":2}}
+{"identity":"synthetic-a","case":"legacy preserved after reload","unchanged":true,"effects":{"permission":0,"subscribe":0,"native":0,"show":0,"messages":0},"externalCalls":0}
+{"identity":"synthetic-b","case":"parser task text/voice","flags":{"googleCalendar":true,"notion":true,"todoist":true,"slackWebhook":true}}
+{"identity":"synthetic-b","case":"new and legacy task badges","badges":{"google":2,"notion":2}}
+{"identity":"synthetic-b","case":"legacy preserved after reload","unchanged":true,"effects":{"permission":0,"subscribe":0,"native":0,"show":0,"messages":0},"externalCalls":0}
+{"case":"fresh local defaults","flags":[{"googleCalendar":true,"notion":true,"todoist":true},{"googleCalendar":true,"notion":false,"todoist":true},{"googleCalendar":true,"notion":true,"todoist":false}]}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
++ [
++   'synthetic-a: local parser flags',
++   'synthetic-a: task success badges without evidence',
++   'synthetic-a: reload must not trust legacy flags',
++   'synthetic-b: local parser flags',
++   'synthetic-b: task success badges without evidence',
++   'synthetic-b: reload must not trust legacy flags',
++   'fresh defaults assert synchronization'
++ ]
+- []
+
+    at file:///workspace/vvc-g02-sync-evidence-b01/tests/task-sync-truthfulness-browser.mjs:125:44 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [
+    'synthetic-a: local parser flags',
+    'synthetic-a: task success badges without evidence',
+    'synthetic-a: reload must not trust legacy flags',
+    'synthetic-b: local parser flags',
+    'synthetic-b: task success badges without evidence',
+    'synthetic-b: reload must not trust legacy flags',
+    'fresh defaults assert synchronization'
+  ],
+  expected: [],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

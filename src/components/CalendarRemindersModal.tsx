@@ -479,7 +479,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                     Creación Automatizada de Tarea o Recordatorio
                   </span>
                   <span className="text-[10px] text-slate-400">
-                    Sincronización en Tiempo Real
+                    Guardado local
                   </span>
                 </div>
 
@@ -518,7 +518,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                       <option value="baja">Baja</option>
                       <option value="media">Media</option>
                       <option value="alta">Alta</option>
-                      <option value="critica">Crítica (Notificación Inmediata)</option>
+                      <option value="critica">Crítica</option>
                     </select>
                   </div>
 
@@ -629,7 +629,7 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                     className="px-4 py-1.5 rounded bg-[#00f0ff] hover:bg-[#00d4e3] text-black font-semibold flex items-center gap-1.5 transition-all shadow-[0_0_12px_rgba(0,240,255,0.4)] disabled:opacity-40"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>Guardar & Programar</span>
+                    <span>Guardar tarea</span>
                   </button>
                 </div>
               </form>
@@ -767,12 +767,11 @@ export const CalendarRemindersModal: React.FC<CalendarRemindersModalProps> = ({
                                 </button>
                               )}
 
-                              {task.syncedToThirdParty?.googleCalendar && (
-                                <span className="text-[9px] text-emerald-400">Google Sync</span>
-                              )}
-                              {task.syncedToThirdParty?.notion && (
-                                <span className="text-[9px] text-blue-400">Notion</span>
-                              )}
+                              {/* Legacy/client booleans cannot prove an external operation.
+                                  No verified task-sync adapter/receipt exists in this candidate. */}
+                              <span className="text-[9px] text-slate-400">
+                                Sincronización externa no verificada
+                              </span>
                             </div>
 
                             {/* Subtasks checklist if any */}
