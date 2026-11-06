@@ -1,0 +1,113 @@
+{"command":"sincronizar tareas","isHandled":true,"response":"Sincronización en tiempo real completada con servicios en la nube y calendario.","actionDetails":"Sincronización Cloud: Google Calendar & Notion en vivo","triggerThirdPartySync":true,"outcome":null,"effects":{"external":0,"notifications":0,"messages":0}}
+{"command":"sincronizar calendario","isHandled":true,"response":"Sincronización en tiempo real completada con servicios en la nube y calendario.","actionDetails":"Sincronización Cloud: Google Calendar & Notion en vivo","triggerThirdPartySync":true,"outcome":null,"effects":{"external":0,"notifications":0,"messages":0}}
+{"command":"sincronizar con notion","isHandled":true,"response":"Sincronización en tiempo real completada con servicios en la nube y calendario.","actionDetails":"Sincronización Cloud: Google Calendar & Notion en vivo","triggerThirdPartySync":true,"outcome":null,"effects":{"external":0,"notifications":0,"messages":0}}
+{"command":"sync google","isHandled":true,"response":"Sincronización en tiempo real completada con servicios en la nube y calendario.","actionDetails":"Sincronización Cloud: Google Calendar & Notion en vivo","triggerThirdPartySync":true,"outcome":null,"effects":{"external":0,"notifications":0,"messages":0}}
+✖ sincronizar tareas: recognizes unavailability without success, action triggers or data changes (3.655252ms)
+✖ sincronizar calendario: recognizes unavailability without success, action triggers or data changes (0.466462ms)
+✖ sincronizar con notion: recognizes unavailability without success, action triggers or data changes (0.409706ms)
+✖ sync google: recognizes unavailability without success, action triggers or data changes (0.349717ms)
+✔ local task creation and ICS generation retain their distinct actions (2.234002ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 1
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 87.9251
+
+✖ failing tests:
+
+test at tests/sync-intent-truthfulness.test.mjs:26:3
+✖ sincronizar tareas: recognizes unavailability without success, action triggers or data changes (3.655252ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'Sincronización en tiempo real completada con servicios en la nube y calendario.'
+  - 'No se realizó ninguna sincronización externa. Esta función todavía no está disponible.'
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-sync-intent-b01/tests/sync-intent-truthfulness.test.mjs:33:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Sincronización en tiempo real completada con servicios en la nube y calendario.',
+    expected: 'No se realizó ninguna sincronización externa. Esta función todavía no está disponible.',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/sync-intent-truthfulness.test.mjs:26:3
+✖ sincronizar calendario: recognizes unavailability without success, action triggers or data changes (0.466462ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'Sincronización en tiempo real completada con servicios en la nube y calendario.'
+  - 'No se realizó ninguna sincronización externa. Esta función todavía no está disponible.'
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-sync-intent-b01/tests/sync-intent-truthfulness.test.mjs:33:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Sincronización en tiempo real completada con servicios en la nube y calendario.',
+    expected: 'No se realizó ninguna sincronización externa. Esta función todavía no está disponible.',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/sync-intent-truthfulness.test.mjs:26:3
+✖ sincronizar con notion: recognizes unavailability without success, action triggers or data changes (0.409706ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'Sincronización en tiempo real completada con servicios en la nube y calendario.'
+  - 'No se realizó ninguna sincronización externa. Esta función todavía no está disponible.'
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-sync-intent-b01/tests/sync-intent-truthfulness.test.mjs:33:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Sincronización en tiempo real completada con servicios en la nube y calendario.',
+    expected: 'No se realizó ninguna sincronización externa. Esta función todavía no está disponible.',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/sync-intent-truthfulness.test.mjs:26:3
+✖ sync google: recognizes unavailability without success, action triggers or data changes (0.349717ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'Sincronización en tiempo real completada con servicios en la nube y calendario.'
+  - 'No se realizó ninguna sincronización externa. Esta función todavía no está disponible.'
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-sync-intent-b01/tests/sync-intent-truthfulness.test.mjs:33:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Sincronización en tiempo real completada con servicios en la nube y calendario.',
+    expected: 'No se realizó ninguna sincronización externa. Esta función todavía no está disponible.',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

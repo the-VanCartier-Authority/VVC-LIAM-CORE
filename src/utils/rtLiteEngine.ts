@@ -1,4 +1,5 @@
 import { NOTIFICATIONS_DISABLED_MESSAGE } from '../shared/notificationPolicy';
+import { executionOutcome, type ExecutionOutcome } from '../shared/executionOutcome';
 import type { 
   DeviceState, 
   PhoneContact, 
@@ -40,6 +41,7 @@ export interface CommandExecutionResult {
     | 'document' 
     | 'spreadsheet';
   actionDetails?: string;
+  outcome?: ExecutionOutcome;
   updatedDeviceState?: Partial<DeviceState>;
   newAlarm?: Omit<AlarmItem, 'id'>;
   newTimer?: { label: string; seconds: number };
@@ -53,7 +55,6 @@ export interface CommandExecutionResult {
   messagePayload?: { recipient: string; message: string; channel: 'SMS' | 'WhatsApp' };
   screenFlashlight?: boolean;
   triggerICalExport?: boolean;
-  triggerThirdPartySync?: boolean;
   triggerCalendarSync?: 'google' | 'outlook' | 'apple';
   openCalendar?: boolean;
   openGmail?: boolean;
@@ -218,10 +219,10 @@ export function parseNaturalVoiceCommand(
   if (query.includes('sincronizar calendario') || query.includes('sincronizar tareas') || query.includes('sync google') || query.includes('sincronizar con notion')) {
     return {
       isHandled: true,
-      spokenResponse: 'Sincronización en tiempo real completada con servicios en la nube y calendario.',
+      spokenResponse: 'No se realizó ninguna sincronización externa. Esta función todavía no está disponible.',
       actionType: 'sync',
-      actionDetails: 'Sincronización Cloud: Google Calendar & Notion en vivo',
-      triggerThirdPartySync: true,
+      actionDetails: 'Sincronización externa no disponible; no se ejecutó ninguna operación.',
+      outcome: executionOutcome('unavailable', 'third-party-sync'),
     };
   }
 
