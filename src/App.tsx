@@ -698,7 +698,9 @@ export default function App() {
         const intentResult = parseNaturalVoiceCommand(commandText, deviceState, contacts, tasks, calendarEvents);
 
         if (intentResult.isHandled) {
-          playCyberTone('confirm');
+          if (intentResult.outcome?.status !== 'unavailable') {
+            playCyberTone('confirm');
+          }
 
           // Update device state if needed
           if (intentResult.updatedDeviceState) {
@@ -791,11 +793,6 @@ export default function App() {
           // Handle iCal Export trigger
           if (intentResult.triggerICalExport) {
             downloadICSFile(calendarEvents, tasks);
-          }
-
-          // Handle Cloud Sync trigger
-          if (intentResult.triggerThirdPartySync) {
-            playCyberTone('confirm');
           }
 
           // Add alarm
