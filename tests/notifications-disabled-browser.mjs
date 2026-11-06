@@ -7,6 +7,9 @@ import { readFile, stat } from 'node:fs/promises';
 import { join, extname, resolve } from 'node:path';
 import { build } from 'esbuild';
 import { chromium } from 'playwright-core';
+import { createHash } from 'node:crypto';
+import { installWorkerDiagnostics, workerCheckpoint } from './helpers/notification-worker-diagnostics.mjs';
+import { loadNotificationWorkerAssets, workerScriptAsset } from './helpers/notification-worker-assets.mjs';
 
 const stubs = {
   googleAuth: `
@@ -34,6 +37,7 @@ const stubs = {
     };`,
 };
 const sourceRoot = process.cwd();
+const workerAssets = await loadNotificationWorkerAssets(sourceRoot);
 const bundle = await build({ stdin: { contents: `
   import React from 'react'; import { createRoot } from 'react-dom/client';
   import App from './src/App'; import { SettingsModal } from './src/components/SettingsModal';
@@ -61,15 +65,23 @@ self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 // No policy acknowledgement: a previous installation must not be confirmed.
 self.addEventListener('message', () => {});`;
 let realExternalCalls = 0, cases = 0;
+function scriptResponse(res, pathname, source, contents) {
+  console.log(JSON.stringify({ checkpoint: 'worker-script-http', phase: flavor, path: pathname, source,
+    status: 200, bytes: Buffer.byteLength(contents), sha256: createHash('sha256').update(contents).digest('hex') }));
+  res.setHeader('Content-Type', 'text/javascript'); return res.end(contents);
+}
 const server = createServer(async (req, res) => {
   try {
     const pathname = new URL(req.url, 'http://fixture.test').pathname;
     res.setHeader('Cache-Control', 'no-store');
-    if (pathname === '/sw.js' && flavor === 'legacy') { res.setHeader('Content-Type', 'text/javascript'); return res.end(legacy); }
+    if (pathname === '/sw.js' && flavor === 'legacy') return scriptResponse(res, pathname, 'synthetic legacy', legacy);
     if (pathname === '/sw.js' || pathname === '/sw-push.js' || pathname.startsWith('/workbox-')) {
-      res.setHeader('Content-Type', 'text/javascript');
-      const directory = pathname === '/sw-push.js' || flavor === 'public' ? 'public' : 'dist';
-      return res.end(await readFile(join(sourceRoot, directory, pathname.slice(1))));
+      const asset = workerScriptAsset(workerAssets, flavor, pathname);
+      if (!asset) {
+        console.log(JSON.stringify({ checkpoint: 'fixture-script-not-found', phase: flavor, path: pathname, status: 404 }));
+        res.writeHead(404); return res.end('Unknown fixture worker script');
+      }
+      return scriptResponse(res, pathname, asset.source, asset.body);
     }
     if (pathname.startsWith('/api/')) {
       res.writeHead(503, { 'Content-Type': 'application/json' });
@@ -88,7 +100,7 @@ const server = createServer(async (req, res) => {
     }
     res.setHeader('Content-Type', 'text/html');
     res.end('<!doctype html><title>G02 isolated fixture</title><div id="root"></div><script type="module">' + bundle.outputFiles[0].text + '</script>');
-  } catch (error) { res.writeHead(500); res.end(error.message); }
+  } catch (error) { console.log(JSON.stringify({ checkpoint: 'fixture-http-error', phase: flavor, path: req.url, status: 500, code: error.code, error: error.message })); res.writeHead(500); res.end(error.message); }
 });
 let browser;
 try {
@@ -97,8 +109,12 @@ try {
   browser = await chromium.launch({ executablePath: process.env.CHROMIUM_EXECUTABLE_PATH || chromium.executablePath(),
     headless: true, proxy: { server: 'http://127.0.0.1:9', bypass: '127.0.0.1' },
     args: ['--no-sandbox', '--disable-background-networking'] });
+  console.log(JSON.stringify({ checkpoint: 'fixture-environment', node: process.version,
+    platform: process.platform, arch: process.arch, browser: browser.version(), precacheEntries: workerAssets.precacheCount,
+    buildRequired: true, workerCacheMode: 'updateViaCache:none / Cache-Control:no-store', contexts: 'fresh per scenario' }));
   async function isolatedContext() {
     const context = await browser.newContext();
+    await installWorkerDiagnostics(context);
     await context.route('**/*', route => {
       if (new URL(route.request().url()).origin === base) return route.continue();
       return route.abort('blockedbyclient');
@@ -182,10 +198,23 @@ try {
       await (await caches.open('vvc-liam-core-cache-v1')).put('/old-sentinel', new Response('keep-legacy'));
     });
     await page.waitForFunction(() => !!navigator.serviceWorker.controller);
+    await workerCheckpoint(page, target + ':legacy-controlling');
     assert.equal(await page.evaluate(() => window.fixture.lifecycle.confirmDisabledWorker(navigator.serviceWorker.controller)), false);
+    await workerCheckpoint(page, target + ':legacy-denied');
     flavor = target;
+    page.on('console', message => { if (message.text().startsWith('[PWA]')) console.log(JSON.stringify({ checkpoint: 'pwa-console', target, text: message.text() })); });
     await page.evaluate(() => window.fixture.lifecycle.registerServiceWorker());
-    await page.waitForFunction(() => window.fixture.lifecycle.isDisabledWorkerConfirmed(), { timeout: 10000 });
+    await workerCheckpoint(page, target + ':register-returned');
+    try {
+      await page.waitForFunction(() => window.fixture.lifecycle.isDisabledWorkerConfirmed(), null, { timeout: 10000 });
+    } catch (error) {
+      await workerCheckpoint(page, target + ':confirmation-failed', true);
+      throw error;
+    }
+    const confirmed = await workerCheckpoint(page, target + ':confirmation-passed', true);
+    assert.equal(confirmed.policyProbe?.status, 'reply');
+    assert.equal(confirmed.policyProbe?.revision, 'g02-notifications-disabled-v1');
+    assert.equal(confirmed.policyProbe?.enabled, false);
     // An update can leave a terminated legacy Worker object in the list. Select
     // the live one by successfully probing the expected policy revision.
     let active;
@@ -216,6 +245,7 @@ try {
     assert.deepEqual(kept, { cache: 'keep-cache', old: 'keep-legacy', storage: 'legacy-record', other: 'keep' });
     await context.setOffline(true); await page.goto(base + '/never-cached-navigation');
     await page.getByText('offline fixture', { exact: true }).waitFor(); cases++;
+    await workerCheckpoint(page, target + ':offline-and-data-preserved');
     await context.close();
   }
   assert.equal(realExternalCalls, 0);
