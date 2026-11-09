@@ -1,6 +1,7 @@
 import express from 'express';
 import type { Request, Response } from 'express';
 import dotenv from 'dotenv';
+import { readFileSync } from 'node:fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
@@ -8,9 +9,15 @@ import webpush from 'web-push';
 import { createVaosRouter } from './src/server/vaosOrchestrator.ts';
 import { ProviderRegistry, providerKey, postProvider, EgressPolicyError, UpstreamError } from './src/server/providerEgress.ts';
 import { executionOutcome } from './src/shared/executionOutcome.ts';
+import { createFirebaseVerifier, firebaseIdentityMiddleware } from './src/server/firebaseIdentity.ts';
+
+import { NOTIFICATIONS_ENABLED } from './src/shared/notificationPolicy.ts';
 
 dotenv.config();
 const providers = new ProviderRegistry(process.env.LLM_PROVIDERS_JSON || '[]');
+// Temporary G02 release gate. Re-enabling push requires reviewed code/B05;
+// neither environment variables nor requests can enable it in this candidate.
+const PUSH_ENABLED = NOTIFICATIONS_ENABLED;
 
 function egressFailure(res: Response, error: unknown) {
   const policy = error instanceof EgressPolicyError;
@@ -28,6 +35,17 @@ const app = express();
 // The dev server must always bind to port 3000 because NGINX runs on port 8080 and proxies to 3000.
 const PORT = process.env.PORT && process.env.PORT !== '8080' ? Number(process.env.PORT) : 3000;
 
+const firebaseProjectId = process.env.FIREBASE_PROJECT_ID || JSON.parse(
+  readFileSync(new URL('./firebase-applet-config.json', import.meta.url), 'utf8')).projectId;
+app.use('/api', firebaseIdentityMiddleware(createFirebaseVerifier(firebaseProjectId)));
+app.use('/api/push', (req, res, next) => {
+  const readOnly = ['GET', 'HEAD'].includes(req.method) &&
+    ['/status', '/vapid-public-key'].includes(req.path);
+  if (PUSH_ENABLED || readOnly) return next();
+  return res.status(503).json({ success: false, code: 'PUSH_DISABLED',
+    error: 'Las operaciones push están deshabilitadas en este candidato.',
+    outcome: executionOutcome('unavailable', 'push'), realExecution: false });
+});
 app.use(express.json({ limit: '15mb' }));
 
 // Mount VAOS Smart Routing Orchestrator (Policy Engine, Fast Path & Async Queue)
@@ -51,24 +69,26 @@ const VOICE_MAP: Record<string, string> = {
 };
 
 // Web Push & VAPID Setup for Background Native Push Notifications
-let vapidPublicKey = process.env.VAPID_PUBLIC_KEY || '';
-let vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || '';
+let vapidPublicKey = PUSH_ENABLED ? (process.env.VAPID_PUBLIC_KEY || '') : '';
+let vapidPrivateKey = PUSH_ENABLED ? (process.env.VAPID_PRIVATE_KEY || '') : '';
 
-if (!vapidPublicKey || !vapidPrivateKey) {
+if (PUSH_ENABLED && (!vapidPublicKey || !vapidPrivateKey)) {
   const generatedKeys = webpush.generateVAPIDKeys();
   vapidPublicKey = generatedKeys.publicKey;
   vapidPrivateKey = generatedKeys.privateKey;
   console.log('[VVC LIAM Push] VAPID keys inicializadas para Web Push en segundo plano.');
 }
 
-try {
-  webpush.setVapidDetails(
-    'mailto:vvc-liam@obsidian.local',
-    vapidPublicKey,
-    vapidPrivateKey
-  );
-} catch (vapidErr) {
-  console.warn('[VVC LIAM Push] Error configurando VAPID details:', vapidErr);
+if (PUSH_ENABLED) {
+  try {
+    webpush.setVapidDetails(
+      'mailto:vvc-liam@obsidian.local',
+      vapidPublicKey,
+      vapidPrivateKey
+    );
+  } catch (vapidErr) {
+    console.warn('[VVC LIAM Push] Error configurando VAPID details:', vapidErr);
+  }
 }
 
 // In-memory Push Subscriptions registry
@@ -194,7 +214,7 @@ app.post('/api/push/send', async (req: Request, res: Response) => {
 
 app.get('/api/push/status', (_req: Request, res: Response) => {
   res.json({
-    enabled: true,
+    enabled: PUSH_ENABLED,
     hasVapidKey: Boolean(vapidPublicKey),
     activeSubscribers: pushSubscriptions.size,
   });
@@ -207,7 +227,7 @@ app.get('/api/config', (_req: Request, res: Response) => {
     hasGeminiKey: Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY'),
     defaultModel: 'meta/llama-3.2-11b-vision-instruct',
     hasNeuralTTS: Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY'),
-    hasPushEnabled: true,
+    hasPushEnabled: PUSH_ENABLED,
   });
 });
 

@@ -1,4 +1,5 @@
 import React from 'react';
+import { NOTIFICATIONS_ENABLED } from '../shared/notificationPolicy';
 import { 
   Bell, 
   CheckCircle2, 
@@ -25,7 +26,7 @@ export const RealTimeAlertToast: React.FC<RealTimeAlertToastProps> = ({
   onDismiss,
   onOpenCalendar,
 }) => {
-  if (alerts.length === 0) return null;
+  if (!NOTIFICATIONS_ENABLED || alerts.length === 0) return null;
 
   return (
     <div className="fixed top-20 right-4 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none">

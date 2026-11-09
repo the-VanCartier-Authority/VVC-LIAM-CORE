@@ -1,0 +1,339 @@
+{
+  "reviewedSHA": "036a284fd6f328cb1d1f6f8962797ff1329c64b5",
+  "productModified": false,
+  "manusEnvironment": "not provided; requested from owner; attribution remains unconfirmed",
+  "exactSHAReproduction": {
+    "withoutBuild": {
+      "individual": "timeout 30000ms line188 built",
+      "completeRunner": "same timeout"
+    },
+    "afterBuildWithoutVersionedEdits": {
+      "individual": "PASS8cases",
+      "runner": "PASS6fixtures45cases"
+    }
+  },
+  "fixedPreflightWithoutBuild": "NOTIFICATION_FIXTURE_BUILD_REQUIRED before Chromium launch (not PASS/not skipped)",
+  "waitForFunction": "options in third argument; intended10000ms enforced, original default30000ms no longer used",
+  "assetUnitRegressions": "5/5pass: missing/stale/incomplete build, missing dependency, actual phase script selection",
+  "baselineEnvironment": {
+    "sha": "036a284fd6f328cb1d1f6f8962797ff1329c64b5",
+    "node": "v24.19.0",
+    "bun": "1.4.4",
+    "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+    "python": "3.12.14",
+    "chromium": "156.0.8078.4 (playwright-core 1.64.1 revision1248)",
+    "baselineNoBuild": {
+      "distExistedAtStart": false,
+      "individual": "timeout30000ms,line188,targetbuilt",
+      "runner": "same timeout,line188,targetbuilt"
+    },
+    "gitWorkingTree": ""
+  },
+  "missingBuildCheckpoints": [
+    {
+      "checkpoint": "fixture-http-error",
+      "phase": "built",
+      "path": "/sw.js",
+      "status": 500,
+      "code": "ENOENT",
+      "error": "ENOENT: no such file or directory, open '/workspace/vvc-g02-sw-diagnosis/dist/sw.js'"
+    },
+    {
+      "checkpoint": "built:register-returned",
+      "state": {
+        "installing": null,
+        "waiting": null,
+        "active": {
+          "id": 1,
+          "url": "http://127.0.0.1:45715/sw.js",
+          "state": "activated"
+        },
+        "controller": {
+          "id": 1,
+          "url": "http://127.0.0.1:45715/sw.js",
+          "state": "activated"
+        },
+        "confirmed": false
+      },
+      "events": [
+        {
+          "atMs": 1886,
+          "event": "update-error",
+          "error": "Failed to update a ServiceWorker for scope ('http://127.0.0.1:45715/') with script ('http://127.0.0.1:45715/sw.js'): A bad HTTP response code (500) was received when fetching the script.",
+          "installing": null,
+          "waiting": null,
+          "active": {
+            "id": 1,
+            "url": "http://127.0.0.1:45715/sw.js",
+            "state": "activated"
+          },
+          "controller": {
+            "id": 1,
+            "url": "http://127.0.0.1:45715/sw.js",
+            "state": "activated"
+          },
+          "confirmed": false
+        },
+        {
+          "atMs": 1889,
+          "event": "policy-query",
+          "channel": 3,
+          "target": {
+            "id": 1,
+            "url": "http://127.0.0.1:45715/sw.js",
+            "state": "activated"
+          }
+        }
+      ],
+      "cacheNames": [
+        "unrelated-user-cache",
+        "vvc-liam-core-cache-v1"
+      ],
+      "storage": {
+        "push": "legacy-record",
+        "unrelated": "keep"
+      }
+    },
+    {
+      "checkpoint": "built:confirmation-failed",
+      "state": {
+        "installing": null,
+        "waiting": null,
+        "active": {
+          "id": 1,
+          "url": "http://127.0.0.1:45715/sw.js",
+          "state": "activated"
+        },
+        "controller": {
+          "id": 1,
+          "url": "http://127.0.0.1:45715/sw.js",
+          "state": "activated"
+        },
+        "confirmed": false
+      },
+      "events": [],
+      "policyProbe": {
+        "status": "timeout",
+        "target": {
+          "id": 1,
+          "url": "http://127.0.0.1:45715/sw.js",
+          "state": "activated"
+        }
+      },
+      "cacheNames": [
+        "unrelated-user-cache",
+        "vvc-liam-core-cache-v1"
+      ],
+      "storage": {
+        "push": "legacy-record",
+        "unrelated": "keep"
+      }
+    }
+  ],
+  "fixedCheckpoints": [
+    {
+      "checkpoint": "public:confirmation-passed",
+      "state": {
+        "installing": null,
+        "waiting": null,
+        "active": {
+          "id": 2,
+          "url": "http://127.0.0.1:41681/sw.js",
+          "state": "activated"
+        },
+        "controller": {
+          "id": 2,
+          "url": "http://127.0.0.1:41681/sw.js",
+          "state": "activated"
+        },
+        "confirmed": true
+      },
+      "policyProbe": {
+        "status": "reply",
+        "type": "NOTIFICATION_POLICY",
+        "revision": "g02-notifications-disabled-v1",
+        "enabled": false,
+        "target": {
+          "id": 2,
+          "url": "http://127.0.0.1:41681/sw.js",
+          "state": "activated"
+        }
+      },
+      "cacheNames": [
+        "unrelated-user-cache",
+        "vvc-liam-core-cache-v1",
+        "vvc-liam-core-cache-v2"
+      ],
+      "storage": {
+        "push": "legacy-record",
+        "unrelated": "keep"
+      }
+    },
+    {
+      "checkpoint": "public:offline-and-data-preserved",
+      "state": {
+        "installing": null,
+        "waiting": null,
+        "active": {
+          "id": 1,
+          "url": "http://127.0.0.1:41681/sw.js",
+          "state": "activated"
+        },
+        "controller": {
+          "id": 1,
+          "url": "http://127.0.0.1:41681/sw.js",
+          "state": "activated"
+        },
+        "confirmed": null
+      },
+      "cacheNames": [
+        "unrelated-user-cache",
+        "vvc-liam-core-cache-v1",
+        "vvc-liam-core-cache-v2"
+      ],
+      "storage": {
+        "push": "legacy-record",
+        "unrelated": "keep"
+      }
+    },
+    {
+      "checkpoint": "built:confirmation-passed",
+      "state": {
+        "installing": null,
+        "waiting": null,
+        "active": {
+          "id": 2,
+          "url": "http://127.0.0.1:41681/sw.js",
+          "state": "activated"
+        },
+        "controller": {
+          "id": 2,
+          "url": "http://127.0.0.1:41681/sw.js",
+          "state": "activated"
+        },
+        "confirmed": true
+      },
+      "policyProbe": {
+        "status": "reply",
+        "type": "NOTIFICATION_POLICY",
+        "revision": "g02-notifications-disabled-v1",
+        "enabled": false,
+        "target": {
+          "id": 2,
+          "url": "http://127.0.0.1:41681/sw.js",
+          "state": "activated"
+        }
+      },
+      "cacheNames": [
+        "unrelated-user-cache",
+        "vvc-liam-core-cache-v1",
+        "workbox-precache-v2-http://127.0.0.1:41681/"
+      ],
+      "storage": {
+        "push": "legacy-record",
+        "unrelated": "keep"
+      }
+    },
+    {
+      "checkpoint": "built:offline-and-data-preserved",
+      "state": {
+        "installing": null,
+        "waiting": null,
+        "active": {
+          "id": 1,
+          "url": "http://127.0.0.1:41681/sw.js",
+          "state": "activated"
+        },
+        "controller": {
+          "id": 1,
+          "url": "http://127.0.0.1:41681/sw.js",
+          "state": "activated"
+        },
+        "confirmed": null
+      },
+      "cacheNames": [
+        "unrelated-user-cache",
+        "vvc-liam-core-cache-v1",
+        "workbox-precache-v2-http://127.0.0.1:41681/"
+      ],
+      "storage": {
+        "push": "legacy-record",
+        "unrelated": "keep"
+      }
+    }
+  ],
+  "servedWorkerBytes": [
+    {
+      "checkpoint": "worker-script-http",
+      "phase": "legacy",
+      "path": "/sw.js",
+      "source": "synthetic legacy",
+      "status": 200,
+      "bytes": 267,
+      "sha256": "9e84534607a88d2333aa1fe0abdbb49d91cfc284e22bed27005f0ebd5ed02285"
+    },
+    {
+      "checkpoint": "worker-script-http",
+      "phase": "public",
+      "path": "/sw.js",
+      "source": "public/sw.js",
+      "status": 200,
+      "bytes": 2407,
+      "sha256": "c6371c0767899c5d8caf1f99e849e87142790c43a273c4a54a4d0ad9d7927759"
+    },
+    {
+      "checkpoint": "worker-script-http",
+      "phase": "public",
+      "path": "/sw-push.js",
+      "source": "public/sw-push.js",
+      "status": 200,
+      "bytes": 1160,
+      "sha256": "c92e5114cd0c7403fef9ecb257b80dfde897dc7d183304b220bf5a9dbfa2ef31"
+    },
+    {
+      "checkpoint": "worker-script-http",
+      "phase": "legacy",
+      "path": "/sw.js",
+      "source": "synthetic legacy",
+      "status": 200,
+      "bytes": 267,
+      "sha256": "9e84534607a88d2333aa1fe0abdbb49d91cfc284e22bed27005f0ebd5ed02285"
+    },
+    {
+      "checkpoint": "worker-script-http",
+      "phase": "built",
+      "path": "/sw.js",
+      "source": "dist/sw.js",
+      "status": 200,
+      "bytes": 2494,
+      "sha256": "312fdd418dcac7d01eef2a6144b0bef8424c6fa87bf0f91abdaf73a2a3963d79"
+    },
+    {
+      "checkpoint": "worker-script-http",
+      "phase": "built",
+      "path": "/workbox-1425c628.js",
+      "source": "dist/workbox-1425c628.js",
+      "status": 200,
+      "bytes": 14804,
+      "sha256": "7ad6864d8e66a87c10a8c43a7412e2b6b26426a88c2267abb77861618e4b2c30"
+    },
+    {
+      "checkpoint": "worker-script-http",
+      "phase": "built",
+      "path": "/sw-push.js",
+      "source": "dist/sw-push.js",
+      "status": 200,
+      "bytes": 1160,
+      "sha256": "c92e5114cd0c7403fef9ecb257b80dfde897dc7d183304b220bf5a9dbfa2ef31"
+    },
+    {
+      "checkpoint": "worker-script-http",
+      "phase": "built",
+      "path": "/sw-push.js",
+      "source": "dist/sw-push.js",
+      "status": 200,
+      "bytes": 1160,
+      "sha256": "c92e5114cd0c7403fef9ecb257b80dfde897dc7d183304b220bf5a9dbfa2ef31"
+    }
+  ]
+}

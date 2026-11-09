@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { inferenceFailureText } from './shared/executionOutcome';
+import { backendFetch } from './services/backendApi';
 import { Header } from './components/Header';
 import { VoiceOrbVisualizer } from './components/VoiceOrbVisualizer';
 import { QuickCommandChips } from './components/QuickCommandChips';
@@ -89,12 +90,8 @@ import {
   generateOutlookCalendarUrl,
 } from './utils/calendarSync';
 
-import {
-  registerServiceWorker,
-  sendBackgroundAlert,
-  testNativePushNotification,
-  initNotificationClickListener
-} from './services/pushNotificationService';
+import { sendBackgroundAlert } from './services/pushNotificationService';
+import { NOTIFICATIONS_ENABLED, NOTIFICATIONS_DISABLED_MESSAGE } from './shared/notificationPolicy';
 
 const INITIAL_CONTACTS: PhoneContact[] = [
   { id: 'c1', name: 'Carlos Méndez', phone: '+34 612 345 678', relation: 'Colega de Proyecto', favorite: true },
@@ -118,7 +115,7 @@ const INITIAL_TASKS: TaskItem[] = [
       { id: 'st-1', title: 'Verificar cuota de API en build.nvidia.com', completed: true },
       { id: 'st-2', title: 'Medir latencia en modelos Flash y Nemotron', completed: false },
     ],
-    syncedToThirdParty: { googleCalendar: true, notion: true, todoist: true },
+    syncedToThirdParty: { googleCalendar: false, notion: false, todoist: false },
     createdAt: Date.now() - 3600000,
     updatedAt: Date.now() - 3600000,
   },
@@ -135,7 +132,7 @@ const INITIAL_TASKS: TaskItem[] = [
       { id: 'st-3', title: 'Verificar huella SHA-256 en bóveda', completed: false },
       { id: 'st-4', title: 'Exportar backup .json cifrado con PBKDF2', completed: false },
     ],
-    syncedToThirdParty: { googleCalendar: true, notion: false, todoist: true },
+    syncedToThirdParty: { googleCalendar: false, notion: false, todoist: false },
     createdAt: Date.now() - 7200000,
     updatedAt: Date.now() - 7200000,
   },
@@ -150,7 +147,7 @@ const INITIAL_TASKS: TaskItem[] = [
     completedAt: Date.now() - 1800000,
     recurrence: 'none',
     subtasks: [],
-    syncedToThirdParty: { googleCalendar: true, notion: true, todoist: false },
+    syncedToThirdParty: { googleCalendar: false, notion: false, todoist: false },
     createdAt: Date.now() - 86400000,
     updatedAt: Date.now() - 1800000,
   },
@@ -544,23 +541,6 @@ export default function App() {
     };
   }, []);
 
-  // Service Worker Initialization & Background Notification Click Handler
-  useEffect(() => {
-    registerServiceWorker().then((reg) => {
-      if (reg) {
-        console.log('[VVC LIAM CORE] Service Worker inicializado con éxito para alertas en segundo plano.');
-      }
-    });
-
-    const cleanupClickListener = initNotificationClickListener(({ taskId }) => {
-      if (taskId) {
-        setIsCalendarOpen(true);
-      }
-    });
-
-    return () => cleanupClickListener();
-  }, []);
-
   // Timers countdown ticker
   useEffect(() => {
     const timerInterval = setInterval(() => {
@@ -569,15 +549,17 @@ export default function App() {
           if (!t.isRunning || t.remainingSeconds <= 0) return t;
           const nextSec = t.remainingSeconds - 1;
           if (nextSec === 0) {
-            playCyberTone('alarm');
-            speakKokoro(`¡Atención! El temporizador ${t.label} ha finalizado.`, selectedVoiceId);
-            sendBackgroundAlert(`VVC LIAM CORE // Temporizador Finalizado`, {
-              body: `El temporizador "${t.label}" ha concluido.`,
-              icon: '/pwa-192x192.png',
-              badge: '/pwa-192x192.png',
-              tag: `timer-${t.id}`,
-              requireInteraction: true,
-            });
+            if (NOTIFICATIONS_ENABLED) {
+              playCyberTone('alarm');
+              speakKokoro(`¡Atención! El temporizador ${t.label} ha finalizado.`, selectedVoiceId);
+              sendBackgroundAlert(`VVC LIAM CORE // Temporizador Finalizado`, {
+                body: `El temporizador "${t.label}" ha concluido.`,
+                icon: '/pwa-192x192.png',
+                badge: '/pwa-192x192.png',
+                tag: `timer-${t.id}`,
+                requireInteraction: true,
+              });
+            }
             return { ...t, remainingSeconds: 0, isRunning: false, isCompleted: true };
           }
           return { ...t, remainingSeconds: nextSec };
@@ -588,8 +570,9 @@ export default function App() {
     return () => clearInterval(timerInterval);
   }, [selectedVoiceId]);
 
-  // ADVANCED REAL-TIME NOTIFICATIONS MONITOR FOR TASKS & REMINDERS
+  // No notification monitor/timers while delivery is disabled. Task storage remains available.
   useEffect(() => {
+    if (!NOTIFICATIONS_ENABLED) return;
     const checkTasksInterval = setInterval(() => {
       const now = new Date();
       const currentDateStr = now.toISOString().split('T')[0];
@@ -715,7 +698,9 @@ export default function App() {
         const intentResult = parseNaturalVoiceCommand(commandText, deviceState, contacts, tasks, calendarEvents);
 
         if (intentResult.isHandled) {
-          playCyberTone('confirm');
+          if (intentResult.outcome?.status !== 'unavailable') {
+            playCyberTone('confirm');
+          }
 
           // Update device state if needed
           if (intentResult.updatedDeviceState) {
@@ -808,11 +793,6 @@ export default function App() {
           // Handle iCal Export trigger
           if (intentResult.triggerICalExport) {
             downloadICSFile(calendarEvents, tasks);
-          }
-
-          // Handle Cloud Sync trigger
-          if (intentResult.triggerThirdPartySync) {
-            playCyberTone('confirm');
           }
 
           // Add alarm
@@ -933,7 +913,8 @@ export default function App() {
 
           // Handle Native Push Notification Test Intent
           if (intentResult.triggerPushTest) {
-            testNativePushNotification();
+            intentResult.spokenResponse = NOTIFICATIONS_DISABLED_MESSAGE;
+            intentResult.actionDetails = NOTIFICATIONS_DISABLED_MESSAGE;
           }
 
           // Handle Open Settings Modal Intent
@@ -1082,7 +1063,7 @@ export default function App() {
             throw new Error('Se requiere tu API Key de Google Gemini guardada como secreto para continuar.');
           }
 
-          const res = await fetch('/api/chat/gemini', {
+          const res = await backendFetch('/api/chat/gemini', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1118,7 +1099,7 @@ export default function App() {
             throw new Error('Se requiere configurar el Endpoint URL del LLM en la Bóveda de Secretos.');
           }
 
-          const res = await fetch('/api/chat/custom', {
+          const res = await backendFetch('/api/chat/custom', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1152,7 +1133,7 @@ export default function App() {
             throw new Error('Se requiere tu API Key de NVIDIA NIM guardada como secreto para continuar.');
           }
 
-          const res = await fetch('/api/chat/nvidia', {
+          const res = await backendFetch('/api/chat/nvidia', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1458,7 +1439,7 @@ export default function App() {
       />
 
       {/* Real-Time Live Notification Alerts Toast */}
-      <RealTimeAlertToast
+      {NOTIFICATIONS_ENABLED && <RealTimeAlertToast
         alerts={activeAlerts}
         onComplete={(taskId) => {
           setTasks((prev) =>
@@ -1479,7 +1460,7 @@ export default function App() {
           setActiveAlerts((prev) => prev.filter((a) => a.id !== alertId));
         }}
         onOpenCalendar={() => setIsCalendarOpen(true)}
-      />
+      />}
 
       {/* Main Command Console & Voice Canvas Area */}
       <main className="flex-1 flex flex-col z-10 w-full max-w-7xl mx-auto py-2">

@@ -1,0 +1,78 @@
+{"identity":"synthetic-a","command":"sincronizar tareas","response":"Sincronización en tiempo real completada con servicios en la nube y calendario.","actionDetails":"Sincronización Cloud: Google Calendar & Notion en vivo","tones":["confirm","confirm"],"truthful":false,"unchangedTasks":true,"unchangedCalendar":true,"externalCalls":0,"effects":{"permission":0,"subscribe":0,"native":0,"show":0,"messages":0}}
+{"identity":"synthetic-a","command":"sincronizar calendario","response":"Sincronización en tiempo real completada con servicios en la nube y calendario.","actionDetails":"Sincronización Cloud: Google Calendar & Notion en vivo","tones":["confirm","confirm"],"truthful":false,"unchangedTasks":true,"unchangedCalendar":true,"externalCalls":0,"effects":{"permission":0,"subscribe":0,"native":0,"show":0,"messages":0}}
+{"identity":"synthetic-a","command":"sincronizar con notion","response":"Sincronización en tiempo real completada con servicios en la nube y calendario.","actionDetails":"Sincronización Cloud: Google Calendar & Notion en vivo","tones":["confirm","confirm"],"truthful":false,"unchangedTasks":true,"unchangedCalendar":true,"externalCalls":0,"effects":{"permission":0,"subscribe":0,"native":0,"show":0,"messages":0}}
+{"identity":"synthetic-a","command":"sync google","response":"Sincronización en tiempo real completada con servicios en la nube y calendario.","actionDetails":"Sincronización Cloud: Google Calendar & Notion en vivo","tones":["confirm","confirm"],"truthful":false,"unchangedTasks":true,"unchangedCalendar":true,"externalCalls":0,"effects":{"permission":0,"subscribe":0,"native":0,"show":0,"messages":0}}
+{"identity":"synthetic-b","command":"sincronizar tareas","response":"Sincronización en tiempo real completada con servicios en la nube y calendario.","actionDetails":"Sincronización Cloud: Google Calendar & Notion en vivo","tones":["confirm","confirm"],"truthful":false,"unchangedTasks":true,"unchangedCalendar":true,"externalCalls":0,"effects":{"permission":0,"subscribe":0,"native":0,"show":0,"messages":0}}
+{"identity":"synthetic-b","command":"sincronizar calendario","response":"Sincronización en tiempo real completada con servicios en la nube y calendario.","actionDetails":"Sincronización Cloud: Google Calendar & Notion en vivo","tones":["confirm","confirm"],"truthful":false,"unchangedTasks":true,"unchangedCalendar":true,"externalCalls":0,"effects":{"permission":0,"subscribe":0,"native":0,"show":0,"messages":0}}
+{"identity":"synthetic-b","command":"sincronizar con notion","response":"Sincronización en tiempo real completada con servicios en la nube y calendario.","actionDetails":"Sincronización Cloud: Google Calendar & Notion en vivo","tones":["confirm","confirm"],"truthful":false,"unchangedTasks":true,"unchangedCalendar":true,"externalCalls":0,"effects":{"permission":0,"subscribe":0,"native":0,"show":0,"messages":0}}
+{"identity":"synthetic-b","command":"sync google","response":"Sincronización en tiempo real completada con servicios en la nube y calendario.","actionDetails":"Sincronización Cloud: Google Calendar & Notion en vivo","tones":["confirm","confirm"],"truthful":false,"unchangedTasks":true,"unchangedCalendar":true,"externalCalls":0,"effects":{"permission":0,"subscribe":0,"native":0,"show":0,"messages":0}}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
++ actual - expected
+
++ [
++   'synthetic-a: sincronizar tareas falsely claims completed sync',
++   'synthetic-a: sincronizar tareas emits success tones',
++   'synthetic-a: sincronizar tareas enables inert sync trigger',
++   'synthetic-a: sincronizar calendario falsely claims completed sync',
++   'synthetic-a: sincronizar calendario emits success tones',
++   'synthetic-a: sincronizar calendario enables inert sync trigger',
++   'synthetic-a: sincronizar con notion falsely claims completed sync',
++   'synthetic-a: sincronizar con notion emits success tones',
++   'synthetic-a: sincronizar con notion enables inert sync trigger',
++   'synthetic-a: sync google falsely claims completed sync',
++   'synthetic-a: sync google emits success tones',
++   'synthetic-a: sync google enables inert sync trigger',
++   'synthetic-b: sincronizar tareas falsely claims completed sync',
++   'synthetic-b: sincronizar tareas emits success tones',
++   'synthetic-b: sincronizar tareas enables inert sync trigger',
++   'synthetic-b: sincronizar calendario falsely claims completed sync',
++   'synthetic-b: sincronizar calendario emits success tones',
++   'synthetic-b: sincronizar calendario enables inert sync trigger',
++   'synthetic-b: sincronizar con notion falsely claims completed sync',
++   'synthetic-b: sincronizar con notion emits success tones',
++   'synthetic-b: sincronizar con notion enables inert sync trigger',
++   'synthetic-b: sync google falsely claims completed sync',
++   'synthetic-b: sync google emits success tones',
++   'synthetic-b: sync google enables inert sync trigger'
++ ]
+- []
+
+    at file:///workspace/vvc-g02-sync-intent-b01/tests/sync-intent-truthfulness-browser.mjs:109:44 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: [
+    'synthetic-a: sincronizar tareas falsely claims completed sync',
+    'synthetic-a: sincronizar tareas emits success tones',
+    'synthetic-a: sincronizar tareas enables inert sync trigger',
+    'synthetic-a: sincronizar calendario falsely claims completed sync',
+    'synthetic-a: sincronizar calendario emits success tones',
+    'synthetic-a: sincronizar calendario enables inert sync trigger',
+    'synthetic-a: sincronizar con notion falsely claims completed sync',
+    'synthetic-a: sincronizar con notion emits success tones',
+    'synthetic-a: sincronizar con notion enables inert sync trigger',
+    'synthetic-a: sync google falsely claims completed sync',
+    'synthetic-a: sync google emits success tones',
+    'synthetic-a: sync google enables inert sync trigger',
+    'synthetic-b: sincronizar tareas falsely claims completed sync',
+    'synthetic-b: sincronizar tareas emits success tones',
+    'synthetic-b: sincronizar tareas enables inert sync trigger',
+    'synthetic-b: sincronizar calendario falsely claims completed sync',
+    'synthetic-b: sincronizar calendario emits success tones',
+    'synthetic-b: sincronizar calendario enables inert sync trigger',
+    'synthetic-b: sincronizar con notion falsely claims completed sync',
+    'synthetic-b: sincronizar con notion emits success tones',
+    'synthetic-b: sincronizar con notion enables inert sync trigger',
+    'synthetic-b: sync google falsely claims completed sync',
+    'synthetic-b: sync google emits success tones',
+    'synthetic-b: sync google enables inert sync trigger'
+  ],
+  expected: [],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

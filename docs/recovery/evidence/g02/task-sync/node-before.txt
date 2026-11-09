@@ -1,0 +1,135 @@
+{"case":"local task flags","priority":"critica","flags":{"googleCalendar":true,"notion":true,"todoist":true,"slackWebhook":true},"externalCalls":0}
+{"case":"legacy true","labels":{"google":true,"notion":true},"externalCalls":0}
+{"case":"legacy partial","labels":{"google":true,"notion":false},"externalCalls":0}
+{"case":"false","labels":{"google":false,"notion":false},"externalCalls":0}
+{"case":"unknown","labels":{"google":false,"notion":false},"externalCalls":0}
+{"case":"untrusted pending/failed payload","labels":{"google":true,"notion":true},"externalCalls":0}
+✖ new local tasks preserve their fields without claiming any completed external synchronization (5.664289ms)
+✖ task UI does not treat legacy true indicators as evidence or mutate historical data (13.054237ms)
+✖ task UI does not treat legacy partial indicators as evidence or mutate historical data (7.204247ms)
+✔ task UI does not treat false indicators as evidence or mutate historical data (4.82168ms)
+✔ task UI does not treat unknown indicators as evidence or mutate historical data (4.927881ms)
+✖ task UI does not treat untrusted pending/failed payload indicators as evidence or mutate historical data (4.216339ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 2
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 196.431076
+
+✖ failing tests:
+
+test at tests/task-sync-truthfulness.test.mjs:30:1
+✖ new local tasks preserve their fields without claiming any completed external synchronization (5.664289ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   googleCalendar: true,
+  +   notion: true,
+  +   slackWebhook: true,
+  +   todoist: true
+  -   googleCalendar: false,
+  -   notion: false,
+  -   slackWebhook: false,
+  -   todoist: false
+    }
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-sync-evidence-b01/tests/task-sync-truthfulness.test.mjs:39:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { googleCalendar: true, notion: true, todoist: true, slackWebhook: true },
+    expected: { googleCalendar: false, notion: false, todoist: false, slackWebhook: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests/task-sync-truthfulness.test.mjs:50:3
+✖ task UI does not treat legacy true indicators as evidence or mutate historical data (13.054237ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   google: true,
+  +   notion: true
+  -   google: false,
+  -   notion: false
+    }
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-sync-evidence-b01/tests/task-sync-truthfulness.test.mjs:64:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { google: true, notion: true },
+    expected: { google: false, notion: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests/task-sync-truthfulness.test.mjs:50:3
+✖ task UI does not treat legacy partial indicators as evidence or mutate historical data (7.204247ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   google: true,
+  -   google: false,
+      notion: false
+    }
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-sync-evidence-b01/tests/task-sync-truthfulness.test.mjs:64:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { google: true, notion: false },
+    expected: { google: false, notion: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests/task-sync-truthfulness.test.mjs:50:3
+✖ task UI does not treat untrusted pending/failed payload indicators as evidence or mutate historical data (4.216339ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    {
+  +   google: true,
+  +   notion: true
+  -   google: false,
+  -   notion: false
+    }
+  
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-sync-evidence-b01/tests/task-sync-truthfulness.test.mjs:64:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { google: true, notion: true },
+    expected: { google: false, notion: false },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

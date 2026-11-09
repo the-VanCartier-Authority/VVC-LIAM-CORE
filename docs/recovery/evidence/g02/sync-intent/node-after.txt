@@ -1,0 +1,17 @@
+{"command":"sincronizar tareas","isHandled":true,"response":"No se realizó ninguna sincronización externa. Esta función todavía no está disponible.","actionDetails":"Sincronización externa no disponible; no se ejecutó ninguna operación.","triggerThirdPartySync":null,"outcome":{"status":"unavailable","realExecution":false,"source":"third-party-sync"},"effects":{"external":0,"notifications":0,"messages":0}}
+{"command":"sincronizar calendario","isHandled":true,"response":"No se realizó ninguna sincronización externa. Esta función todavía no está disponible.","actionDetails":"Sincronización externa no disponible; no se ejecutó ninguna operación.","triggerThirdPartySync":null,"outcome":{"status":"unavailable","realExecution":false,"source":"third-party-sync"},"effects":{"external":0,"notifications":0,"messages":0}}
+{"command":"sincronizar con notion","isHandled":true,"response":"No se realizó ninguna sincronización externa. Esta función todavía no está disponible.","actionDetails":"Sincronización externa no disponible; no se ejecutó ninguna operación.","triggerThirdPartySync":null,"outcome":{"status":"unavailable","realExecution":false,"source":"third-party-sync"},"effects":{"external":0,"notifications":0,"messages":0}}
+{"command":"sync google","isHandled":true,"response":"No se realizó ninguna sincronización externa. Esta función todavía no está disponible.","actionDetails":"Sincronización externa no disponible; no se ejecutó ninguna operación.","triggerThirdPartySync":null,"outcome":{"status":"unavailable","realExecution":false,"source":"third-party-sync"},"effects":{"external":0,"notifications":0,"messages":0}}
+✔ sincronizar tareas: recognizes unavailability without success, action triggers or data changes (3.720415ms)
+✔ sincronizar calendario: recognizes unavailability without success, action triggers or data changes (0.412219ms)
+✔ sincronizar con notion: recognizes unavailability without success, action triggers or data changes (0.205399ms)
+✔ sync google: recognizes unavailability without success, action triggers or data changes (0.286731ms)
+✔ local task creation and ICS generation retain their distinct actions (1.202047ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 77.833055

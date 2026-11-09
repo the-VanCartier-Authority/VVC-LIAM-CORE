@@ -261,14 +261,14 @@ const VOICE_SHORTCUTS: VoiceShortcut[] = [
     phrase: 'Alarma para las 07:30',
     category: 'device',
     description: 'Programa una alarma despertadora en el sistema horario del dispositivo.',
-    actionOutput: 'Registra alarma con sonido cibernético y notificación.',
+    actionOutput: 'Registra la alarma en la agenda. Las notificaciones están deshabilitadas.',
   },
   {
     id: 'cmd-20',
     phrase: 'Temporizador de 15 minutos',
     category: 'device',
-    description: 'Inicia una cuenta regresiva visual y sonora en tiempo real.',
-    actionOutput: 'Inicia temporizador con alerta al finalizar.',
+    description: 'Inicia una cuenta regresiva visual en tiempo real.',
+    actionOutput: 'Inicia temporizador visual; las alertas están deshabilitadas.',
   },
 
   // APARIENCIA Y TEMAS

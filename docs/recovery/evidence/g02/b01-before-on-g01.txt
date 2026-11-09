@@ -1,0 +1,289 @@
+▶ B01: every sensitive endpoint rejects missing and forged identity before its handler
+  ✖ GET /api/vaos/tasks (6.317919ms)
+  ✖ GET /api/vaos/telemetry (5.370503ms)
+  ✖ GET /api/vaos/task/missing (6.81383ms)
+  ✖ GET /api/push/status (53.085402ms)
+  ✖ POST /api/vaos/dispatch (40.726517ms)
+  ✖ POST /api/chat/nvidia (14.031794ms)
+  ✖ POST /api/chat/gemini (58.133001ms)
+  ✖ POST /api/chat/custom (11.796761ms)
+  ✖ POST /api/secrets/test (12.684749ms)
+  ✖ POST /api/tts (5.533543ms)
+  ✖ POST /api/push/subscribe (8.614543ms)
+  ✖ POST /api/push/unsubscribe (7.192878ms)
+  ✖ POST /api/push/send (44.647112ms)
+✖ B01: every sensitive endpoint rejects missing and forged identity before its handler (1403.690416ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 0
+ℹ fail 14
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1546.968146
+
+✖ failing tests:
+
+test at tests/backend-auth-regression.test.mjs:13:13
+✖ GET /api/vaos/tasks (6.317919ms)
+  AssertionError [ERR_ASSERTION]: GET /api/vaos/tasks
+
+  200 !== 401
+
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-b01-before/tests/backend-auth-regression.test.mjs:17:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/vvc-g02-b01-before/tests/backend-auth-regression.test.mjs:13:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 401,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/backend-auth-regression.test.mjs:13:13
+✖ GET /api/vaos/telemetry (5.370503ms)
+  AssertionError [ERR_ASSERTION]: GET /api/vaos/telemetry
+
+  200 !== 401
+
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-b01-before/tests/backend-auth-regression.test.mjs:17:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/vvc-g02-b01-before/tests/backend-auth-regression.test.mjs:13:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 401,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/backend-auth-regression.test.mjs:13:13
+✖ GET /api/vaos/task/missing (6.81383ms)
+  AssertionError [ERR_ASSERTION]: GET /api/vaos/task/missing
+
+  404 !== 401
+
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-b01-before/tests/backend-auth-regression.test.mjs:17:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/vvc-g02-b01-before/tests/backend-auth-regression.test.mjs:13:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 404,
+    expected: 401,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/backend-auth-regression.test.mjs:13:13
+✖ GET /api/push/status (53.085402ms)
+  AssertionError [ERR_ASSERTION]: GET /api/push/status
+
+  200 !== 401
+
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-b01-before/tests/backend-auth-regression.test.mjs:17:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/vvc-g02-b01-before/tests/backend-auth-regression.test.mjs:13:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 401,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/backend-auth-regression.test.mjs:13:13
+✖ POST /api/vaos/dispatch (40.726517ms)
+  AssertionError [ERR_ASSERTION]: POST /api/vaos/dispatch
+
+  400 !== 401
+
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-b01-before/tests/backend-auth-regression.test.mjs:17:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/vvc-g02-b01-before/tests/backend-auth-regression.test.mjs:13:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 400,
+    expected: 401,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/backend-auth-regression.test.mjs:13:13
+✖ POST /api/chat/nvidia (14.031794ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'MISSING_API_KEY'
+  - 'AUTH_REQUIRED'
+
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-b01-before/tests/backend-auth-regression.test.mjs:18:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/vvc-g02-b01-before/tests/backend-auth-regression.test.mjs:13:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'MISSING_API_KEY',
+    expected: 'AUTH_REQUIRED',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/backend-auth-regression.test.mjs:13:13
+✖ POST /api/chat/gemini (58.133001ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'MISSING_API_KEY'
+  - 'AUTH_REQUIRED'
+
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-b01-before/tests/backend-auth-regression.test.mjs:18:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/vvc-g02-b01-before/tests/backend-auth-regression.test.mjs:13:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'MISSING_API_KEY',
+    expected: 'AUTH_REQUIRED',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/backend-auth-regression.test.mjs:13:13
+✖ POST /api/chat/custom (11.796761ms)
+  AssertionError [ERR_ASSERTION]: POST /api/chat/custom
+
+  400 !== 401
+
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-b01-before/tests/backend-auth-regression.test.mjs:17:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/vvc-g02-b01-before/tests/backend-auth-regression.test.mjs:13:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 400,
+    expected: 401,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/backend-auth-regression.test.mjs:13:13
+✖ POST /api/secrets/test (12.684749ms)
+  AssertionError [ERR_ASSERTION]: POST /api/secrets/test
+
+  400 !== 401
+
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-b01-before/tests/backend-auth-regression.test.mjs:17:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/vvc-g02-b01-before/tests/backend-auth-regression.test.mjs:13:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 400,
+    expected: 401,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/backend-auth-regression.test.mjs:13:13
+✖ POST /api/tts (5.533543ms)
+  AssertionError [ERR_ASSERTION]: POST /api/tts
+
+  400 !== 401
+
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-b01-before/tests/backend-auth-regression.test.mjs:17:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/vvc-g02-b01-before/tests/backend-auth-regression.test.mjs:13:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 400,
+    expected: 401,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/backend-auth-regression.test.mjs:13:13
+✖ POST /api/push/subscribe (8.614543ms)
+  AssertionError [ERR_ASSERTION]: POST /api/push/subscribe
+
+  400 !== 401
+
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-b01-before/tests/backend-auth-regression.test.mjs:17:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/vvc-g02-b01-before/tests/backend-auth-regression.test.mjs:13:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 400,
+    expected: 401,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/backend-auth-regression.test.mjs:13:13
+✖ POST /api/push/unsubscribe (7.192878ms)
+  AssertionError [ERR_ASSERTION]: POST /api/push/unsubscribe
+
+  200 !== 401
+
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-b01-before/tests/backend-auth-regression.test.mjs:17:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/vvc-g02-b01-before/tests/backend-auth-regression.test.mjs:13:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 401,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/backend-auth-regression.test.mjs:13:13
+✖ POST /api/push/send (44.647112ms)
+  AssertionError [ERR_ASSERTION]: POST /api/push/send
+
+  200 !== 401
+
+      at TestContext.<anonymous> (file:///workspace/vvc-g02-b01-before/tests/backend-auth-regression.test.mjs:17:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async TestContext.<anonymous> (file:///workspace/vvc-g02-b01-before/tests/backend-auth-regression.test.mjs:13:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 401,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

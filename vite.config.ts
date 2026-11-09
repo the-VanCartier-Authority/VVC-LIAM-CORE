@@ -11,6 +11,7 @@ export default defineConfig(() => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
+        injectRegister: false, // One lifecycle owner in src/main.tsx.
         manifestFilename: 'manifest.json',
         includeAssets: [
           'favicon.ico',
@@ -123,6 +124,9 @@ export default defineConfig(() => {
           ],
         } as any,
         workbox: {
+          skipWaiting: true,
+          clientsClaim: true,
+          cleanupOutdatedCaches: false,
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
           navigateFallback: '/offline.html',
           importScripts: ['/sw-push.js'],

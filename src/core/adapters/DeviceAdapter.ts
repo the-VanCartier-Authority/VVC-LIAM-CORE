@@ -154,44 +154,13 @@ export class DeviceAdapter implements DeviceCapabilities {
     return false;
   }
 
+  // G02 notification policy: no permission prompts or native/local fallback.
   public async requestNotificationPermission(): Promise<NotificationPermission> {
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      return 'denied';
-    }
-    try {
-      return await Notification.requestPermission();
-    } catch {
-      return 'denied';
-    }
+    return 'denied';
   }
 
-  public async showNotification(title: string, options?: NotificationOptions): Promise<boolean> {
-    if (typeof window === 'undefined' || !('Notification' in window)) {
-      return false;
-    }
-    if (Notification.permission !== 'granted') {
-      const perm = await this.requestNotificationPermission();
-      if (perm !== 'granted') return false;
-    }
-
-    try {
-      // Prefer service worker registration if available
-      if ('serviceWorker' in navigator) {
-        const reg = await navigator.serviceWorker.getRegistration();
-        if (reg) {
-          await reg.showNotification(title, {
-            icon: '/pwa-192x192.png',
-            badge: '/pwa-192x192.png',
-            ...options,
-          });
-          return true;
-        }
-      }
-      new Notification(title, options);
-      return true;
-    } catch {
-      return false;
-    }
+  public async showNotification(_title: string, _options?: NotificationOptions): Promise<boolean> {
+    return false;
   }
 
   public async copyToClipboard(text: string): Promise<boolean> {

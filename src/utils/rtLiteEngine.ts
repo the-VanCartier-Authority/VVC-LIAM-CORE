@@ -1,3 +1,5 @@
+import { NOTIFICATIONS_DISABLED_MESSAGE } from '../shared/notificationPolicy';
+import { executionOutcome, type ExecutionOutcome } from '../shared/executionOutcome';
 import type { 
   DeviceState, 
   PhoneContact, 
@@ -39,6 +41,7 @@ export interface CommandExecutionResult {
     | 'document' 
     | 'spreadsheet';
   actionDetails?: string;
+  outcome?: ExecutionOutcome;
   updatedDeviceState?: Partial<DeviceState>;
   newAlarm?: Omit<AlarmItem, 'id'>;
   newTimer?: { label: string; seconds: number };
@@ -52,7 +55,6 @@ export interface CommandExecutionResult {
   messagePayload?: { recipient: string; message: string; channel: 'SMS' | 'WhatsApp' };
   screenFlashlight?: boolean;
   triggerICalExport?: boolean;
-  triggerThirdPartySync?: boolean;
   triggerCalendarSync?: 'google' | 'outlook' | 'apple';
   openCalendar?: boolean;
   openGmail?: boolean;
@@ -217,10 +219,10 @@ export function parseNaturalVoiceCommand(
   if (query.includes('sincronizar calendario') || query.includes('sincronizar tareas') || query.includes('sync google') || query.includes('sincronizar con notion')) {
     return {
       isHandled: true,
-      spokenResponse: 'Sincronización en tiempo real completada con servicios en la nube y calendario.',
+      spokenResponse: 'No se realizó ninguna sincronización externa. Esta función todavía no está disponible.',
       actionType: 'sync',
-      actionDetails: 'Sincronización Cloud: Google Calendar & Notion en vivo',
-      triggerThirdPartySync: true,
+      actionDetails: 'Sincronización externa no disponible; no se ejecutó ninguna operación.',
+      outcome: executionOutcome('unavailable', 'third-party-sync'),
     };
   }
 
@@ -474,7 +476,7 @@ export function parseNaturalVoiceCommand(
 
     return {
       isHandled: true,
-      spokenResponse: `Tarea "${title}" creada con prioridad ${priority} para las ${timeDue}. Notificación en tiempo real y sincronización listas.`,
+      spokenResponse: `Tarea "${title}" creada con prioridad ${priority} para las ${timeDue}. Las notificaciones push y locales están deshabilitadas.`,
       actionType: 'task',
       actionDetails: `Tarea registrada: "${title}" [${priority.toUpperCase()}] Fecha: ${dueDate} ${timeDue}`,
       newTask: {
@@ -487,10 +489,10 @@ export function parseNaturalVoiceCommand(
         recurrence,
         subtasks: [],
         syncedToThirdParty: {
-          googleCalendar: true,
-          notion: true,
-          todoist: true,
-          slackWebhook: true,
+          googleCalendar: false,
+          notion: false,
+          todoist: false,
+          slackWebhook: false,
         },
       },
     };
@@ -1039,24 +1041,8 @@ export function parseNaturalVoiceCommand(
     query.includes('service worker') ||
     query.includes('push')
   ) {
-    if (query.includes('probar') || query.includes('test') || query.includes('alerta') || query.includes('enviar')) {
-      return {
-        isHandled: true,
-        spokenResponse: 'Disparando notificación push nativa en segundo plano mediante Service Worker.',
-        actionType: 'security',
-        actionDetails: 'Alerta push nativa disparada',
-        triggerPushTest: true,
-      };
-    }
-    if (query.includes('activar') || query.includes('habilitar') || query.includes('configurar') || query.includes('abrir')) {
-      return {
-        isHandled: true,
-        spokenResponse: 'Abriendo panel de configuración de Service Worker y notificaciones en segundo plano.',
-        actionType: 'security',
-        actionDetails: 'Ajustes de Service Worker y Push desplegados',
-        openSettings: true,
-      };
-    }
+    return { isHandled: true, spokenResponse: NOTIFICATIONS_DISABLED_MESSAGE,
+      actionType: 'security', actionDetails: NOTIFICATIONS_DISABLED_MESSAGE };
   }
 
   // 22. GENERACIÓN DE ARCHIVOS DE TEXTO Y HOJAS DE CÁLCULO CON EXPORTACIÓN A PDF
@@ -1170,7 +1156,7 @@ El presente informe documenta el estado operativo y los parámetros clave de "${
 2. PUNTOS CLAVE Y DIAGNÓSTICO
 • Sincronización multi-proveedor: Google Calendar, Outlook y Apple Calendar vinculados.
 • Detección y resolución de conflictos de agenda: Algoritmo heurístico activo.
-• Alertas de segundo plano y Service Worker: Configuración de notificaciones push operativa.
+• Alertas de segundo plano: notificaciones push y locales deshabilitadas hasta revisión de B05.
 • Control de hardware del teléfono: Motores RT-Lite disponibles para linterna, volumen, brillo y telecomunicaciones.
 
 3. RESOLUCIONES Y CONCLUSIONES
@@ -1273,7 +1259,7 @@ export function generateRTLiteResponse(prompt: string, activeEngine: ModelType =
 2. RT-Lite Telephony: Llamadas directas, mensajería SMS, WhatsApp y libreta de contactos.
 3. RT-Lite Agenda: Programación compleja, detección/resolución de conflictos y sync Google/Outlook/Apple.
 4. RT-Lite Docs: Generación de documentos de texto, hojas de cálculo y exportación a PDF.
-5. RT-Lite Security: Bóveda E2EE AES-GCM-256, service worker y notificaciones push nativas.
+5. RT-Lite Security: Bóveda E2EE AES-GCM-256. Notificaciones push y locales deshabilitadas.
 6. RT-Lite Master Omni-Engine: Control global coordinado en el dispositivo.`;
   }
 
@@ -1287,7 +1273,7 @@ export function generateRTLiteResponse(prompt: string, activeEngine: ModelType =
 • "Llamar a [contacto]" / "WhatsApp a [contacto]: [mensaje]"
 • "Encender linterna" / "Linterna de pantalla"
 • "Crear tarea urgente [nombre] para las [hora]"
-• "Probar notificación push en segundo plano"`;
+• Las notificaciones push y locales están deshabilitadas.`;
   }
 
   return `${enginePrefix} Solicitud no reconocida por el motor local. No se ha ejecutado ninguna acción.`;

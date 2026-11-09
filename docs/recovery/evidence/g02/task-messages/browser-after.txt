@@ -1,0 +1,7 @@
+{"identity":"synthetic-a","case":"task text/voice","priority":"critica","truthful":true,"response":"Tarea \"revisar informe\" creada con prioridad critica para las 14:35. Las notificaciones push y locales están deshabilitadas.","effects":{"permission":0,"subscribe":0,"native":0,"show":0,"messages":0}}
+{"identity":"synthetic-a","case":"task text/voice","priority":"baja","truthful":true,"response":"Tarea \"respaldo local\" creada con prioridad baja para las 16:40. Las notificaciones push y locales están deshabilitadas.","effects":{"permission":0,"subscribe":0,"native":0,"show":0,"messages":0}}
+{"identity":"synthetic-a","case":"help text/voice","truthful":true,"offersPushTest":false}
+{"identity":"synthetic-b","case":"task text/voice","priority":"critica","truthful":true,"response":"Tarea \"revisar informe\" creada con prioridad critica para las 14:35. Las notificaciones push y locales están deshabilitadas.","effects":{"permission":0,"subscribe":0,"native":0,"show":0,"messages":0}}
+{"identity":"synthetic-b","case":"task text/voice","priority":"baja","truthful":true,"response":"Tarea \"respaldo local\" creada con prioridad baja para las 16:40. Las notificaciones push y locales están deshabilitadas.","effects":{"permission":0,"subscribe":0,"native":0,"show":0,"messages":0}}
+{"identity":"synthetic-b","case":"help text/voice","truthful":true,"offersPushTest":false}
+{"fixture":"G02 truthful task/help text and voice","result":"PASS","cases":6,"identities":2,"browser":"156.0.8078.4","realExternalCalls":0,"realSpeechProviderCalls":0}
