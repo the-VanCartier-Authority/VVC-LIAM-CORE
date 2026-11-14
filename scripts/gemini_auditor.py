@@ -8,6 +8,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path, PurePosixPath
+from time import monotonic
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
@@ -57,6 +58,8 @@ EXTENSIONS = {
 EXCLUDED = {"venv", "node_modules", "__pycache__", "dist", "coverage", "secrets"}
 MAX_FILES = 32
 MAX_BYTES = 192 * 1024
+GITHUB_TIMEOUT_SECONDS = 30
+GEMINI_TIMEOUT_SECONDS = 240
 
 
 class AuditError(Exception):
@@ -69,13 +72,32 @@ class NoRedirect(HTTPRedirectHandler):
 
 
 def api_json(url, headers, payload=None):
+    service = "Gemini" if payload is not None else "GitHub"
+    timeout = GEMINI_TIMEOUT_SECONDS if payload is not None else GITHUB_TIMEOUT_SECONDS
     body = None if payload is None else json.dumps(payload).encode()
     request = Request(url, data=body, headers=headers)
-    with build_opener(NoRedirect()).open(request, timeout=100) as response:
-        raw = response.read(2 * 1024 * 1024 + 1)
+    try:
+        with build_opener(NoRedirect()).open(request, timeout=timeout) as response:
+            raw = response.read(2 * 1024 * 1024 + 1)
+    except HTTPError as error:
+        raise AuditError(f"{service}: HTTP {error.code}.") from None
+    except URLError as error:
+        if isinstance(error.reason, TimeoutError):
+            raise AuditError(f"{service}: tiempo de espera de red agotado ({timeout} s).") from None
+        raise AuditError(f"{service}: error de conexión.") from None
+    except TimeoutError:
+        raise AuditError(f"{service}: tiempo de espera de red agotado ({timeout} s).") from None
+    except OSError:
+        raise AuditError(f"{service}: error de transporte al recibir la respuesta.") from None
     if len(raw) > 2 * 1024 * 1024:
-        raise AuditError("Respuesta de API demasiado grande.")
-    return json.loads(raw)
+        raise AuditError(f"{service}: respuesta de API demasiado grande.")
+    try:
+        data = json.loads(raw)
+    except (UnicodeError, json.JSONDecodeError):
+        raise AuditError(f"{service}: cuerpo de respuesta inválido.") from None
+    if not isinstance(data, dict):
+        raise AuditError(f"{service}: estructura de respuesta inesperada.")
+    return data
 
 
 def git(*args):
@@ -270,6 +292,7 @@ def prepare_audit(env, request):
 
 def audit(env, request=api_json):
     audit_type, model, scope, encoded = prepare_audit(env, request)
+    files = scope["files"]
     key = env.get("GEMINI_API_KEY")
     if not key:
         raise AuditError("Falta GEMINI_API_KEY en el entorno gemini-audit.")
@@ -287,22 +310,38 @@ def audit(env, request=api_json):
                              "responseJsonSchema": response_schema(scope["controls"]),
                              "maxOutputTokens": 8192},
     }
+    if model == "gemini-3.8-flash" and audit_type == "architecture":
+        payload["generationConfig"]["thinkingConfig"] = {"thinkingLevel": "LOW"}
+    print(f"Gemini: enviando auditoría {audit_type} con {model} "
+          f"({len(files)} archivos, {len(encoded)} bytes de alcance).", flush=True)
+    started = monotonic()
     reply = request(
         f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
         {"x-goog-api-key": key, "Content-Type": "application/json"}, payload,
     )
-    candidates = reply.get("candidates", [])
-    if len(candidates) != 1 or candidates[0].get("finishReason") != "STOP":
-        raise AuditError("Gemini no entregó una respuesta completa.")
-    parts = candidates[0]["content"]["parts"]
-    report = json.loads("".join(part["text"] for part in parts if not part.get("thought")))
+    print(f"Gemini: respuesta recibida en {monotonic() - started:.1f} s. Validando informe.", flush=True)
+    candidates = reply.get("candidates")
+    if not isinstance(candidates, list) or len(candidates) != 1:
+        raise AuditError("Gemini: la respuesta no contiene un candidato único.")
+    candidate = candidates[0]
+    if not isinstance(candidate, dict):
+        raise AuditError("Gemini: estructura de candidato inesperada.")
+    finish_reason = candidate.get("finishReason")
+    if finish_reason != "STOP":
+        reason = finish_reason if finish_reason in ("MAX_TOKENS", "SAFETY", "RECITATION") else "OTRO"
+        raise AuditError(f"Gemini no entregó una respuesta completa ({reason}).")
+    try:
+        parts = candidate["content"]["parts"]
+        report = json.loads("".join(part["text"] for part in parts if not part.get("thought")))
+    except (KeyError, TypeError, AttributeError, json.JSONDecodeError):
+        raise AuditError("Gemini: el candidato no contiene un informe JSON válido.") from None
     return {
         "audit_type": audit_type, "model": model, "model_version": reply.get("modelVersion"),
         "auditor_sha": env["GITHUB_SHA"], "base_sha": scope["base_sha"],
         "audited_sha": scope["candidate_sha"], "scope": scope["paths"],
         "input_sha256": hashlib.sha256(encoded).hexdigest(), "recovery_ci": scope["ci"],
         "usage": reply.get("usageMetadata"),
-        "resultados": validate_report(report, scope["files"], scope["controls"]),
+        "resultados": validate_report(report, files, scope["controls"]),
     }
 
 
@@ -330,15 +369,22 @@ def write_report(env, report):
 def main():
     try:
         report = audit(os.environ)
-        write_report(os.environ, report)
     except AuditError as error:
         print(f"SIN DICTAMEN — {error}", file=sys.stderr)
         return 1
-    except HTTPError as error:
-        print(f"SIN DICTAMEN — API respondió HTTP {error.code}.", file=sys.stderr)
+    except subprocess.TimeoutExpired:
+        print("SIN DICTAMEN — Git: tiempo de espera agotado.", file=sys.stderr)
         return 1
-    except (URLError, OSError, ValueError, TypeError, KeyError, AttributeError, subprocess.TimeoutExpired):
-        print("SIN DICTAMEN — no se pudo validar una entrada, una respuesta o el entorno.", file=sys.stderr)
+    except (OSError, ValueError, TypeError, KeyError, AttributeError):
+        print("SIN DICTAMEN — no se pudo validar el alcance o la respuesta.", file=sys.stderr)
+        return 1
+    try:
+        write_report(os.environ, report)
+    except AuditError as error:
+        print(f"SIN DICTAMEN — publicación: {error}", file=sys.stderr)
+        return 1
+    except (OSError, ValueError, KeyError):
+        print("SIN DICTAMEN — no se pudo guardar el informe en el runner.", file=sys.stderr)
         return 1
     return 0
 

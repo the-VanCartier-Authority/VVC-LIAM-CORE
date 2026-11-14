@@ -5,12 +5,50 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
+from urllib.error import HTTPError, URLError
 
 
 MODULE = Path(__file__).resolve().parents[1] / "scripts" / "gemini_auditor.py"
 SPEC = importlib.util.spec_from_file_location("gemini_auditor", MODULE)
 auditor = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(auditor)
+
+
+class ApiDiagnosticsTests(unittest.TestCase):
+    def test_gemini_timeout_while_waiting_for_headers_or_body(self):
+        for failure in (TimeoutError("private details"), URLError(TimeoutError("private details")), None):
+            with self.subTest(error_type=type(failure).__name__), patch.object(auditor, "build_opener") as builder:
+                opener = builder.return_value
+                if failure is not None:
+                    opener.open.side_effect = failure
+                else:
+                    response = opener.open.return_value.__enter__.return_value
+                    response.read.side_effect = TimeoutError("private details")
+                with self.assertRaisesRegex(auditor.AuditError, r"^Gemini: tiempo de espera de red agotado \(240 s\)\.$"):
+                    auditor.api_json("https://gemini.example.invalid", {}, {})
+                self.assertEqual(opener.open.call_args.kwargs["timeout"], 240)
+                self.assertEqual(opener.open.call_count, 1)
+
+    def test_github_timeout_has_its_own_limit(self):
+        with patch.object(auditor, "build_opener") as builder:
+            opener = builder.return_value
+            opener.open.side_effect = URLError(TimeoutError("private details"))
+            with self.assertRaisesRegex(auditor.AuditError, r"^GitHub: tiempo de espera de red agotado \(30 s\)\.$"):
+                auditor.api_json("https://github.example.invalid", {})
+            self.assertEqual(opener.open.call_args.kwargs["timeout"], 30)
+
+    def test_http_error_and_invalid_json_do_not_leak_details(self):
+        url = "https://gemini.example.invalid"
+        with patch.object(auditor, "build_opener") as builder:
+            opener = builder.return_value
+            opener.open.side_effect = HTTPError(url, 429, "private details", None, None)
+            with self.assertRaisesRegex(auditor.AuditError, r"^Gemini: HTTP 429\.$"):
+                auditor.api_json(url, {}, {})
+            opener.open.side_effect = None
+            opener.open.return_value.__enter__.return_value.read.return_value = b"private details"
+            with self.assertRaisesRegex(auditor.AuditError, r"^Gemini: cuerpo de respuesta inv.lido\.$"):
+                auditor.api_json(url, {}, {})
 
 
 class AuditTests(unittest.TestCase):
@@ -65,6 +103,7 @@ class AuditTests(unittest.TestCase):
             for control in auditor.B02_CONTROLS
         ]
         self.finish = "STOP"
+        self.gemini_text = None
 
     def git(self, *args):
         return subprocess.check_output(["git", *args], stderr=subprocess.DEVNULL, text=True).strip()
@@ -93,7 +132,7 @@ class AuditTests(unittest.TestCase):
         self.assertEqual(headers["x-goog-api-key"], "fixture-gemini-key")
         self.assertNotIn("Authorization", headers)
         self.payload = payload
-        body = json.dumps({"resultados": self.items})
+        body = self.gemini_text if self.gemini_text is not None else json.dumps({"resultados": self.items})
         return {"modelVersion": "fixture", "candidates": [
             {"finishReason": self.finish, "content": {"parts": [{"text": body}]}}
         ]}
@@ -114,6 +153,7 @@ class AuditTests(unittest.TestCase):
         self.assertNotIn("stage = 'base'", sent["files"]["server.ts"])
         self.assertEqual(set(sent["controls"]), set(auditor.B02_CONTROLS))
         self.assertEqual(self.payload["generationConfig"]["responseMimeType"], "application/json")
+        self.assertNotIn("thinkingConfig", self.payload["generationConfig"])
         self.assertEqual(report["audited_sha"], self.candidate)
         self.assertEqual(report["auditor_sha"], self.base)
         self.assertEqual(report["recovery_ci"]["attempt"], 2)
@@ -181,6 +221,7 @@ class AuditTests(unittest.TestCase):
         auditor.audit(self.env, self.request)
         sent = json.loads(self.payload["contents"][0]["parts"][0]["text"])
         self.assertEqual(sent["files"], {"scope/tracked.tsx": "export const original = true;\n"})
+        self.assertEqual(self.payload["generationConfig"]["thinkingConfig"], {"thinkingLevel": "LOW"})
 
     def test_oversize_is_rejected_before_any_api_call(self):
         self.put("scope/large.ts", "x" * (auditor.MAX_BYTES + 1))
@@ -206,5 +247,10 @@ class AuditTests(unittest.TestCase):
 
     def test_incomplete_model_result_is_rejected(self):
         self.finish = "MAX_TOKENS"
-        with self.assertRaisesRegex(auditor.AuditError, "respuesta completa"):
+        with self.assertRaisesRegex(auditor.AuditError, r"respuesta completa \(MAX_TOKENS\)"):
+            auditor.audit(self.env, self.request)
+
+    def test_invalid_candidate_text_is_rejected_without_echoing_it(self):
+        self.gemini_text = "private details"
+        with self.assertRaisesRegex(auditor.AuditError, r"^Gemini: el candidato no contiene un informe JSON v.lido\.$"):
             auditor.audit(self.env, self.request)
