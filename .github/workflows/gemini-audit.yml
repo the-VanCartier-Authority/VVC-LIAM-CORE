@@ -1,0 +1,92 @@
+name: Gemini Independent Audit
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/gemini-audit.yml'
+      - 'scripts/gemini_auditor.py'
+      - 'tests/test_gemini_auditor.py'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Prueba sintética o llamada a Gemini'
+        type: choice
+        default: 'pilot'
+        options: [pilot, live]
+      audit_type:
+        description: 'Tipo de auditoría'
+        type: choice
+        default: 'architecture'
+        options: [security, architecture, compliance, b02_validation]
+      model_name:
+        description: 'Modelo de Gemini'
+        type: choice
+        default: 'gemini-3.8-flash'
+        options: [gemini-3.8-flash, gemini-4-hydrogen, gemini-4-carbon]
+      target_path:
+        description: 'Ruta versionada para auditorías generales'
+        type: string
+        default: 'src/server/'
+      base_sha:
+        description: '[B02] SHA completo de la base'
+        type: string
+      candidate_sha:
+        description: '[B02] SHA completo del candidato'
+        type: string
+      recovery_ci_id:
+        description: '[B02] ID de la corrida de Recovery CI'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  pilot:
+    if: github.event_name == 'pull_request' || inputs.mode == 'pilot'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+      - name: Verify auditor with synthetic Git and API fixtures
+        run: python -B -m unittest discover -s tests -p test_gemini_auditor.py -v
+
+  audit:
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'live' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    environment: gemini-audit
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+      - name: Audit selected commit
+        id: audit
+        env:
+          AUDIT_TYPE: ${{ inputs.audit_type }}
+          MODEL_NAME: ${{ inputs.model_name }}
+          TARGET_PATH: ${{ inputs.target_path }}
+          BASE_SHA: ${{ inputs.base_sha }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          RECOVERY_CI_ID: ${{ inputs.recovery_ci_id }}
+          AUDIT_GITHUB_TOKEN: ${{ github.token }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python -B scripts/gemini_auditor.py
+      - name: Upload audit report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ steps.audit.outputs.artifact_name }}
+          path: ${{ steps.audit.outputs.report_path }}
+          if-no-files-found: error
