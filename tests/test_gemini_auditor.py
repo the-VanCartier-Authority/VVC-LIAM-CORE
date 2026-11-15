@@ -1,11 +1,13 @@
 import importlib.util
+import io
 import json
 import os
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from contextlib import redirect_stdout
+from unittest.mock import Mock, patch
 from urllib.error import HTTPError, URLError
 
 
@@ -17,6 +19,7 @@ SPEC.loader.exec_module(auditor)
 
 class ApiDiagnosticsTests(unittest.TestCase):
     def test_gemini_timeout_while_waiting_for_headers_or_body(self):
+        url = auditor.GEMINI_MODELS_URL + "test:generateContent"
         for failure in (TimeoutError("private details"), URLError(TimeoutError("private details")), None):
             with self.subTest(error_type=type(failure).__name__), patch.object(auditor, "build_opener") as builder:
                 opener = builder.return_value
@@ -25,8 +28,9 @@ class ApiDiagnosticsTests(unittest.TestCase):
                 else:
                     response = opener.open.return_value.__enter__.return_value
                     response.read.side_effect = TimeoutError("private details")
-                with self.assertRaisesRegex(auditor.AuditError, r"^Gemini: tiempo de espera de red agotado \(240 s\)\.$"):
-                    auditor.api_json("https://gemini.example.invalid", {}, {})
+                phase = "antes de recibir cabeceras" if failure is not None else "al leer el cuerpo"
+                with self.assertRaisesRegex(auditor.AuditError, rf"^Gemini: tiempo de espera agotado {phase} \(240 s\)\.$"):
+                    auditor.api_json(url, {}, {})
                 self.assertEqual(opener.open.call_args.kwargs["timeout"], 240)
                 self.assertEqual(opener.open.call_count, 1)
 
@@ -34,12 +38,12 @@ class ApiDiagnosticsTests(unittest.TestCase):
         with patch.object(auditor, "build_opener") as builder:
             opener = builder.return_value
             opener.open.side_effect = URLError(TimeoutError("private details"))
-            with self.assertRaisesRegex(auditor.AuditError, r"^GitHub: tiempo de espera de red agotado \(30 s\)\.$"):
+            with self.assertRaisesRegex(auditor.AuditError, r"^GitHub: tiempo de espera agotado antes de recibir cabeceras \(30 s\)\.$"):
                 auditor.api_json("https://github.example.invalid", {})
             self.assertEqual(opener.open.call_args.kwargs["timeout"], 30)
 
     def test_http_error_and_invalid_json_do_not_leak_details(self):
-        url = "https://gemini.example.invalid"
+        url = auditor.GEMINI_MODELS_URL + "test:generateContent"
         with patch.object(auditor, "build_opener") as builder:
             opener = builder.return_value
             opener.open.side_effect = HTTPError(url, 429, "private details", None, None)
@@ -49,6 +53,40 @@ class ApiDiagnosticsTests(unittest.TestCase):
             opener.open.return_value.__enter__.return_value.read.return_value = b"private details"
             with self.assertRaisesRegex(auditor.AuditError, r"^Gemini: cuerpo de respuesta inv.lido\.$"):
                 auditor.api_json(url, {}, {})
+
+
+class ProbeTests(unittest.TestCase):
+    def test_probe_checks_catalog_and_sends_only_synthetic_input(self):
+        with tempfile.TemporaryDirectory() as temp:
+            summary = Path(temp, "summary")
+            model = "gemini-3.5-flash-lite"
+            env = {"MODEL_NAME": model, "GEMINI_API_KEY": "masked-fixture",
+                   "GITHUB_STEP_SUMMARY": str(summary), "TARGET_PATH": "private-file.ts"}
+            reply = {"candidates": [{"finishReason": "STOP", "content": {
+                "parts": [{"text": '{"ok":true}'}],
+            }}]}
+            request = Mock(side_effect=[{"name": f"models/{model}"}, reply])
+            log = io.StringIO()
+            with patch.object(auditor, "prepare_audit") as prepare, redirect_stdout(log):
+                self.assertEqual(auditor.probe(env, request), 0)
+                prepare.assert_not_called()
+            catalog, generation = request.call_args_list
+            self.assertEqual(catalog.args[0], auditor.GEMINI_MODELS_URL + model)
+            self.assertEqual(len(catalog.args), 2)
+            self.assertEqual(generation.args[0], catalog.args[0] + ":generateContent")
+            self.assertEqual(catalog.kwargs, generation.kwargs)
+            self.assertEqual(generation.kwargs["timeout"], 45)
+            payload = json.dumps(generation.args[2])
+            self.assertIn("sint", payload)
+            self.assertNotIn("private-file.ts", payload)
+            self.assertNotIn("masked-fixture", log.getvalue())
+            self.assertIn("Generación JSON sintética — OK", summary.read_text())
+
+    def test_catalog_failure_stops_before_generation(self):
+        request = Mock(side_effect=auditor.AuditError("Gemini: HTTP 403."))
+        with self.assertRaisesRegex(auditor.AuditError, "HTTP 403"):
+            auditor.probe({"GEMINI_API_KEY": "masked-fixture"}, request)
+        self.assertEqual(request.call_count, 1)
 
 
 class AuditTests(unittest.TestCase):
