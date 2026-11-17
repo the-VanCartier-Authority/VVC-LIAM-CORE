@@ -61,11 +61,15 @@ MAX_FILES = 32
 MAX_BYTES = 192 * 1024
 GITHUB_TIMEOUT_SECONDS = 30
 GEMINI_TIMEOUT_SECONDS = 240
-PROBE_TIMEOUT_SECONDS = 45
+PROBE_CATALOG_TIMEOUT_SECONDS = 45
 
 
 class AuditError(Exception):
     """An audit that cannot establish a defensible result."""
+
+    def __init__(self, message, *, code="validation_error"):
+        super().__init__(message)
+        self.code = code
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -86,23 +90,25 @@ def api_json(url, headers, payload=None, *, timeout=None):
             phase = "al leer el cuerpo"
             raw = response.read(2 * 1024 * 1024 + 1)
     except HTTPError as error:
-        raise AuditError(f"{service}: HTTP {error.code}.") from None
+        raise AuditError(f"{service}: HTTP {error.code}.", code=f"http_{error.code}") from None
     except URLError as error:
         if isinstance(error.reason, TimeoutError):
-            raise AuditError(f"{service}: tiempo de espera agotado {phase} ({timeout} s).") from None
-        raise AuditError(f"{service}: error de conexión.") from None
+            code = "timeout_headers" if phase == "antes de recibir cabeceras" else "timeout_body"
+            raise AuditError(f"{service}: tiempo de espera agotado {phase} ({timeout} s).", code=code) from None
+        raise AuditError(f"{service}: error de conexión.", code="connection_error") from None
     except TimeoutError:
-        raise AuditError(f"{service}: tiempo de espera agotado {phase} ({timeout} s).") from None
+        code = "timeout_headers" if phase == "antes de recibir cabeceras" else "timeout_body"
+        raise AuditError(f"{service}: tiempo de espera agotado {phase} ({timeout} s).", code=code) from None
     except OSError:
-        raise AuditError(f"{service}: error de transporte al recibir la respuesta.") from None
+        raise AuditError(f"{service}: error de transporte al recibir la respuesta.", code="transport_error") from None
     if len(raw) > 2 * 1024 * 1024:
-        raise AuditError(f"{service}: respuesta de API demasiado grande.")
+        raise AuditError(f"{service}: respuesta de API demasiado grande.", code="oversize_response")
     try:
         data = json.loads(raw)
     except (UnicodeError, json.JSONDecodeError):
-        raise AuditError(f"{service}: cuerpo de respuesta inválido.") from None
+        raise AuditError(f"{service}: cuerpo de respuesta inválido.", code="invalid_json") from None
     if not isinstance(data, dict):
-        raise AuditError(f"{service}: estructura de respuesta inesperada.")
+        raise AuditError(f"{service}: estructura de respuesta inesperada.", code="invalid_response")
     return data
 
 
@@ -328,14 +334,18 @@ def probe(env, request=api_json):
     if model not in MODELS:
         raise AuditError("Modelo fuera del selector permitido.")
     headers = gemini_headers(env)
-    deadline = {"timeout": PROBE_TIMEOUT_SECONDS}
-    print(f"Gemini: consultando catálogo para {model}.", flush=True)
-    started = monotonic()
-    metadata = request(f"{GEMINI_MODELS_URL}{model}", headers, **deadline)
-    if metadata.get("name") != f"models/{model}":
-        raise AuditError("Gemini: el catálogo no devolvió el modelo solicitado.")
-    catalog_seconds = monotonic() - started
-    print(f"Gemini: catálogo OK en {catalog_seconds:.1f} s. Generando JSON sintético.", flush=True)
+    run, attempt, sha = env["GITHUB_RUN_ID"], env["GITHUB_RUN_ATTEMPT"], env["GITHUB_SHA"]
+    if (not all(re.fullmatch(r"[1-9][0-9]{0,18}", value) for value in (run, attempt))
+            or not re.fullmatch(r"[0-9a-f]{40}", sha)):
+        raise AuditError("La prueba no tiene una identidad de Actions válida.")
+    report = {
+        "kind": "gemini_probe", "is_audit": False, "status": "SIN_DICTAMEN",
+        "model": model, "auditor_sha": sha, "run_id": int(run), "run_attempt": int(attempt),
+        "stages": {
+            "catalog": {"status": "NO_EJECUTADO", "timeout_seconds": PROBE_CATALOG_TIMEOUT_SECONDS},
+            "generation": {"status": "NO_EJECUTADO", "timeout_seconds": GEMINI_TIMEOUT_SECONDS},
+        },
+    }
     payload = {
         "contents": [{"parts": [{"text": 'Prueba sintética. Devuelve únicamente {"ok":true}.'}]}],
         "generationConfig": {
@@ -346,17 +356,52 @@ def probe(env, request=api_json):
             "thinkingConfig": {"thinkingLevel": "LOW"},
         },
     }
+    stage = report["stages"]["catalog"]
     started = monotonic()
-    _, result = generate_json(model, headers, payload, request, **deadline)
-    if not isinstance(result, dict) or set(result) != {"ok"} or result["ok"] is not True:
-        raise AuditError("Gemini: el JSON de prueba no coincide con el valor esperado.")
-    generation_seconds = monotonic() - started
-    print(f"Gemini: generación sintética OK en {generation_seconds:.1f} s.", flush=True)
-    with open(env["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as output:
-        print(f"## Prueba de Gemini\n\nModelo `{model}`\n", file=output)
-        print(f"- Catálogo autenticado — OK ({catalog_seconds:.1f} s)", file=output)
-        print(f"- Generación JSON sintética — OK ({generation_seconds:.1f} s)", file=output)
+    try:
+        print(f"Gemini: consultando catálogo para {model}.", flush=True)
+        metadata = request(f"{GEMINI_MODELS_URL}{model}", headers,
+                           timeout=PROBE_CATALOG_TIMEOUT_SECONDS)
+        if metadata.get("name") != f"models/{model}":
+            raise AuditError("Gemini: el catálogo no devolvió el modelo solicitado.")
+        stage.update(status="OK", elapsed_seconds=round(monotonic() - started, 3))
+        print(f"Gemini: catálogo OK en {stage['elapsed_seconds']:.1f} s. "
+              f"Generando JSON sintético (espera máxima por operación {GEMINI_TIMEOUT_SECONDS} s).", flush=True)
+        stage = report["stages"]["generation"]
+        started = monotonic()
+        _, result = generate_json(model, headers, payload, request, timeout=GEMINI_TIMEOUT_SECONDS)
+        if not isinstance(result, dict) or set(result) != {"ok"} or result["ok"] is not True:
+            raise AuditError("Gemini: el JSON de prueba no coincide con el valor esperado.")
+        stage.update(status="OK", elapsed_seconds=round(monotonic() - started, 3))
+        report["status"] = "PROBE_OK"
+        print(f"Gemini: generación sintética OK en {stage['elapsed_seconds']:.1f} s.", flush=True)
+    except AuditError as error:
+        stage.update(status="SIN_DICTAMEN", elapsed_seconds=round(monotonic() - started, 3),
+                     error_code=error.code)
+        raise
+    except (OSError, ValueError, TypeError, KeyError, AttributeError):
+        stage.update(status="SIN_DICTAMEN", elapsed_seconds=round(monotonic() - started, 3),
+                     error_code="invalid_response_or_environment")
+        raise
+    finally:
+        write_probe_report(env, report)
     return 0
+
+
+def write_probe_report(env, report):
+    name = f"probe-{report['auditor_sha']}-run-{report['run_id']}-{report['run_attempt']}"
+    path = Path(env["RUNNER_TEMP"]) / f"{name}.json"
+    path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    with open(env["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+        print(f"artifact_name={name}\nreport_path={path}", file=output)
+    with open(env["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as output:
+        print(f"## Prueba de Gemini\n\nModelo `{report['model']}`\n", file=output)
+        for key, label in (("catalog", "Catálogo autenticado"), ("generation", "Generación JSON sintética")):
+            stage = report["stages"][key]
+            elapsed = stage.get("elapsed_seconds", 0)
+            error = f"; {stage['error_code']}" if "error_code" in stage else ""
+            print(f"- {label} — {stage['status']} ({elapsed:.1f} s{error})", file=output)
+        print("\nEsta prueba de acceso y generación sintética no emite una auditoría del código.", file=output)
 
 
 def audit(env, request=api_json):
