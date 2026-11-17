@@ -74,10 +74,18 @@ jobs:
           python-version: '3.11'
       - name: Check Gemini access and synthetic generation
         if: inputs.mode == 'probe'
+        id: probe
         env:
           MODEL_NAME: ${{ inputs.model_name }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python -B scripts/gemini_auditor.py --probe
+      - name: Upload probe diagnostics
+        if: always() && inputs.mode == 'probe' && steps.probe.outputs.report_path != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ steps.probe.outputs.artifact_name }}
+          path: ${{ steps.probe.outputs.report_path }}
+          if-no-files-found: error
       - name: Audit selected commit
         if: inputs.mode == 'live'
         id: audit

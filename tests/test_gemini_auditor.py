@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from unittest.mock import Mock, patch
 from urllib.error import HTTPError, URLError
 
@@ -56,37 +56,96 @@ class ApiDiagnosticsTests(unittest.TestCase):
 
 
 class ProbeTests(unittest.TestCase):
+    def setUp(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        self.env = {
+            "MODEL_NAME": "gemini-3.5-flash-lite", "GEMINI_API_KEY": "masked-fixture",
+            "GITHUB_RUN_ID": "999", "GITHUB_RUN_ATTEMPT": "2", "GITHUB_SHA": "a" * 40,
+            "RUNNER_TEMP": temp.name, "GITHUB_OUTPUT": str(Path(temp.name, "output")),
+            "GITHUB_STEP_SUMMARY": str(Path(temp.name, "summary")), "TARGET_PATH": "private-file.ts",
+        }
+        self.reply = {"candidates": [{"finishReason": "STOP", "content": {
+            "parts": [{"text": '{"ok":true}'}],
+        }}]}
+
+    def report(self):
+        reports = list(Path(self.env["RUNNER_TEMP"]).glob("probe-*.json"))
+        self.assertEqual(len(reports), 1)
+        self.assertIn(f"{'a' * 40}-run-999-2", reports[0].name)
+        text = reports[0].read_text()
+        self.assertNotIn("masked-fixture", text)
+        self.assertNotIn("private-file.ts", text)
+        report = json.loads(text)
+        self.assertFalse(report["is_audit"])
+        self.assertEqual(report["auditor_sha"], self.env["GITHUB_SHA"])
+        self.assertIn(str(reports[0]), Path(self.env["GITHUB_OUTPUT"]).read_text())
+        return report
+
     def test_probe_checks_catalog_and_sends_only_synthetic_input(self):
-        with tempfile.TemporaryDirectory() as temp:
-            summary = Path(temp, "summary")
-            model = "gemini-3.5-flash-lite"
-            env = {"MODEL_NAME": model, "GEMINI_API_KEY": "masked-fixture",
-                   "GITHUB_STEP_SUMMARY": str(summary), "TARGET_PATH": "private-file.ts"}
-            reply = {"candidates": [{"finishReason": "STOP", "content": {
-                "parts": [{"text": '{"ok":true}'}],
-            }}]}
-            request = Mock(side_effect=[{"name": f"models/{model}"}, reply])
-            log = io.StringIO()
-            with patch.object(auditor, "prepare_audit") as prepare, redirect_stdout(log):
-                self.assertEqual(auditor.probe(env, request), 0)
-                prepare.assert_not_called()
-            catalog, generation = request.call_args_list
-            self.assertEqual(catalog.args[0], auditor.GEMINI_MODELS_URL + model)
-            self.assertEqual(len(catalog.args), 2)
-            self.assertEqual(generation.args[0], catalog.args[0] + ":generateContent")
-            self.assertEqual(catalog.kwargs, generation.kwargs)
-            self.assertEqual(generation.kwargs["timeout"], 45)
-            payload = json.dumps(generation.args[2])
-            self.assertIn("sint", payload)
-            self.assertNotIn("private-file.ts", payload)
-            self.assertNotIn("masked-fixture", log.getvalue())
-            self.assertIn("Generación JSON sintética — OK", summary.read_text())
+        model = self.env["MODEL_NAME"]
+        request = Mock(side_effect=[{"name": f"models/{model}"}, self.reply])
+        log = io.StringIO()
+        with patch.object(auditor, "prepare_audit") as prepare, redirect_stdout(log):
+            # Simulate a response above the old 45-second cutoff without sleeping.
+            with patch.object(auditor, "monotonic", side_effect=[0, 0.1, 1, 137.8]):
+                self.assertEqual(auditor.probe(self.env, request), 0)
+            prepare.assert_not_called()
+        catalog, generation = request.call_args_list
+        self.assertEqual(catalog.args[0], auditor.GEMINI_MODELS_URL + model)
+        self.assertEqual(len(catalog.args), 2)
+        self.assertEqual(generation.args[0], catalog.args[0] + ":generateContent")
+        self.assertEqual(catalog.kwargs["timeout"], 45)
+        self.assertEqual(generation.kwargs["timeout"], 240)
+        payload = json.dumps(generation.args[2])
+        self.assertIn("sint", payload)
+        self.assertNotIn("private-file.ts", payload)
+        self.assertNotIn("masked-fixture", log.getvalue())
+        self.assertIn("Generación JSON sintética — OK", Path(self.env["GITHUB_STEP_SUMMARY"]).read_text())
+        report = self.report()
+        self.assertEqual(report["status"], "PROBE_OK")
+        self.assertEqual(report["stages"]["generation"]["elapsed_seconds"], 136.8)
 
     def test_catalog_failure_stops_before_generation(self):
-        request = Mock(side_effect=auditor.AuditError("Gemini: HTTP 403."))
+        request = Mock(side_effect=auditor.AuditError("Gemini: HTTP 403.", code="http_403"))
         with self.assertRaisesRegex(auditor.AuditError, "HTTP 403"):
-            auditor.probe({"GEMINI_API_KEY": "masked-fixture"}, request)
+            auditor.probe(self.env, request)
         self.assertEqual(request.call_count, 1)
+        report = self.report()
+        self.assertEqual(report["status"], "SIN_DICTAMEN")
+        self.assertEqual(report["stages"]["catalog"]["error_code"], "http_403")
+        self.assertEqual(report["stages"]["generation"]["status"], "NO_EJECUTADO")
+
+    def test_generation_timeout_keeps_catalog_evidence_and_fails_the_command(self):
+        request = Mock(side_effect=[{"name": f"models/{self.env['MODEL_NAME']}"},
+            auditor.AuditError("Gemini: tiempo de espera agotado antes de recibir cabeceras (240 s).",
+                               code="timeout_headers")])
+        real_probe = auditor.probe
+        log = io.StringIO()
+        with patch.dict(os.environ, self.env, clear=True), patch.object(auditor.sys, "argv", ["auditor", "--probe"]):
+            with patch.object(auditor, "probe", side_effect=lambda env: real_probe(env, request)), redirect_stderr(log):
+                self.assertEqual(auditor.main(), 1)
+        self.assertEqual(request.call_count, 2)
+        report = self.report()
+        self.assertEqual(report["status"], "SIN_DICTAMEN")
+        self.assertEqual(report["stages"]["catalog"]["status"], "OK")
+        self.assertEqual(report["stages"]["generation"]["status"], "SIN_DICTAMEN")
+        self.assertEqual(report["stages"]["generation"]["error_code"], "timeout_headers")
+        self.assertNotIn("masked-fixture", log.getvalue())
+
+    def test_rejected_synthetic_response_is_preserved_as_a_failure(self):
+        self.reply["candidates"][0]["content"]["parts"][0]["text"] = '{"ok":false}'
+        request = Mock(side_effect=[{"name": f"models/{self.env['MODEL_NAME']}"}, self.reply])
+        with self.assertRaisesRegex(auditor.AuditError, "valor esperado"):
+            auditor.probe(self.env, request)
+        self.assertEqual(self.report()["stages"]["generation"]["error_code"], "validation_error")
+
+    def test_invalid_run_identity_stops_before_any_api_call(self):
+        self.env["GITHUB_RUN_ID"] = "../outside"
+        request = Mock()
+        with self.assertRaisesRegex(auditor.AuditError, "identidad de Actions"):
+            auditor.probe(self.env, request)
+        request.assert_not_called()
 
 
 class AuditTests(unittest.TestCase):
