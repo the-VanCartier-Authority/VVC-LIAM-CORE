@@ -18,3 +18,20 @@ La prueba guarda un JSON identificado por SHA del auditor, ID de corrida e inten
 El artefacto contiene metadatos y códigos de error controlados. No contiene claves, encabezados, cuerpos de error del proveedor ni código del repositorio. El resumen de Actions muestra el resultado de ambas etapas.
 
 Para revisar la conexión, ejecutar `Gemini Independent Audit` en `main` con `mode=probe` y el modelo elegido. Para auditar código, usar `mode=live`. La validación B02 requiere además base y candidato con SHA completo y una Recovery CI manual exitosa de ese candidato exacto. Una prueba de conexión o una auditoría general no satisface esos requisitos.
+
+## Referencias y diagnóstico de auditorías
+
+El 18 de noviembre se validó [Recovery CI #60](https://github.com/the-VanCartier-Authority/VVC-LIAM-CORE/actions/runs/44392053946), manual, intento 1, para el candidato B02 `eeee11ffb656c1fa232493fe5dfc81e08a39b6a1`. Pasaron 157 regresiones, seis fixtures Chromium con 45 escenarios, TypeScript, build, smoke y lock. La definición CI coincide con la de main `d5879e791ce94715d67526c111713be9623ff354`.
+
+- [Gemini #12](https://github.com/the-VanCartier-Authority/VVC-LIAM-CORE/actions/runs/44393812107), `gemini-3.8-flash`: timeout de 240 s antes de cabeceras. Estado SIN DICTAMEN.
+- [Gemini #13](https://github.com/the-VanCartier-Authority/VVC-LIAM-CORE/actions/runs/44394766377), `gemini-3.5-flash-lite`: respuesta recibida en 3.8 s; rechazada por referencia fuera de archivos o líneas enviados. El log original no identifica la referencia concreta. Estado SIN DICTAMEN.
+
+Ambas solicitudes tenían ocho archivos y 107944 bytes. No produjeron un informe aceptado. No se deduce un dictamen de seguridad del hecho de recibir respuesta.
+
+La corrección del auditor numera cada línea enviada como `N| texto`, incorpora `line_counts` y mantiene intacto el snapshot original para validar. El esquema propone una variante `anyOf` por archivo no vacío, con su ruta exacta y límites mínimo/máximo de líneas. La comprobación local sigue rechazando rutas, rangos invertidos, controles omitidos y referencias sin respaldo. El esquema ayuda a guiar la respuesta; no demuestra la veracidad de un hallazgo.
+
+Los errores de una auditoría generan un artefacto `audit-diagnostic-...` identificado por SHA del auditor, corrida e intento, marcado `is_audit=false` y `status=SIN_DICTAMEN`. Contiene código de error y, si procede, índice de resultado/referencia, ruta perteneciente al alcance y números/límite de línea. Una ruta ajena se registra como `null`. No se guardan el cuerpo del proveedor, las claves, los encabezados ni el texto generado rechazado. El comando mantiene salida 1 y la publicación se intenta aunque el paso de análisis falle.
+
+Se conservan los límites de bytes, archivos, tiempo y salida. No se añaden reintentos, selección automática de otro modelo ni corrección automática de citas. Las llamadas reales #12 y #13 son evidencia del problema anterior. La eficacia de la nueva guía requiere otra ejecución autorizada tras integrar el auditor. B02 conserva su SHA y dictamen NO-GO; esta corrección no modifica su funcionalidad.
+
+Contrato del esquema consultado en [documentación oficial de structured outputs](https://aistudio.google.com/docs/structured-output). La CI manual #60 puede reutilizarse mientras el candidato, sus resultados y la definición CI de confianza sigan coincidiendo; no hace falta modificar B02 para cambiar el formato de entrada del auditor.

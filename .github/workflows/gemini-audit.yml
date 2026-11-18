@@ -100,7 +100,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python -B scripts/gemini_auditor.py
       - name: Upload audit report
-        if: inputs.mode == 'live'
+        if: always() && inputs.mode == 'live' && steps.audit.outputs.report_path != ''
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ steps.audit.outputs.artifact_name }}
