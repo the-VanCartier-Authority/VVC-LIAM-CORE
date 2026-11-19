@@ -132,6 +132,7 @@ class ProbeTests(unittest.TestCase):
         self.assertEqual(report["stages"]["generation"]["status"], "SIN_DICTAMEN")
         self.assertEqual(report["stages"]["generation"]["error_code"], "timeout_headers")
         self.assertNotIn("masked-fixture", log.getvalue())
+        self.assertFalse(list(Path(self.env["RUNNER_TEMP"]).glob("audit-diagnostic-*.json")))
 
     def test_rejected_synthetic_response_is_preserved_as_a_failure(self):
         self.reply["candidates"][0]["content"]["parts"][0]["text"] = '{"ok":false}'
@@ -317,7 +318,8 @@ class AuditTests(unittest.TestCase):
         self.items = [self.items[0]]
         auditor.audit(self.env, self.request)
         sent = json.loads(self.payload["contents"][0]["parts"][0]["text"])
-        self.assertEqual(sent["files"], {"scope/tracked.tsx": "export const original = true;\n"})
+        self.assertEqual(sent["files"], {"scope/tracked.tsx": "1| export const original = true;"})
+        self.assertEqual(sent["line_counts"], {"scope/tracked.tsx": 1})
         self.assertEqual(self.payload["generationConfig"]["thinkingConfig"], {"thinkingLevel": "LOW"})
 
     def test_oversize_is_rejected_before_any_api_call(self):
@@ -329,8 +331,84 @@ class AuditTests(unittest.TestCase):
 
     def test_out_of_scope_reference_is_rejected(self):
         self.items[0]["referencias"] = [{"path": "server.ts", "start": 19, "end": 20}]
+        with self.assertRaisesRegex(auditor.AuditError, "fuera de los archivos o líneas") as caught:
+            auditor.audit(self.env, self.request)
+        self.assertEqual(caught.exception.code, "reference_out_of_scope")
+        self.assertEqual(caught.exception.reference["line_count"], 1)
+
+    def test_schema_binds_each_path_to_its_own_line_bounds(self):
+        files = {"one.ts": "x\n", "two.ts": "x\ny\n", "empty.ts": ""}
+        schema = auditor.response_schema(auditor.B02_CONTROLS, files)
+        results = schema["properties"]["resultados"]
+        self.assertEqual((results["minItems"], results["maxItems"]), (5, 5))
+        refs = results["items"]["properties"]["referencias"]
+        self.assertEqual(refs["maxItems"], 8)
+        variants = refs["items"]["anyOf"]
+        self.assertEqual(len(variants), 2)
+        indexed = {variant["properties"]["path"]["enum"][0]: variant for variant in variants}
+        self.assertEqual(set(indexed), {"one.ts", "two.ts"})
+        for path, limit in (("one.ts", 1), ("two.ts", 2)):
+            for field in ("start", "end"):
+                self.assertEqual(indexed[path]["properties"][field],
+                                 {"type": "integer", "minimum": 1, "maximum": limit})
+
+    def test_numbering_does_not_change_the_original_validation_snapshot(self):
+        self.put("scope/file.ts", "first\r\n\r\nthird\r\n")
+        self.env["GITHUB_SHA"] = self.commit("CRLF source")
+        self.env.update(AUDIT_TYPE="architecture", TARGET_PATH="scope/")
+        _, _, scope, encoded = auditor.prepare_audit(self.env, self.request)
+        sent = json.loads(encoded)
+        self.assertEqual(scope["files"]["scope/file.ts"], "first\r\n\r\nthird\r\n")
+        self.assertEqual(sent["files"]["scope/file.ts"], "1| first\n2| \n3| third")
+        self.assertEqual(sent["line_counts"], {"scope/file.ts": 3})
+
+    def test_final_numbered_package_budget_is_checked_before_generation(self):
+        _, _, _, encoded = auditor.prepare_audit(self.env, self.request)
+        self.calls.clear()
+        with patch.object(auditor, "MAX_BYTES", len(encoded) - 1):
+            self.assert_blocked_before_gemini("paquete final excede")
+
+    def test_inverted_reference_range_still_fails_runtime_validation(self):
+        self.items[0]["referencias"] = [{"path": "server.ts", "start": 1, "end": 0}]
         with self.assertRaisesRegex(auditor.AuditError, "fuera de los archivos o líneas"):
             auditor.audit(self.env, self.request)
+
+    def test_rejected_response_emits_only_sanitized_diagnostics_and_exit_one(self):
+        self.items[0].update(hallazgo="UNTRUSTED_RAW_REPLY", referencias=[
+            {"path": "UNTRUSTED_PRIVATE_PATH", "start": 19, "end": 20}])
+        real_audit = auditor.audit
+        with patch.dict(os.environ, self.env, clear=True), patch.object(auditor.sys, "argv", ["auditor"]):
+            with patch.object(auditor, "audit", side_effect=lambda env: real_audit(env, self.request)):
+                with redirect_stderr(io.StringIO()):
+                    self.assertEqual(auditor.main(), 1)
+        files = list(Path(self.env["RUNNER_TEMP"]).glob("audit-*.json"))
+        self.assertEqual(len(files), 1)
+        self.assertTrue(files[0].name.startswith("audit-diagnostic-"))
+        raw = files[0].read_text()
+        for marker in ("UNTRUSTED_RAW_REPLY", "UNTRUSTED_PRIVATE_PATH", "fixture-gemini-key", "fixture-github-token"):
+            self.assertNotIn(marker, raw)
+        report = json.loads(raw)
+        self.assertFalse(report["is_audit"])
+        self.assertEqual(report["status"], "SIN_DICTAMEN")
+        self.assertEqual(report["error_code"], "reference_out_of_scope")
+        self.assertEqual(report["recovery_ci_id_input"], 123)
+        self.assertIsNone(report["reference"]["path"])
+        self.assertNotIn("resultados", report)
+        self.assertEqual(len(self.calls), 3)
+        self.assertIn(str(files[0]), Path(self.env["GITHUB_OUTPUT"]).read_text())
+
+    def test_timeout_preserves_error_code_without_publishing_a_model_report(self):
+        error = auditor.AuditError("Gemini: tiempo de espera agotado.", code="timeout_headers")
+        with patch.dict(os.environ, self.env, clear=True), patch.object(auditor.sys, "argv", ["auditor"]):
+            with patch.object(auditor, "audit", side_effect=error), redirect_stderr(io.StringIO()):
+                self.assertEqual(auditor.main(), 1)
+        files = list(Path(self.env["RUNNER_TEMP"]).glob("audit-diagnostic-*.json"))
+        self.assertEqual(len(files), 1)
+        report = json.loads(files[0].read_text())
+        self.assertEqual(report["error_code"], "timeout_headers")
+        self.assertEqual(report["candidate_sha"], self.candidate)
+        self.assertEqual(report["status"], "SIN_DICTAMEN")
+        self.assertNotIn("resultados", report)
 
     def test_unsubstantiated_positive_is_rejected(self):
         self.items[0]["estado"] = "VERIFICADO_EN_CODIGO"
