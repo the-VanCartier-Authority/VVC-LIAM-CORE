@@ -28,10 +28,20 @@ El 18 de noviembre se validó [Recovery CI #60](https://github.com/the-VanCartie
 
 Ambas solicitudes tenían ocho archivos y 107944 bytes. No produjeron un informe aceptado. No se deduce un dictamen de seguridad del hecho de recibir respuesta.
 
-La corrección del auditor numera cada línea enviada como `N| texto`, incorpora `line_counts` y mantiene intacto el snapshot original para validar. El esquema propone una variante `anyOf` por archivo no vacío, con su ruta exacta y límites mínimo/máximo de líneas. La comprobación local sigue rechazando rutas, rangos invertidos, controles omitidos y referencias sin respaldo. El esquema ayuda a guiar la respuesta; no demuestra la veracidad de un hallazgo.
+La corrección del PR #48 numera cada línea enviada como `N| texto`, incorpora `line_counts` y mantiene intacto el snapshot original para validar. Esa versión proponía una variante `anyOf` por archivo no vacío, con límites de líneas por variante. El diagnóstico del 20 de noviembre propone sustituir esa unión por un único objeto de referencia con rutas enumeradas y números enteros. Los límites por archivo, rangos ordenados, máximo de ocho referencias y cobertura B02 exacta se mantienen en `validate_report`, sin cambios. El esquema guía la respuesta; no demuestra la veracidad de un hallazgo.
 
 Los errores de una auditoría generan un artefacto `audit-diagnostic-...` identificado por SHA del auditor, corrida e intento, marcado `is_audit=false` y `status=SIN_DICTAMEN`. Contiene código de error y, si procede, índice de resultado/referencia, ruta perteneciente al alcance y números/límite de línea. Una ruta ajena se registra como `null`. No se guardan el cuerpo del proveedor, las claves, los encabezados ni el texto generado rechazado. El comando mantiene salida 1 y la publicación se intenta aunque el paso de análisis falle.
 
 Se conservan los límites de bytes, archivos, tiempo y salida. No se añaden reintentos, selección automática de otro modelo ni corrección automática de citas. Las llamadas reales #12 y #13 son evidencia del problema anterior. La eficacia de la nueva guía requiere otra ejecución autorizada tras integrar el auditor. B02 conserva su SHA y dictamen NO-GO; esta corrección no modifica su funcionalidad.
+
+## Diagnósticos HTTP sanitizados
+
+Las corridas #15 y #16 fallaron con HTTP 400 y 503 respectivamente; ambas publicaron diagnóstico, sin un informe B02 aceptado. El [análisis reproducido sin inferencia](GEMINI-HTTP-DIAGNOSIS-20261120.md) distingue hechos, hipótesis y validación pendiente. Corresponde exclusivamente a VVC-LIAM-CORE, no al repositorio VVC AGENT AUDIT BRIDGE.
+
+En un error HTTP se leen como máximo 64 KiB más un byte de detección, sólo en memoria. El artefacto conserva estado RPC de una lista cerrada, tipos conocidos de detalle Google RPC, etiquetas de clasificación, prefijos conocidos de campos inválidos, motivos enumerados, número de violaciones de cuota y esperas numéricas acotadas. Puede conservar el hash de `x-request-id`; nunca su valor. Los mensajes y descripciones se convierten a etiquetas fijas, no se copian ni se redactan parcialmente. Las etiquetas orientan el diagnóstico y no prueban una causa.
+
+Se añaden bytes y SHA256 del cuerpo JSON serializado y del esquema, límite de salida, presencia de thinking, operación, modelo solicitado, versión de API y latencia. El cuerpo completo tiene el mismo techo de 192 KiB antes de abrir la conexión, incluyendo el escape JSON y el esquema. No se guardan prompts, cuerpos originales de respuesta, claves, valores de encabezados, proyectos, sujetos de cuota ni metadatos arbitrarios del proveedor. El detalle desconocido, inválido, truncado o ilegible se descarta manteniendo el HTTP y salida 1. El mismo diagnóstico controlado se conserva si falla una prueba sintética previamente autorizada.
+
+Esta modificación no autoriza ninguna llamada adicional. El siguiente ensayo de red requiere autorización específica, incluso si usa sólo contenido sintético. No hay reintentos automáticos.
 
 Contrato del esquema consultado en [documentación oficial de structured outputs](https://aistudio.google.com/docs/structured-output). La CI manual #60 puede reutilizarse mientras el candidato, sus resultados y la definición CI de confianza sigan coincidiendo; no hace falta modificar B02 para cambiar el formato de entrada del auditor.
