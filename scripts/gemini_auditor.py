@@ -8,6 +8,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path, PurePosixPath
+from http.client import HTTPException
 from time import monotonic
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
@@ -125,7 +126,7 @@ def sanitize_http_error(error):
         if not isinstance(data, dict):
             safe["error_body_state"] = "invalid_json"
             return safe
-    except (OSError, ValueError, TypeError, RecursionError):
+    except (OSError, HTTPException, ValueError, TypeError, RecursionError):
         safe["error_body_state"] = "unreadable_or_invalid_json"
         return safe
     safe["error_body_state"] = "json"

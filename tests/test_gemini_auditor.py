@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from http.client import IncompleteRead
 from contextlib import redirect_stderr, redirect_stdout
 from unittest.mock import Mock, patch
 from urllib.error import HTTPError, URLError
@@ -92,12 +93,13 @@ class ApiDiagnosticsTests(unittest.TestCase):
                 self.assertEqual(d["http_status"], 503)
                 self.assertEqual(d["error_body_state"], state)
                 self.assertIsNone(d["rpc_status"])
-        stream = Mock()
-        stream.read.side_effect = TimeoutError("PRIVATE_SOCKET_ERROR")
-        error = HTTPError("https://example.invalid", 400, "private", None, stream)
-        self.assertEqual(auditor.sanitize_http_error(error)["error_body_state"],
-                         "unreadable_or_invalid_json")
-        stream.read.assert_called_once_with(auditor.MAX_ERROR_BYTES + 1)
+        for failure in (TimeoutError("PRIVATE_SOCKET_ERROR"), IncompleteRead(b"PRIVATE_PARTIAL_BODY")):
+            stream = Mock()
+            stream.read.side_effect = failure
+            error = HTTPError("https://example.invalid", 400, "private", None, stream)
+            self.assertEqual(auditor.sanitize_http_error(error)["error_body_state"],
+                             "unreadable_or_invalid_json")
+            stream.read.assert_called_once_with(auditor.MAX_ERROR_BYTES + 1)
 
     def test_exact_serialized_body_metrics_include_unicode_escaping_and_schema(self):
         import hashlib
