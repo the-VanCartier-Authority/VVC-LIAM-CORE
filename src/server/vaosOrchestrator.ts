@@ -3,6 +3,8 @@ import express from 'express';
 import { GoogleGenAI } from '@google/genai';
 import { executionOutcome } from '../shared/executionOutcome.ts';
 import type { ExecutionOutcome } from '../shared/executionOutcome.ts';
+import type { BackendLimits } from './backendLimits.ts';
+import { ResourceLimitError } from './backendLimits.ts';
 
 export type TaskPriority = 'P0_CRITICAL' | 'P1_HIGH' | 'P2_LOW';
 export type TaskRoute = 'FAST_PATH' | 'ASYNC_PATH';
@@ -144,7 +146,9 @@ export class VaosOrchestrator {
   private telemetryRing: TelemetryRecord[] = [];
   private maxRingSize = 300;
 
-  constructor() {
+  private limits?: BackendLimits;
+  constructor(limits?: BackendLimits) {
+    this.limits = limits;
     this.recordInitialHealthProbe();
   }
 
@@ -224,6 +228,13 @@ export class VaosOrchestrator {
     injectedSkills: string[] = []
   ): VaosTask {
     if (!ownerUid) throw new Error('VERIFIED_OWNER_REQUIRED');
+    // Bounded in-memory history, not a durable queue. Never evict active work.
+    const terminal = Array.from(this.tasks.values()).filter(task => !['QUEUED', 'PROCESSING'].includes(task.status));
+    const owned = terminal.filter(task => task.ownerUid === ownerUid);
+    while (owned.length >= 100) this.tasks.delete(owned.shift()!.taskId);
+    while (this.tasks.size >= 1000 && terminal.length) this.tasks.delete(terminal.shift()!.taskId);
+    if (this.tasks.size >= 1000) throw new ResourceLimitError(503);
+    const release = this.limits?.task(ownerUid);
     const taskId = `liam-task-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
     const task: VaosTask = {
       taskId,
@@ -241,7 +252,7 @@ export class VaosOrchestrator {
 
     // Execute asynchronously via real background execution pipeline
     setImmediate(() => {
-      this.processAsyncTask(taskId);
+      this.processAsyncTask(taskId).then(() => release?.(), () => release?.());
     });
 
     return task;
@@ -263,7 +274,7 @@ export class VaosOrchestrator {
 
     try {
       if (apiKey && apiKey !== 'MY_GEMINI_API_KEY') {
-        const ai = new GoogleGenAI({ apiKey });
+        const ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: 30000, retryOptions: { attempts: 1 } } });
         
         let agentDirective = 'Eres un agente operativo autónomo del sistema VVC LIAM CORE.';
         if (task.agentId.includes('vladimir')) {
@@ -287,6 +298,7 @@ export class VaosOrchestrator {
             response = await ai.models.generateContent({
               model: m,
               contents: fullPrompt,
+              config: { maxOutputTokens: 4096 },
             });
             if (response?.text) break;
           } catch (modelErr: any) {
@@ -382,8 +394,9 @@ export const vaosService = new VaosOrchestrator();
 /**
  * Creates VAOS Express Router
  */
-export function createVaosRouter(): Router {
+export function createVaosRouter(limits?: BackendLimits): Router {
   const router = express.Router();
+  const service = limits ? new VaosOrchestrator(limits) : vaosService;
 
   // POST /api/vaos/dispatch
   router.post('/dispatch', (req: Request, res: Response) => {
@@ -431,7 +444,7 @@ export function createVaosRouter(): Router {
         },
       };
 
-      vaosService.recordTelemetry({
+      service.recordTelemetry({
         ownerUid: req.auth!.uid,
         timestamp: Date.now(),
         taskId: `fast-${Date.now()}`,
@@ -448,7 +461,7 @@ export function createVaosRouter(): Router {
     }
 
     // 3. ASYNC PATH EXECUTION (P0_CRITICAL / P1_HIGH Queue)
-    const task = vaosService.enqueueTask(req.auth!.uid, command, agentId, policy.priority, injectedSkills);
+    const task = service.enqueueTask(req.auth!.uid, command, agentId, policy.priority, injectedSkills);
 
     return res.json({
       route: 'ASYNC_PATH' as TaskRoute,
@@ -466,7 +479,7 @@ export function createVaosRouter(): Router {
   // GET /api/vaos/task/:taskId
   router.get('/task/:taskId', (req: Request, res: Response) => {
     const { taskId } = req.params;
-    const task = vaosService.getTask(taskId, req.auth!.uid);
+    const task = service.getTask(taskId, req.auth!.uid);
     if (!task) {
       return res.status(404).json({ error: `Tarea no encontrada: ${taskId}` });
     }
@@ -475,12 +488,12 @@ export function createVaosRouter(): Router {
 
   // GET /api/vaos/tasks
   router.get('/tasks', (req: Request, res: Response) => {
-    return res.json(vaosService.listTasks(req.auth!.uid));
+    return res.json(service.listTasks(req.auth!.uid));
   });
 
   // GET /api/vaos/telemetry
   router.get('/telemetry', (req: Request, res: Response) => {
-    return res.json(vaosService.getTelemetry(req.auth!.uid));
+    return res.json(service.getTelemetry(req.auth!.uid));
   });
 
   // GET /api/vaos/health
