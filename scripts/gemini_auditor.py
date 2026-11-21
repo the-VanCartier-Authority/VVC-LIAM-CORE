@@ -8,6 +8,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path, PurePosixPath
+from http.client import HTTPException
 from time import monotonic
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
@@ -62,20 +63,130 @@ MAX_BYTES = 192 * 1024
 GITHUB_TIMEOUT_SECONDS = 30
 GEMINI_TIMEOUT_SECONDS = 240
 PROBE_CATALOG_TIMEOUT_SECONDS = 45
+MAX_ERROR_BYTES = 64 * 1024
+RPC_STATUSES = {
+    "INVALID_ARGUMENT", "FAILED_PRECONDITION", "PERMISSION_DENIED", "RESOURCE_EXHAUSTED",
+    "UNAUTHENTICATED", "UNAVAILABLE", "INTERNAL", "NOT_FOUND", "DEADLINE_EXCEEDED",
+    "UNKNOWN", "CANCELLED", "OUT_OF_RANGE", "ALREADY_EXISTS", "DATA_LOSS", "ABORTED",
+}
+ERROR_REASONS = {
+    "API_KEY_INVALID", "API_KEY_SERVICE_BLOCKED", "API_KEY_HTTP_REFERRER_BLOCKED",
+    "RATE_LIMIT_EXCEEDED", "QUOTA_EXCEEDED", "BILLING_DISABLED",
+    "FREE_TIER_VERIFICATION_REQUIRED", "MODEL_NOT_FOUND", "ACCESS_DENIED",
+}
 
 
 class AuditError(Exception):
     """An audit that cannot establish a defensible result."""
 
-    def __init__(self, message, *, code="validation_error", reference=None):
+    def __init__(self, message, *, code="validation_error", reference=None, api_diagnostic=None):
         super().__init__(message)
         self.code = code
         self.reference = reference
+        self.api_diagnostic = api_diagnostic
 
 
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
+
+
+def request_metadata(payload, body):
+    """Describe serialized bytes, never retain a prompt or authentication headers."""
+    config = payload.get("generationConfig", {})
+    schema = config.get("responseJsonSchema", {})
+    schema_bytes = json.dumps(schema).encode()
+    return {
+        "body_bytes": len(body), "body_sha256": hashlib.sha256(body).hexdigest(),
+        "schema_bytes": len(schema_bytes), "schema_sha256": hashlib.sha256(schema_bytes).hexdigest(),
+        "max_output_tokens": config.get("maxOutputTokens"),
+        "json_output": config.get("responseMimeType") == "application/json",
+        "thinking_config_present": "thinkingConfig" in config,
+    }
+
+
+def sanitize_http_error(error):
+    """Read a bounded error in memory; persist only enums, counts and numeric delays."""
+    safe = {"http_status": error.code, "rpc_status": None, "message_tags": [],
+            "detail_types": [], "fields": [], "reasons": []}
+    headers = error.headers or {}
+    retry_after = headers.get("Retry-After", "")
+    if isinstance(retry_after, str) and re.fullmatch(r"[0-9]{1,4}", retry_after) and int(retry_after) <= 3600:
+        safe["retry_after_seconds"] = int(retry_after)
+    request_id = headers.get("x-request-id", "")
+    if isinstance(request_id, str) and 0 < len(request_id) <= 256:
+        safe["request_id_sha256"] = hashlib.sha256(request_id.encode()).hexdigest()
+    try:
+        raw = error.read(MAX_ERROR_BYTES + 1)
+        safe["error_body_state"] = "truncated" if len(raw) > MAX_ERROR_BYTES else "empty"
+        if not raw or len(raw) > MAX_ERROR_BYTES:
+            return safe
+        data = json.loads(raw)
+        data = data.get("error", {}) if isinstance(data, dict) else {}
+        if not isinstance(data, dict):
+            safe["error_body_state"] = "invalid_json"
+            return safe
+    except (OSError, HTTPException, ValueError, TypeError, RecursionError):
+        safe["error_body_state"] = "unreadable_or_invalid_json"
+        return safe
+    safe["error_body_state"] = "json"
+    status = data.get("status")
+    safe["rpc_status"] = status if isinstance(status, str) and status in RPC_STATUSES else None
+    messages = [data.get("message", "")]
+    details = data.get("details", [])
+    for detail in details[:8] if isinstance(details, list) else []:
+        if not isinstance(detail, dict):
+            continue
+        kind = detail.get("@type")
+        kinds = {f"type.googleapis.com/google.rpc.{name}": name
+                 for name in ("BadRequest", "QuotaFailure", "RetryInfo", "ErrorInfo")}
+        if not isinstance(kind, str) or kind not in kinds:
+            continue
+        kind = kinds[kind]
+        safe["detail_types"].append(kind)
+        if kind == "BadRequest":
+            violations = detail.get("fieldViolations", [])
+            for violation in violations[:8] if isinstance(violations, list) else []:
+                if not isinstance(violation, dict):
+                    continue
+                messages.append(violation.get("description", ""))
+                field = violation.get("field", "")
+                if not isinstance(field, str):
+                    continue
+                field = field.replace("_", "").lower()
+                for prefix in ("generationConfig.responseJsonSchema", "generationConfig.maxOutputTokens",
+                               "generationConfig.thinkingConfig", "contents", "systemInstruction", "model"):
+                    normalized = prefix.lower()
+                    if field == normalized or field.startswith((normalized + ".", normalized + "[")):
+                        safe["fields"].append(prefix)
+                        break
+        elif kind == "QuotaFailure":
+            violations = detail.get("violations", [])
+            if isinstance(violations, list):
+                safe["quota_violation_count"] = min(len(violations), 1000)
+        elif kind == "RetryInfo":
+            delay = detail.get("retryDelay", "")
+            if isinstance(delay, str) and re.fullmatch(r"[0-9]{1,4}(?:\.[0-9]{1,9})?s", delay):
+                seconds = float(delay[:-1])
+                if seconds <= 3600:
+                    safe["retry_delay_seconds"] = seconds
+        elif kind == "ErrorInfo":
+            reason = detail.get("reason")
+            if isinstance(reason, str) and reason in ERROR_REASONS:
+                safe["reasons"].append(reason)
+    # Pattern labels are hints, not a stored provider message or proof of root cause.
+    message = " ".join(x[:8192].lower() for x in messages if isinstance(x, str))
+    patterns = {
+        "schema_complexity": r"too many (?:states|branches)|schema.{0,80}(?:too complex|too large|complexity)|constraint.{0,80}too many",
+        "schema_parameter": r"response[_ ]?json[_ ]?schema|response[_ ]?schema",
+        "model_or_parameter_restriction": r"not supported.{0,80}model|model.{0,80}(?:not support|not found|not available)",
+        "quota_or_rate_limit": r"quota|rate limit|resource.exhausted",
+        "service_unavailable": r"unavailable|overloaded|high demand",
+    }
+    safe["message_tags"] = [tag for tag, pattern in patterns.items() if re.search(pattern, message)]
+    for key in ("detail_types", "fields", "reasons"):
+        safe[key] = sorted(set(safe[key]))
+    return safe
 
 
 def api_json(url, headers, payload=None, *, timeout=None):
@@ -84,14 +195,33 @@ def api_json(url, headers, payload=None, *, timeout=None):
     if timeout is None:
         timeout = GEMINI_TIMEOUT_SECONDS if gemini else GITHUB_TIMEOUT_SECONDS
     body = None if payload is None else json.dumps(payload).encode()
+    diagnostic = {"service": service}
+    if gemini:
+        resource = url[len(GEMINI_MODELS_URL):]
+        model = resource.removesuffix(":generateContent")
+        diagnostic.update(api_version="v1beta", model=model if model in MODELS else None,
+                          operation="generateContent" if resource.endswith(":generateContent") else "getModel")
+    if gemini and payload is not None:
+        diagnostic["request"] = request_metadata(payload, body)
+        if len(body) > MAX_BYTES:
+            raise AuditError("Gemini: la solicitud completa excede el presupuesto de bytes.",
+                             code="oversize_request", api_diagnostic=diagnostic)
     request = Request(url, data=body, headers=headers)
     phase = "antes de recibir cabeceras"
+    started = monotonic()
     try:
         with build_opener(NoRedirect()).open(request, timeout=timeout) as response:
             phase = "al leer el cuerpo"
             raw = response.read(2 * 1024 * 1024 + 1)
     except HTTPError as error:
-        raise AuditError(f"{service}: HTTP {error.code}.", code=f"http_{error.code}") from None
+        try:
+            if gemini:
+                diagnostic.update(sanitize_http_error(error))
+        finally:
+            error.close()
+        diagnostic["elapsed_seconds"] = round(monotonic() - started, 3)
+        raise AuditError(f"{service}: HTTP {error.code}.", code=f"http_{error.code}",
+                         api_diagnostic=diagnostic) from None
     except URLError as error:
         if isinstance(error.reason, TimeoutError):
             code = "timeout_headers" if phase == "antes de recibir cabeceras" else "timeout_body"
@@ -209,30 +339,24 @@ def verify_ci(ci_id, candidate, trusted, repo, token, request):
 
 
 def response_schema(controls, files):
-    references = []
-    for path, content in files.items():
-        lines = len(content.splitlines())
-        if not lines:
-            continue
-        references.append({
-            "type": "object", "required": ["path", "start", "end"],
-            "additionalProperties": False,
-            "properties": {
-                "path": {"type": "string", "enum": [path]},
-                "start": {"type": "integer", "minimum": 1, "maximum": lines},
-                "end": {"type": "integer", "minimum": 1, "maximum": lines},
-            },
-        })
-    if not references:
+    paths = [path for path, content in files.items() if content.splitlines()]
+    if not paths:
         raise AuditError("El alcance no contiene líneas citables.")
+    # Keep remote grammar small. validate_report enforces per-file bounds, order,
+    # at most eight references and exact B02 coverage before accepting any report.
+    reference = {
+        "type": "object", "required": ["path", "start", "end"],
+        "additionalProperties": False,
+        "properties": {"path": {"type": "string", "enum": paths},
+                       "start": {"type": "integer"}, "end": {"type": "integer"}},
+    }
     item = {
         "type": "object", "required": ["control", "estado", "hallazgo", "referencias"],
         "additionalProperties": False,
         "properties": {"control": {"type": "string", **({"enum": list(controls)} if controls else {})},
                        "estado": {"type": "string", "enum": STATES},
                        "hallazgo": {"type": "string"},
-                       "referencias": {"type": "array", "maxItems": 8,
-                                       "items": {"anyOf": references}}},
+                       "referencias": {"type": "array", "items": reference}},
     }
     return {"type": "object", "required": ["resultados"], "additionalProperties": False,
             "properties": {"resultados": {"type": "array", "items": item,
@@ -406,6 +530,8 @@ def probe(env, request=api_json):
     except AuditError as error:
         stage.update(status="SIN_DICTAMEN", elapsed_seconds=round(monotonic() - started, 3),
                      error_code=error.code)
+        if error.api_diagnostic is not None:
+            stage["api_diagnostic"] = error.api_diagnostic
         raise
     except (OSError, ValueError, TypeError, KeyError, AttributeError):
         stage.update(status="SIN_DICTAMEN", elapsed_seconds=round(monotonic() - started, 3),
@@ -513,6 +639,8 @@ def fail_audit(env, error):
             "recovery_ci_id_input": int(ci_input) if re.fullmatch(r"[1-9][0-9]{0,18}", ci_input) else None,
             "error_code": error.code, "reference": error.reference,
         }
+        if error.api_diagnostic is not None:
+            report["api_diagnostic"] = error.api_diagnostic
         name = f"audit-diagnostic-{sha}-run-{run}-{attempt}"
         path = Path(env["RUNNER_TEMP"]) / f"{name}.json"
         path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

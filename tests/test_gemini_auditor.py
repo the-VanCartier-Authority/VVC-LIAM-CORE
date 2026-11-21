@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from http.client import IncompleteRead
 from contextlib import redirect_stderr, redirect_stdout
 from unittest.mock import Mock, patch
 from urllib.error import HTTPError, URLError
@@ -18,6 +19,111 @@ SPEC.loader.exec_module(auditor)
 
 
 class ApiDiagnosticsTests(unittest.TestCase):
+    def http_failure(self, status, body, headers=None, payload=None):
+        url = auditor.GEMINI_MODELS_URL + "gemini-3.5-flash-lite:generateContent"
+        with patch.object(auditor, "build_opener") as builder:
+            opener = builder.return_value
+            opener.open.side_effect = HTTPError(url, status, "PRIVATE_REASON", headers,
+                                                io.BytesIO(body))
+            with self.assertRaises(auditor.AuditError) as caught:
+                auditor.api_json(url, {"x-goog-api-key": "PRIVATE_KEY"}, payload or {})
+            self.assertEqual(opener.open.call_count, 1)  # No automatic retries, including 503.
+        return caught.exception
+
+    def test_schema_rejection_preserves_only_fixed_labels_and_field_prefixes(self):
+        body = {"error": {"status": "INVALID_ARGUMENT", "message":
+            "PRIVATE_PROMPT: response_json_schema produces too many states",
+            "details": [{"@type": "type.googleapis.com/google.rpc.BadRequest",
+                "fieldViolations": [{"field": "generation_config.response_json_schema.PRIVATE_PATH",
+                                     "description": "PRIVATE_DESCRIPTION"},
+                                    {"field": "PRIVATE_OTHER_FIELD"}]}]}}
+        error = self.http_failure(400, json.dumps(body).encode(),
+            {"Retry-After": "3", "x-request-id": "PRIVATE_ID", "Authorization": "PRIVATE_AUTH"})
+        d = error.api_diagnostic
+        self.assertEqual(error.code, "http_400")
+        self.assertEqual(d["rpc_status"], "INVALID_ARGUMENT")
+        self.assertEqual(d["fields"], ["generationConfig.responseJsonSchema"])
+        self.assertIn("schema_complexity", d["message_tags"])
+        self.assertEqual(d["retry_after_seconds"], 3)
+        self.assertEqual(len(d["request_id_sha256"]), 64)
+        self.assertEqual(d["operation"], "generateContent")
+        self.assertNotIn("PRIVATE_", json.dumps(d) + str(error))
+
+    def test_quota_and_retry_info_exclude_project_and_quota_dimensions(self):
+        body = {"error": {"status": "RESOURCE_EXHAUSTED", "message": "quota exhausted PRIVATE_BODY",
+            "details": [{"@type": "type.googleapis.com/google.rpc.QuotaFailure", "violations": [
+                {"subject": "PRIVATE_PROJECT", "description": "PRIVATE_DESCRIPTION",
+                 "quotaDimensions": {"PRIVATE_NAME": "PRIVATE_VALUE"}}]},
+                {"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": "2.5s"},
+                {"@type": "type.googleapis.com/google.rpc.ErrorInfo", "reason": "QUOTA_EXCEEDED",
+                 "metadata": {"api_key": "PRIVATE_KEY"}}]}}
+        d = self.http_failure(429, json.dumps(body).encode()).api_diagnostic
+        self.assertEqual(d["rpc_status"], "RESOURCE_EXHAUSTED")
+        self.assertEqual(d["quota_violation_count"], 1)
+        self.assertEqual(d["retry_delay_seconds"], 2.5)
+        self.assertEqual(d["reasons"], ["QUOTA_EXCEEDED"])
+        self.assertNotIn("PRIVATE_", json.dumps(d))
+
+    def test_unavailability_is_distinct_from_quota_without_retrying(self):
+        body = {"error": {"status": "UNAVAILABLE", "message": "Model overloaded PRIVATE_TEXT"}}
+        d = self.http_failure(503, json.dumps(body).encode()).api_diagnostic
+        self.assertEqual(d["http_status"], 503)
+        self.assertEqual(d["rpc_status"], "UNAVAILABLE")
+        self.assertEqual(d["message_tags"], ["service_unavailable"])
+        self.assertNotIn("quota_violation_count", d)
+        self.assertNotIn("PRIVATE_", json.dumps(d))
+
+    def test_unknown_provider_fields_cannot_become_saved_strings(self):
+        body = {"error": {"status": "PRIVATE_STATUS", "message": "PRIVATE_BODY", "details": [
+            {"@type": "PRIVATE_TYPE", "value": "PRIVATE_DATA"},
+            {"@type": "type.googleapis.com/google.rpc.ErrorInfo", "reason": "PRIVATE_REASON"},
+            {"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": "PRIVATE_DELAY"}]}}
+        d = self.http_failure(400, json.dumps(body).encode(), {"Retry-After": "PRIVATE_HEADER"}).api_diagnostic
+        self.assertIsNone(d["rpc_status"])
+        self.assertEqual(d["reasons"], [])
+        self.assertNotIn("retry_delay_seconds", d)
+        self.assertNotIn("PRIVATE_", json.dumps(d))
+
+    def test_non_json_oversize_empty_or_unreadable_error_keeps_http_failure(self):
+        for body, state in ((b"PRIVATE_HTML", "unreadable_or_invalid_json"),
+                            (b"x" * (auditor.MAX_ERROR_BYTES + 1), "truncated"),
+                            (b"", "empty")):
+            with self.subTest(state=state):
+                d = self.http_failure(503, body).api_diagnostic
+                self.assertEqual(d["http_status"], 503)
+                self.assertEqual(d["error_body_state"], state)
+                self.assertIsNone(d["rpc_status"])
+        for failure in (TimeoutError("PRIVATE_SOCKET_ERROR"), IncompleteRead(b"PRIVATE_PARTIAL_BODY")):
+            stream = Mock()
+            stream.read.side_effect = failure
+            error = HTTPError("https://example.invalid", 400, "private", None, stream)
+            self.assertEqual(auditor.sanitize_http_error(error)["error_body_state"],
+                             "unreadable_or_invalid_json")
+            stream.read.assert_called_once_with(auditor.MAX_ERROR_BYTES + 1)
+
+    def test_exact_serialized_body_metrics_include_unicode_escaping_and_schema(self):
+        import hashlib
+        payload = {"contents": [{"parts": [{"text": "PRIVATE_PROMPT á"}]}],
+            "generationConfig": {"responseMimeType": "application/json",
+                                 "responseJsonSchema": {"type": "object"}, "maxOutputTokens": 8192}}
+        d = self.http_failure(400, b"{}", payload=payload).api_diagnostic["request"]
+        wire = json.dumps(payload).encode()
+        self.assertEqual(d["body_bytes"], len(wire))
+        self.assertEqual(d["body_sha256"], hashlib.sha256(wire).hexdigest())
+        self.assertEqual(d["schema_bytes"], len(json.dumps({"type": "object"}).encode()))
+        self.assertEqual(d["max_output_tokens"], 8192)
+        self.assertFalse(d["thinking_config_present"])
+        self.assertNotIn("PRIVATE_", json.dumps(d))
+
+    def test_full_wire_budget_rejects_unicode_expansion_before_opening_connection(self):
+        payload = {"contents": [{"parts": [{"text": "á" * 40000}]}]}
+        self.assertLess(len(json.dumps(payload, ensure_ascii=False).encode()), auditor.MAX_BYTES)
+        with patch.object(auditor, "build_opener") as builder:
+            with self.assertRaises(auditor.AuditError) as caught:
+                auditor.api_json(auditor.GEMINI_MODELS_URL + "test:generateContent", {}, payload)
+            self.assertEqual(caught.exception.code, "oversize_request")
+            builder.assert_not_called()
+
     def test_gemini_timeout_while_waiting_for_headers_or_body(self):
         url = auditor.GEMINI_MODELS_URL + "test:generateContent"
         for failure in (TimeoutError("private details"), URLError(TimeoutError("private details")), None):
@@ -336,21 +442,25 @@ class AuditTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, "reference_out_of_scope")
         self.assertEqual(caught.exception.reference["line_count"], 1)
 
-    def test_schema_binds_each_path_to_its_own_line_bounds(self):
+    def test_simple_remote_schema_keeps_per_file_bounds_in_local_validation(self):
         files = {"one.ts": "x\n", "two.ts": "x\ny\n", "empty.ts": ""}
         schema = auditor.response_schema(auditor.B02_CONTROLS, files)
         results = schema["properties"]["resultados"]
         self.assertEqual((results["minItems"], results["maxItems"]), (5, 5))
         refs = results["items"]["properties"]["referencias"]
-        self.assertEqual(refs["maxItems"], 8)
-        variants = refs["items"]["anyOf"]
-        self.assertEqual(len(variants), 2)
-        indexed = {variant["properties"]["path"]["enum"][0]: variant for variant in variants}
-        self.assertEqual(set(indexed), {"one.ts", "two.ts"})
-        for path, limit in (("one.ts", 1), ("two.ts", 2)):
-            for field in ("start", "end"):
-                self.assertEqual(indexed[path]["properties"][field],
-                                 {"type": "integer", "minimum": 1, "maximum": limit})
+        self.assertEqual(refs["items"]["properties"]["path"]["enum"], ["one.ts", "two.ts"])
+        self.assertNotIn("anyOf", json.dumps(schema))
+        self.assertNotIn("maximum", json.dumps(schema))
+        for path, start, end in (("one.ts", 1, 2), ("two.ts", 0, 1), ("two.ts", 2, 1),
+                                 ("empty.ts", 1, 1), ("unknown.ts", 1, 1), ("one.ts", True, 1)):
+            self.items[0]["referencias"] = [{"path": path, "start": start, "end": end}]
+            with self.subTest(path=path, start=start, end=end), self.assertRaises(auditor.AuditError):
+                auditor.validate_report({"resultados": self.items}, files, auditor.B02_CONTROLS)
+        self.items[0]["referencias"] = [{"path": "two.ts", "start": 1, "end": 2}]
+        auditor.validate_report({"resultados": self.items}, files, auditor.B02_CONTROLS)
+        self.items[0]["referencias"] *= 9
+        with self.assertRaises(auditor.AuditError):
+            auditor.validate_report({"resultados": self.items}, files, auditor.B02_CONTROLS)
 
     def test_numbering_does_not_change_the_original_validation_snapshot(self):
         self.put("scope/file.ts", "first\r\n\r\nthird\r\n")
@@ -409,6 +519,34 @@ class AuditTests(unittest.TestCase):
         self.assertEqual(report["candidate_sha"], self.candidate)
         self.assertEqual(report["status"], "SIN_DICTAMEN")
         self.assertNotIn("resultados", report)
+
+    def test_http_failures_publish_sanitized_metadata_and_never_an_audit(self):
+        real_audit = auditor.audit
+        for status, rpc_status in ((400, "INVALID_ARGUMENT"), (503, "UNAVAILABLE")):
+            with self.subTest(status=status), patch.object(auditor, "build_opener") as builder:
+                body = json.dumps({"error": {"status": rpc_status, "message": "PRIVATE_PROVIDER_BODY"}}).encode()
+                opener = builder.return_value
+                opener.open.side_effect = HTTPError(auditor.GEMINI_MODELS_URL, status,
+                    "PRIVATE_REASON", {}, io.BytesIO(body))
+                def request(url, headers, payload=None):
+                    return self.request(url, headers, payload) if "api.github.com" in url else auditor.api_json(url, headers, payload)
+                log = io.StringIO()
+                with patch.dict(os.environ, self.env, clear=True), patch.object(auditor.sys, "argv", ["auditor"]):
+                    with patch.object(auditor, "audit", side_effect=lambda env: real_audit(env, request)):
+                        with redirect_stderr(log), redirect_stdout(log):
+                            self.assertEqual(auditor.main(), 1)
+                files = list(Path(self.env["RUNNER_TEMP"]).glob("audit-diagnostic-*.json"))
+                self.assertEqual(len(files), 1)
+                text = files[0].read_text()
+                report = json.loads(text)
+                self.assertFalse(report["is_audit"])
+                self.assertEqual(report["status"], "SIN_DICTAMEN")
+                self.assertEqual(report["api_diagnostic"]["rpc_status"], rpc_status)
+                self.assertEqual(report["api_diagnostic"]["request"]["max_output_tokens"], 8192)
+                self.assertNotIn("resultados", report)
+                for marker in ("PRIVATE_", "fixture-gemini-key", "fixture-github-token", "export const"):
+                    self.assertNotIn(marker, text + log.getvalue())
+                self.assertEqual(opener.open.call_count, 1)
 
     def test_unsubstantiated_positive_is_rejected(self):
         self.items[0]["estado"] = "VERIFICADO_EN_CODIGO"
